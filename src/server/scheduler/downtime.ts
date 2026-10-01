@@ -1,4 +1,6 @@
-import type { Interval, SchedulerSettings } from "./types";
+import "server-only";
+import type { SchedulerSettings } from "@/lib/settings";
+import type { Interval } from "./intervals";
 
 /** Returns the downtime within `range` as exact times, sorted by start. */
 export function downtimeIntervals(range: Interval, settings: SchedulerSettings): Interval[] {

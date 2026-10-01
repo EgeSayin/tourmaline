@@ -1,16 +1,4 @@
-import type { TimeZone } from "./time-zone";
-
-/** `end` is exclusive. */
-export interface Interval {
-  start: Date;
-  end: Date;
-}
-
-/** Local time of day in minutes after midnight. Wraps past midnight when `endMinute < startMinute`. */
-export interface DailyWindow {
-  startMinute: number;
-  endMinute: number;
-}
+import type { DailyWindow } from "./time-of-day";
 
 export type Priority = "mandatory" | "high" | "normal" | "low";
 
@@ -44,12 +32,3 @@ export interface FlexibleItem extends BaseItem {
 }
 
 export type Item = FixedItem | FlexibleItem;
-
-export interface SchedulerSettings {
-  timeZone: TimeZone;
-  downtime: DailyWindow;
-}
-
-export const DEFAULT_SETTINGS: Omit<SchedulerSettings, "timeZone"> = {
-  downtime: { startMinute: 23 * 60, endMinute: 10 * 60 },
-};

@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { mergeIntervals, subtractIntervals } from "@/lib/scheduler/intervals";
-import type { Interval } from "@/lib/scheduler/types";
+import { type Interval, mergeIntervals, subtractIntervals } from "@/server/scheduler/intervals";
 
 function iv(start: string, end: string): Interval {
   return {

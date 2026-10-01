@@ -59,19 +59,3 @@ export type TimeZone = (typeof TIME_ZONES)[number];
 export function isTimeZone(value: string): value is TimeZone {
   return (TIME_ZONES as readonly string[]).includes(value);
 }
-
-export interface TimeZoneOption {
-  value: TimeZone;
-  /** UTC offset at the given instant, e.g. "-04:00". */
-  offset: string;
-}
-
-/** Unique zones sorted by their UTC offset at `now`, then by name. */
-export function timeZoneOptions(now: Temporal.Instant = Temporal.Now.instant()): TimeZoneOption[] {
-  return [...new Set(TIME_ZONES)]
-    .map((value) => ({ value, zoned: now.toZonedDateTimeISO(value) }))
-    .sort(
-      (a, b) => a.zoned.offsetNanoseconds - b.zoned.offsetNanoseconds || a.value.localeCompare(b.value),
-    )
-    .map(({ value, zoned }) => ({ value, offset: zoned.offset }));
-}

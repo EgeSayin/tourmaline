@@ -1,4 +1,10 @@
-import type { Interval } from "./types";
+import "server-only";
+
+/** `end` is exclusive. */
+export interface Interval {
+  start: Date;
+  end: Date;
+}
 
 /** Returns the intervals sorted by start, with overlapping or touching ones merged. */
 export function mergeIntervals(intervals: Interval[]): Interval[] {

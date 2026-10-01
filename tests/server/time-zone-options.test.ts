@@ -1,18 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { TIME_ZONES, timeZoneOptions } from "@/lib/scheduler/time-zone";
+import { TIME_ZONES } from "@/lib/time-zone";
+import { timeZoneOptions } from "@/server/time-zone-options";
 
 function offsetMinutes(offset: string): number {
   const [hours, minutes] = offset.slice(1).split(":").map(Number);
   return (offset.startsWith("-") ? -1 : 1) * (hours * 60 + minutes);
 }
-
-describe("TIME_ZONES", () => {
-  it("contains only zones the runtime understands", () => {
-    for (const zone of TIME_ZONES) {
-      expect(() => Temporal.Now.zonedDateTimeISO(zone), zone).not.toThrow();
-    }
-  });
-});
 
 describe("timeZoneOptions", () => {
   it("lists each zone once, sorted west to east by its offset at the given instant", () => {

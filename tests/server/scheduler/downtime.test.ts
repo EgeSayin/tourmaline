@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { downtimeIntervals } from "@/lib/scheduler/downtime";
-import type { SchedulerSettings } from "@/lib/scheduler/types";
+import { downtimeIntervals } from "@/server/scheduler/downtime";
+import type { SchedulerSettings } from "@/lib/settings";
 
 function utc(start: string, end: string) {
   return { start: new Date(`${start}Z`), end: new Date(`${end}Z`) };
