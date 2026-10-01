@@ -8,7 +8,10 @@
     "start": "next start -H 0.0.0.0",
     "lint": "eslint",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "test:unit": "vitest run --tagsFilter unit",
+    "test:integration": "vitest run --tagsFilter integration --passWithNoTests",
+    "test:critical": "vitest run --tagsFilter critical"
   },
   "dependencies": {
     "@base-ui/react": "^1.8.0",

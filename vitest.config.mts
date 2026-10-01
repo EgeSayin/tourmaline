@@ -13,5 +13,20 @@ export default defineConfig({
     include: ["tests/**/*.test.ts"],
     // Playwright specs live in tests/e2e and run with their own runner.
     exclude: ["tests/e2e/**", "node_modules/**"],
+    tags: [
+      {
+        name: "unit",
+        description: "Runs in isolation, without external services.",
+      },
+      {
+        name: "integration",
+        description: "Needs external services such as Postgres.",
+        timeout: 30_000,
+      },
+      {
+        name: "critical",
+        description: "A failure that wouldn't be caught easily without running these tests and is critical for the core functionality.",
+      },
+    ],
   },
 });

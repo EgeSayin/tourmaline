@@ -6,7 +6,7 @@ function utc(start: string, end: string) {
   return { start: new Date(`${start}Z`), end: new Date(`${end}Z`) };
 }
 
-describe("downtimeIntervals", () => {
+describe("downtimeIntervals", { tags: ["unit", "critical"] }, () => {
   it("returns local overnight downtime as exact times, across a DST change, clipped to the range", () => {
     const settings: SchedulerSettings = {
       timeZone: "America/New_York",

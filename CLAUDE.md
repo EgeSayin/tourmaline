@@ -19,6 +19,8 @@ tests/          mirrors src/
 # Tests
 
 - Vitest, in `tests/`. Prefer a few comprehensive scenario tests over many single-assertion tests.
+- Tag tests `unit` (runs in isolation) or `integration` (needs external services). Set up services through lazy fixtures so unit runs never touch them.
+- Tag `critical` when a failure wouldn't be caught easily without the test and breaks core functionality.
 
 # Code style
 

@@ -8,7 +8,7 @@ function iv(start: string, end: string): Interval {
   };
 }
 
-describe("mergeIntervals", () => {
+describe("mergeIntervals", { tags: ["unit", "critical"] }, () => {
   it("sorts busy blocks and merges overlapping, touching, and nested ones", () => {
     const busy = [
       iv("16:00", "17:00"),
@@ -26,7 +26,7 @@ describe("mergeIntervals", () => {
   });
 });
 
-describe("subtractIntervals", () => {
+describe("subtractIntervals", { tags: ["unit", "critical"] }, () => {
   it("removes busy blocks from free time, splitting and trimming as needed", () => {
     const free = [iv("14:00", "20:00"), iv("10:00", "12:00")];
     const busy = [
