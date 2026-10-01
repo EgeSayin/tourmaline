@@ -11,7 +11,9 @@
     "test:watch": "vitest",
     "test:unit": "vitest run --tagsFilter unit",
     "test:integration": "vitest run --tagsFilter integration --passWithNoTests",
-    "test:critical": "vitest run --tagsFilter critical"
+    "test:critical": "vitest run --tagsFilter critical",
+    "test:unit:example": "vitest run --tagsFilter 'unit && !property'",
+    "test:unit:property": "vitest run --tagsFilter 'unit && property'"
   },
   "dependencies": {
     "@base-ui/react": "^1.8.0",
@@ -35,6 +37,7 @@
     "drizzle-kit": "^0.31.11",
     "eslint": "^9",
     "eslint-config-next": "16.3.7",
+    "fast-check": "^4.10.2",
     "tailwindcss": "^4",
     "typescript": "^6.0.3",
     "vitest": "^5.0.2"

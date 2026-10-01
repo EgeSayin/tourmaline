@@ -24,6 +24,10 @@ export default defineConfig({
         timeout: 30_000,
       },
       {
+        name: "property",
+        description: "Property-based: checks guarantees against generated inputs.",
+      },
+      {
         name: "critical",
         description: "A failure that wouldn't be caught easily without running these tests and is critical for the core functionality.",
       },
