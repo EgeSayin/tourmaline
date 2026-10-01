@@ -1,3 +1,5 @@
+import type { TimeZone } from "./time-zone";
+
 /** `end` is exclusive. */
 export interface Interval {
   start: Date;
@@ -42,3 +44,12 @@ export interface FlexibleItem extends BaseItem {
 }
 
 export type Item = FixedItem | FlexibleItem;
+
+export interface SchedulerSettings {
+  timeZone: TimeZone;
+  downtime: DailyWindow;
+}
+
+export const DEFAULT_SETTINGS: Omit<SchedulerSettings, "timeZone"> = {
+  downtime: { startMinute: 23 * 60, endMinute: 10 * 60 },
+};

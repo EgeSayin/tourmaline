@@ -1,0 +1,77 @@
+export const TIME_ZONES = [
+  "Pacific/Honolulu",
+  "America/Anchorage",
+  "America/Los_Angeles",
+  "America/Denver",
+  "America/Phoenix",
+  "America/Chicago",
+  "America/Mexico_City",
+  "America/Bogota",
+  "America/Lima",
+  "America/New_York",
+  "America/Halifax",
+  "America/Santiago",
+  "America/St_Johns",
+  "America/Argentina/Buenos_Aires",
+  "America/Sao_Paulo",
+  "Europe/Dublin",
+  "Europe/Lisbon",
+  "Europe/London",
+  "UTC",
+  "Africa/Lagos",
+  "Europe/Amsterdam",
+  "Europe/Berlin",
+  "Europe/Madrid",
+  "Europe/Paris",
+  "Europe/Rome",
+  "Europe/Stockholm",
+  "Europe/Warsaw",
+  "Africa/Cairo",
+  "Africa/Johannesburg",
+  "Europe/Athens",
+  "Europe/Helsinki",
+  "Europe/Kyiv",
+  "Africa/Nairobi",
+  "Europe/Istanbul",
+  "Europe/Moscow",
+  "Asia/Tehran",
+  "Asia/Dubai",
+  "Asia/Karachi",
+  "Asia/Kolkata",
+  "Asia/Kathmandu",
+  "Asia/Dhaka",
+  "Asia/Bangkok",
+  "Asia/Jakarta",
+  "Asia/Hong_Kong",
+  "Asia/Shanghai",
+  "Asia/Singapore",
+  "Australia/Perth",
+  "Asia/Seoul",
+  "Asia/Tokyo",
+  "Australia/Adelaide",
+  "Australia/Brisbane",
+  "Australia/Sydney",
+  "Pacific/Auckland",
+] as const;
+
+export type TimeZone = (typeof TIME_ZONES)[number];
+
+export function isTimeZone(value: string): value is TimeZone {
+  return (TIME_ZONES as readonly string[]).includes(value);
+}
+
+export interface TimeZoneOption {
+  value: TimeZone;
+  /** UTC offset at the given instant, e.g. "-04:00". */
+  offset: string;
+}
+
+/** Unique zones sorted by their UTC offset at `now`, then by name. */
+export function timeZoneOptions(now: Temporal.Instant = Temporal.Now.instant()): TimeZoneOption[] {
+  return [...new Set(TIME_ZONES)]
+    .map((value) => ({ value, zoned: now.toZonedDateTimeISO(value) }))
+    .sort(
+      (a, b) => a.zoned.offsetNanoseconds - b.zoned.offsetNanoseconds || a.value.localeCompare(b.value),
+    )
+    .map(({ value, zoned }) => ({ value, offset: zoned.offset }));
+}
