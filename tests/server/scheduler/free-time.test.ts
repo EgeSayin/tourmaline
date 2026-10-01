@@ -28,11 +28,12 @@ describe("freeTimeMap", { tags: ["unit", "critical"] }, () => {
     };
     // Mon Oct 5 2026, 00:00–24:00 EDT (UTC-4).
     const range = utc("2026-10-05T04:00", "2026-10-06T04:00");
+    // Unsorted on purpose: the result must come back sorted regardless.
     const items = [
-      fixed("Lecture", "2026-10-05T15:00", "2026-10-05T16:15", 15), // 11:00–12:15, 15 min buffers
       fixed("Club", "2026-10-05T22:00", "2026-10-05T23:00"), // 18:00–19:00
-      fixed("Call", "2026-10-06T02:30", "2026-10-06T03:30"), // 22:30–23:30, runs into downtime
       fixed("Tomorrow", "2026-10-06T15:00", "2026-10-06T16:00"), // outside the range
+      fixed("Call", "2026-10-06T02:30", "2026-10-06T03:30"), // 22:30–23:30, runs into downtime
+      fixed("Lecture", "2026-10-05T15:00", "2026-10-05T16:15", 15), // 11:00–12:15, 15 min buffers
     ];
 
     expect(freeTimeMap(range, items, settings)).toEqual([

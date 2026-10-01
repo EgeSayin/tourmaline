@@ -25,3 +25,4 @@ tests/          mirrors src/
 # Code style
 
 - Comments only for non-obvious contracts or reasons. No tutorial explanations, usage advice, or comments restating the code.
+- Output guarantees stated in a doc comment must be enforced by a test. Input preconditions may be documented and assumed without tests.
