@@ -1,8 +1,14 @@
+import fc from "fast-check";
 import { describe, expect, it } from "vitest";
+import { minutesBetween } from "@/lib/duration";
 import type { SchedulerSettings } from "@/lib/settings";
-import type { Interval } from "@/server/scheduler/intervals";
+import { freeTimeMap } from "@/server/scheduler/free-time";
+import { type Interval, subtractIntervals } from "@/server/scheduler/intervals";
 import { schedule } from "@/server/scheduler/schedule";
-import { fixed, flexible } from "../../support/items";
+import { findEarliestSlot } from "@/server/scheduler/slots";
+import { intervalArb, SPAN_MIN } from "../../support/intervals";
+import { fixed, fixedItemArb, flexible, flexibleItemsArb } from "../../support/items";
+import { utcSettingsArb } from "../../support/settings";
 
 function utc(start: string, end: string): Interval {
   return { start: new Date(`${start}Z`), end: new Date(`${end}Z`) };
@@ -37,5 +43,37 @@ describe("schedule", { tags: ["unit", "critical"] }, () => {
     ]);
     // Most urgent, but after lunch only 4h45m is free before 18:00.
     expect(result.unplaced.map((task) => task.id)).toEqual(["Lab report"]);
+  });
+
+  it("places tasks only in free time inside their windows, never overlapping, leaving out only tasks that can't fit", { tags: ["property"] }, () => {
+    const fixedItemsArb = fc.array(fixedItemArb, { maxLength: 6 });
+
+    fc.assert(
+      fc.property(intervalArb(SPAN_MIN), utcSettingsArb, fixedItemsArb, flexibleItemsArb, (range, settings, fixedItems, tasks) => {
+        const { placements, unplaced } = schedule(range, fixedItems, tasks, settings);
+        const tasksById = new Map(tasks.map((task) => [task.id, task]));
+        const free = freeTimeMap(range, fixedItems, settings);
+
+        const outcomeIds = [...placements.map((p) => p.itemId), ...unplaced.map((task) => task.id)];
+        expect(outcomeIds.toSorted()).toEqual([...tasksById.keys()].toSorted());
+
+        for (const placement of placements) {
+          const task = tasksById.get(placement.itemId)!;
+          expect(minutesBetween(placement.start, placement.end)).toBe(task.durationMin);
+          expect(placement.start >= task.earliestStart && placement.end <= task.deadline).toBe(true);
+          expect(subtractIntervals([placement], free)).toEqual([]);
+        }
+
+        const byStart = placements.toSorted((a, b) => a.start.getTime() - b.start.getTime());
+        for (let i = 1; i < byStart.length; i++) {
+          expect(byStart[i - 1].end <= byStart[i].start).toBe(true);
+        }
+
+        const leftover = subtractIntervals(free, placements);
+        for (const task of unplaced) {
+          expect(findEarliestSlot(leftover, task.durationMin, { start: task.earliestStart, end: task.deadline })).toBeNull();
+        }
+      }),
+    );
   });
 });

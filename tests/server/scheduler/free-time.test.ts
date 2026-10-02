@@ -6,22 +6,14 @@ import type { DailyWindow } from "@/lib/time-of-day";
 import { freeTimeMap } from "@/server/scheduler/free-time";
 import type { Interval } from "@/server/scheduler/intervals";
 import { covers, expectSortedWithGaps, intervalArb, minuteOf, SPAN_MIN } from "../../support/intervals";
-import { fixed } from "../../support/items";
+import { fixed, fixedItemArb } from "../../support/items";
+import { utcSettingsArb } from "../../support/settings";
 
 const MINUTES_PER_DAY = 24 * 60;
 
 function utc(start: string, end: string): Interval {
   return { start: new Date(`${start}Z`), end: new Date(`${end}Z`) };
 }
-
-const downtimeArb = fc.record({
-  startMinute: fc.integer({ min: 0, max: MINUTES_PER_DAY - 1 }),
-  endMinute: fc.integer({ min: 0, max: MINUTES_PER_DAY - 1 }),
-});
-
-const fixedItemArb = fc
-  .tuple(intervalArb(), fc.integer({ min: 0, max: 90 }), fc.integer({ min: 0, max: 90 }))
-  .map(([interval, before, after]) => fixed("Item", interval, before, after));
 
 /** Assumes UTC, where generated minutes are already local time. */
 function inDowntime(minute: number, { startMinute, endMinute }: DailyWindow): boolean {
@@ -63,13 +55,12 @@ describe("freeTimeMap", { tags: ["unit", "critical"] }, () => {
     const itemsArb = fc.array(fixedItemArb, { maxLength: 8 });
 
     fc.assert(
-      fc.property(intervalArb(SPAN_MIN), downtimeArb, itemsArb, (range, downtime, items) => {
-        // Time zone handling is covered by downtimeIntervals' own tests.
-        const result = freeTimeMap(range, items, { timeZone: "UTC", downtime });
+      fc.property(intervalArb(SPAN_MIN), utcSettingsArb, itemsArb, (range, settings, items) => {
+        const result = freeTimeMap(range, items, settings);
 
         expectSortedWithGaps(result);
         for (let minute = 0; minute < SPAN_MIN; minute++) {
-          const expected = covers([range], minute) && !inDowntime(minute, downtime) && !inBufferedItem(minute, items);
+          const expected = covers([range], minute) && !inDowntime(minute, settings.downtime) && !inBufferedItem(minute, items);
           expect(covers(result, minute)).toBe(expected);
         }
       }),

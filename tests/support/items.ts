@@ -1,5 +1,7 @@
-import type { FixedItem, FlexibleItem, Priority } from "@/lib/items";
+import fc from "fast-check";
+import { type FixedItem, type FlexibleItem, PRIORITIES, type Priority } from "@/lib/items";
 import type { Interval } from "@/server/scheduler/intervals";
+import { intervalArb, SPAN_MIN } from "./intervals";
 
 export function fixed(
   title: string,
@@ -29,3 +31,15 @@ export function flexible(
     spread: "asap",
   };
 }
+
+export const fixedItemArb = fc
+  .tuple(intervalArb(), fc.integer({ min: 0, max: 90 }), fc.integer({ min: 0, max: 90 }))
+  .map(([interval, before, after]) => fixed("Fixed", interval, before, after));
+
+/** Tasks with unique ids. */
+export const flexibleItemsArb = fc
+  .array(
+    fc.tuple(fc.integer({ min: 1, max: 4 * 60 }), intervalArb(SPAN_MIN), fc.constantFrom(...PRIORITIES)),
+    { maxLength: 10 },
+  )
+  .map((tasks) => tasks.map(([durationMin, window, priority], i) => flexible(`Task ${i}`, durationMin, window, priority)));
