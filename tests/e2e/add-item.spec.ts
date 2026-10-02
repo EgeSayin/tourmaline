@@ -22,7 +22,7 @@ test.describe("adding items", () => {
     await form.getByRole("button", { name: "Add item" }).click();
 
     await expect(form).toBeHidden();
-    // Placed on the calendar or listed under "Couldn't fit": either way it was saved and scheduled.
+    // Placed on the calendar or listed in the task queue: either way it was saved and scheduled.
     await expect(page.getByText(title).first()).toBeAttached();
   });
 
