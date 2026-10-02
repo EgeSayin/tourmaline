@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseWeekParam, weekContaining, weekNavigation, weekOf } from "@/server/week";
+import { dayNavigation, daysFrom, parseDateParam, weekContaining, weekNavigation, weekOf } from "@/server/week";
 
 const at = (iso: string) => Temporal.Instant.from(iso);
 
@@ -22,12 +22,18 @@ describe("weekContaining and weekOf", { tags: ["unit", "critical"] }, () => {
       start: new Date("2026-10-26T04:00Z"),
       end: new Date("2026-11-02T05:00Z"),
     });
+
+    // Three days from Sat Oct 31 span the change too: EDT midnight to EST midnight.
+    expect(daysFrom(Temporal.PlainDate.from("2026-10-31"), 3, tz)).toEqual({
+      dates: ["2026-10-31", "2026-11-01", "2026-11-02"],
+      range: { start: new Date("2026-10-31T04:00Z"), end: new Date("2026-11-03T05:00Z") },
+    });
   });
 
-  it("parses the week parameter and links to the weeks around it", () => {
-    expect(parseWeekParam("2026-10-08")?.toString()).toBe("2026-10-08");
+  it("parses the date parameter and links to the weeks and days around it", () => {
+    expect(parseDateParam("2026-10-08")?.toString()).toBe("2026-10-08");
     for (const invalid of [undefined, "", "next", "2026-13-01", "2026-10-08T10:00", ["2026-10-08", "2026-10-15"]]) {
-      expect(parseWeekParam(invalid)).toBeUndefined();
+      expect(parseDateParam(invalid)).toBeUndefined();
     }
 
     expect(weekNavigation("2026-10-05", "2026-10-07")).toEqual({
@@ -37,5 +43,7 @@ describe("weekContaining and weekOf", { tags: ["unit", "critical"] }, () => {
     });
     expect(weekNavigation("2026-09-28", "2026-10-11").weeksFromToday).toBe(-1); // Sunday is still the later week
     expect(weekNavigation("2026-11-02", "2026-10-05").weeksFromToday).toBe(4); // across the DST change
+
+    expect(dayNavigation("2026-10-30", 3)).toEqual({ previous: "2026-10-27", next: "2026-11-02" }); // across months
   });
 });

@@ -25,7 +25,7 @@ export function ScheduleBlock({
       onClick={onSelect}
       aria-label={label}
       title={label}
-      className={`absolute inset-x-1 flex cursor-pointer flex-col justify-start overflow-hidden rounded-md px-2 text-left text-xs ${
+      className={`absolute inset-x-0.5 flex cursor-pointer flex-col justify-start overflow-hidden rounded-md px-1 text-left text-xs md:inset-x-1 md:px-2 ${
         isTiny ? "leading-3" : "py-1"
       } transition hover:brightness-95 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none dark:hover:brightness-125 ${BLOCK_STYLES[block.style].className} ${
         block.faded ? "opacity-60" : ""

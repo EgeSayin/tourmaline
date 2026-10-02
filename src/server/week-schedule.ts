@@ -1,6 +1,5 @@
 import "server-only";
 import type { FixedItem, FlexibleItem } from "@/lib/items";
-import { localDatesInRange } from "@/lib/local-time";
 import type { Placement } from "@/lib/placements";
 import type { TimeZone } from "@/lib/time-zone";
 import type { Database, Transaction } from "@/server/db/connection";
@@ -8,22 +7,21 @@ import { loadItems } from "@/server/db/items-repository";
 import { loadPlacements, replacePendingPlacements } from "@/server/db/placements-repository";
 import { loadSettings } from "@/server/db/settings-repository";
 import { planningHorizon } from "@/server/scheduler/horizon";
-import type { Interval } from "@/server/scheduler/intervals";
 import { replan } from "@/server/scheduler/replan";
 import { toDate } from "@/server/temporal";
-import { weekContaining, weekOf } from "@/server/week";
+import { daysFrom, PHONE_DAY_COUNT, weekOf } from "@/server/week";
 
 export interface WeekSchedule {
   timeZone: TimeZone;
-  /** The shown week. */
-  range: Interval;
-  /** Local dates of the shown week, Monday first. */
-  dates: string[];
+  /** Local dates of the week containing the shown date, Monday first. */
+  weekDates: string[];
+  /** Local dates of the `PHONE_DAY_COUNT` days starting on the shown date. */
+  dayDates: string[];
   /** Local date of `now`. */
   today: string;
   fixedItems: FixedItem[];
   flexibleItems: FlexibleItem[];
-  /** Placements in the shown week, sorted by start. */
+  /** Placements overlapping the week or the days, sorted by start. */
   placements: Placement[];
   /** Tasks due after now whose remaining time doesn't fit before their deadline; `durationMin` is the remaining time. */
   unplaced: FlexibleItem[];
@@ -31,7 +29,7 @@ export interface WeekSchedule {
 
 /**
  * Re-plans from `now` to the latest item date around the saved placements, saves the plan if it changed, and
- * returns the week containing `shownDate` (default: the week containing `now`). Placements before `now` count
+ * returns the week and the `PHONE_DAY_COUNT` days from `shownDate` (default: today). Placements before `now` count
  * toward each task's time. Re-planning an unchanged plan changes nothing, so repeated loads don't write.
  * `null` if no settings are saved yet.
  */
@@ -43,7 +41,10 @@ export async function loadWeekSchedule(
   const [settings, items] = await Promise.all([loadSettings(executor), loadItems(executor)]);
   if (!settings) return null;
 
-  const shown = shownDate ? weekOf(shownDate, settings.timeZone) : weekContaining(now, settings.timeZone);
+  const today = now.toZonedDateTimeISO(settings.timeZone).toPlainDate();
+  const week = weekOf(shownDate ?? today, settings.timeZone);
+  const days = daysFrom(shownDate ?? today, PHONE_DAY_COUNT, settings.timeZone);
+  const shown = { start: week.range.start, end: days.range.end > week.range.end ? days.range.end : week.range.end };
   const fixedItems = items.filter((item): item is FixedItem => item.timing === "fixed");
   const flexibleItems = items.filter((item): item is FlexibleItem => item.timing === "flexible");
   const nowDate = toDate(now);
@@ -66,12 +67,12 @@ export async function loadWeekSchedule(
 
   return {
     timeZone: settings.timeZone,
-    range: shown.range,
-    dates: localDatesInRange(shown.range, settings.timeZone),
-    today: now.toZonedDateTimeISO(settings.timeZone).toPlainDate().toString(),
+    weekDates: Array.from({ length: 7 }, (_, i) => week.monday.add({ days: i }).toString()),
+    dayDates: days.dates,
+    today: today.toString(),
     fixedItems,
     flexibleItems,
-    placements: placements.filter((p) => p.start < shown.range.end && p.end > shown.range.start),
+    placements: placements.filter((p) => p.start < shown.end && p.end > shown.start),
     unplaced: unplaced.filter((task) => task.deadline > nowDate),
   };
 }

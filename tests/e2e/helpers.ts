@@ -1,7 +1,7 @@
 import { expect, type Page, type TestInfo } from "@playwright/test";
 
 // Matches the seeded settings.
-const TIME_ZONE = "America/New_York";
+export const TIME_ZONE = "America/New_York";
 
 export const isPhone = (testInfo: TestInfo) => testInfo.project.name === "phone";
 

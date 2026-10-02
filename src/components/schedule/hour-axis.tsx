@@ -6,7 +6,7 @@ export function HourAxis({ scale }: { scale: TimeScale }) {
       {scale.hours.slice(1).map((hour) => (
         <span
           key={hour}
-          className="absolute right-2 -translate-y-1/2 text-[11px] text-muted-foreground tabular-nums"
+          className="absolute right-1 -translate-y-1/2 text-[11px] text-muted-foreground tabular-nums md:right-2"
           style={{ top: scale.top(hour * 60) }}
         >
           {String(hour).padStart(2, "0")}:00

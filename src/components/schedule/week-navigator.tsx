@@ -1,28 +1,40 @@
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import Link from "next/link";
 import { buttonVariants } from "@/components/ui/button";
-import type { WeekNavigation } from "@/server/week";
 
-export function WeekNavigator({ navigation }: { navigation: WeekNavigation }) {
+/** Previous, Today and Next links stepping by `unit`; links are `?date=` local dates. */
+export function WeekNavigator({
+  unit,
+  previous,
+  next,
+  atToday,
+  className = "",
+}: {
+  unit: "week" | "days";
+  previous: string;
+  next: string;
+  atToday: boolean;
+  className?: string;
+}) {
   return (
-    <nav className="flex items-center gap-1" aria-label="Weeks">
+    <nav className={`items-center gap-1 ${className}`} aria-label={unit === "week" ? "Weeks" : "Days"}>
       <Link
-        href={`/?week=${navigation.previous}`}
-        aria-label="Previous week"
+        href={`/?date=${previous}`}
+        aria-label={`Previous ${unit}`}
         className={buttonVariants({ variant: "outline", size: "icon" })}
       >
         <ChevronLeft />
       </Link>
       <Link
         href="/"
-        aria-disabled={navigation.weeksFromToday === 0}
+        aria-disabled={atToday}
         className={`${buttonVariants({ variant: "outline" })} aria-disabled:pointer-events-none aria-disabled:opacity-50`}
       >
         Today
       </Link>
       <Link
-        href={`/?week=${navigation.next}`}
-        aria-label="Next week"
+        href={`/?date=${next}`}
+        aria-label={`Next ${unit}`}
         className={buttonVariants({ variant: "outline", size: "icon" })}
       >
         <ChevronRight />

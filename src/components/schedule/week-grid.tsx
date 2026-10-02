@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import { useItemPanel } from "@/components/items/item-panel";
 import { toCalendarBlocks } from "@/lib/calendar-blocks";
 import { formatLocalWeekday } from "@/lib/format";
@@ -8,7 +7,6 @@ import type { FixedItem, FlexibleItem } from "@/lib/items";
 import type { Placement } from "@/lib/placements";
 import type { TimeZone } from "@/lib/time-zone";
 import { DayColumn } from "./day-column";
-import { DayNavigator } from "./day-navigator";
 import { HourAxis } from "./hour-axis";
 import { timeScaleFor } from "./time-scale";
 
@@ -19,38 +17,44 @@ export function WeekGrid({
   flexibleItems,
   placements,
   timeZone,
+  className = "",
 }: {
-  /** Local date the phone view opens on when it's in the shown week. */
+  /** Local date of now, highlighted when it's in the shown week. */
   today: string;
   dates: string[];
   fixedItems: FixedItem[];
   flexibleItems: FlexibleItem[];
   placements: Placement[];
   timeZone: TimeZone;
+  className?: string;
 }) {
-  const [selected, setSelected] = useState(Math.max(dates.indexOf(today), 0));
   const { openEdit } = useItemPanel();
   const itemsById = new Map([...fixedItems, ...flexibleItems].map((item) => [item.id, item]));
   const blocks = toCalendarBlocks(fixedItems, flexibleItems, placements, timeZone);
   const scale = timeScaleFor(blocks);
-
   return (
-    <div className="overflow-hidden rounded-xl border bg-card shadow-sm">
-      <DayNavigator dates={dates} selected={selected} onSelect={setSelected} />
-
-      <div className="grid grid-cols-[3.5rem_minmax(0,1fr)] md:grid-cols-[3.5rem_repeat(7,minmax(0,1fr))]">
-        <div className="sticky top-0 z-10 hidden border-b bg-card md:block" />
+    <div className={`overflow-hidden rounded-xl border bg-card shadow-sm ${className}`}>
+      <div
+        className="grid [--axis:2.75rem] md:[--axis:3.5rem]"
+        style={{ gridTemplateColumns: `var(--axis) repeat(${dates.length}, minmax(0, 1fr))` }}
+      >
+        <div className="sticky top-0 z-10 border-b bg-card" />
         {dates.map((date) => (
-          <div key={date} className="sticky top-0 z-10 hidden border-b border-l bg-card py-3 text-center md:block">
+          <div key={date} className="sticky top-0 z-10 border-b border-l bg-card py-2 text-center md:py-3">
             <div className="text-[11px] font-medium tracking-wide text-muted-foreground uppercase">
               {formatLocalWeekday(date)}
             </div>
-            <div className="text-xl font-semibold tabular-nums">{Number(date.slice(8))}</div>
+            <div
+              aria-current={date === today ? "date" : undefined}
+              className="mx-auto mt-0.5 flex size-8 items-center justify-center rounded-full text-base font-semibold tabular-nums aria-[current=date]:bg-primary aria-[current=date]:text-primary-foreground md:size-9 md:text-xl"
+            >
+              {Number(date.slice(8))}
+            </div>
           </div>
         ))}
 
         <HourAxis scale={scale} />
-        {dates.map((date, i) => (
+        {dates.map((date) => (
           <DayColumn
             key={date}
             blocks={blocks.filter((block) => block.date === date)}
@@ -60,7 +64,6 @@ export function WeekGrid({
               const item = itemsById.get(block.itemId);
               if (item) openEdit(item);
             }}
-            className={i === selected ? "" : "hidden md:block"}
           />
         ))}
       </div>

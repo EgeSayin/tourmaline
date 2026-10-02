@@ -5,13 +5,6 @@ export function formatTimeRange(start: Date, end: Date, timeZone: TimeZone): str
   return `${time.format(start)}–${time.format(end)}`;
 }
 
-/** Formats a `YYYY-MM-DD` local date, e.g. "Mon, Oct 5". */
-export function formatLocalDate(date: string): string {
-  return new Intl.DateTimeFormat("en-US", { timeZone: "UTC", weekday: "short", month: "short", day: "numeric" }).format(
-    new Date(`${date}T12:00:00Z`),
-  );
-}
-
 /** Formats a `YYYY-MM-DD` local date as its weekday, e.g. "Mon". */
 export function formatLocalWeekday(date: string): string {
   return new Intl.DateTimeFormat("en-US", { timeZone: "UTC", weekday: "short" }).format(new Date(`${date}T12:00:00Z`));

@@ -10,16 +10,14 @@ export function DayColumn({
   scale,
   timeZone,
   onSelect,
-  className = "",
 }: {
   blocks: CalendarBlock[];
   scale: TimeScale;
   timeZone: TimeZone;
   onSelect: (block: CalendarBlock) => void;
-  className?: string;
 }) {
   return (
-    <div className={`relative border-l ${className}`} style={{ height: scale.height }}>
+    <div className="relative border-l" style={{ height: scale.height }}>
       {scale.hours.slice(1).map((hour) => (
         <div key={hour} className="absolute inset-x-0 border-t" style={{ top: scale.top(hour * 60) }} />
       ))}

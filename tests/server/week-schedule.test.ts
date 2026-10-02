@@ -36,7 +36,7 @@ describe("loadWeekSchedule", { tags: ["integration", "critical"] }, () => {
 
     const schedule = await loadWeekSchedule(tx, wednesdayNoon);
 
-    expect(schedule?.dates).toEqual([
+    expect(schedule?.weekDates).toEqual([
       "2026-10-05",
       "2026-10-06",
       "2026-10-07",
@@ -45,6 +45,7 @@ describe("loadWeekSchedule", { tags: ["integration", "critical"] }, () => {
       "2026-10-10",
       "2026-10-11",
     ]);
+    expect(schedule?.dayDates).toEqual(["2026-10-07", "2026-10-08", "2026-10-09"]); // from today
     expect(schedule?.fixedItems.map((item) => item.title)).toEqual(["Lecture"]);
     expect(schedule?.placements).toEqual([auto(essayId, utc("2026-10-07T18:00", "2026-10-07T19:30"))]); // after the lecture
     expect(schedule?.today).toBe("2026-10-07");
@@ -86,7 +87,7 @@ describe("loadWeekSchedule", { tags: ["integration", "critical"] }, () => {
     await insertPlacements(tx, [lastWeekEssay]);
 
     const lastWeek = await loadWeekSchedule(tx, wednesdayNoon, Temporal.PlainDate.from("2026-10-01"));
-    expect(lastWeek?.dates[0]).toBe("2026-09-28");
+    expect(lastWeek?.weekDates[0]).toBe("2026-09-28");
     expect(lastWeek?.today).toBe("2026-10-07");
     expect(lastWeek?.placements).toEqual([lastWeekEssay]);
     expect(lastWeek?.unplaced).toEqual([]);
@@ -98,9 +99,17 @@ describe("loadWeekSchedule", { tags: ["integration", "critical"] }, () => {
     expect((await loadWeekSchedule(tx, wednesdayNoon, nextMonday))?.placements).toEqual([]);
     const projectId = await insertItem(tx, flexible("Project", 60, utc("2026-10-12T14:00", "2026-10-16T21:00")));
     const nextWeek = await loadWeekSchedule(tx, wednesdayNoon, nextMonday);
-    expect(nextWeek?.dates[0]).toBe("2026-10-12");
+    expect(nextWeek?.weekDates[0]).toBe("2026-10-12");
     const projectPlacement = auto(projectId, utc("2026-10-12T14:00", "2026-10-12T15:00")); // Mon 10:00
     expect(nextWeek?.placements).toEqual([projectPlacement]);
     expect(await loadPlacements(tx, utc("2026-10-12T04:00", "2026-10-19T04:00"))).toEqual([projectPlacement]);
+
+    // Three days from Saturday reach into next week, so its placements come along with the week's.
+    const saturday = await loadWeekSchedule(tx, wednesdayNoon, Temporal.PlainDate.from("2026-10-10"));
+    expect(saturday?.dayDates).toEqual(["2026-10-10", "2026-10-11", "2026-10-12"]);
+    expect(saturday?.placements).toEqual([
+      auto(essayId, utc("2026-10-07T16:00", "2026-10-07T16:30")),
+      projectPlacement,
+    ]);
   });
 });

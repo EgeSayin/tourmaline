@@ -1,8 +1,5 @@
-import { AddItemButton } from "@/components/items/item-panel";
-import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { formatLocalDateRange } from "@/lib/format";
-import type { WeekNavigation } from "@/server/week";
-import { ScheduleLegend } from "./schedule-legend";
+import type { DayNavigation, WeekNavigation } from "@/server/week";
 import { WeekNavigator } from "./week-navigator";
 
 function weekLabel(weeksFromToday: number): string {
@@ -12,21 +9,36 @@ function weekLabel(weeksFromToday: number): string {
   return weeksFromToday > 0 ? `In ${weeksFromToday} weeks` : `${-weeksFromToday} weeks ago`;
 }
 
-export function WeekHeader({ dates, navigation }: { dates: string[]; navigation: WeekNavigation }) {
+/** Steps by week with the week's dates on tablets and up; by `dayDates.length` days with those dates on phones. */
+export function WeekHeader({
+  weekDates,
+  dayDates,
+  today,
+  weekNavigation,
+  dayNavigation,
+}: {
+  weekDates: string[];
+  dayDates: string[];
+  today: string;
+  weekNavigation: WeekNavigation;
+  dayNavigation: DayNavigation;
+}) {
   return (
-    <header className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
-      <div className="flex items-end justify-between gap-4">
-        <div>
-          <p className="text-sm font-medium text-muted-foreground">{weekLabel(navigation.weeksFromToday)}</p>
-          <h1 className="text-2xl font-semibold tracking-tight">{formatLocalDateRange(dates[0], dates.at(-1)!)}</h1>
-        </div>
-        <WeekNavigator navigation={navigation} />
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 py-2">
+      <WeekNavigator
+        unit="week"
+        {...weekNavigation}
+        atToday={weekNavigation.weeksFromToday === 0}
+        className="hidden md:flex"
+      />
+      <WeekNavigator unit="days" {...dayNavigation} atToday={dayDates[0] === today} className="flex md:hidden" />
+      <div>
+        <p className="text-xs text-muted-foreground">{weekLabel(weekNavigation.weeksFromToday)}</p>
+        <h1 className="text-lg font-semibold tracking-tight whitespace-nowrap">
+          <span className="hidden md:inline">{formatLocalDateRange(weekDates[0], weekDates.at(-1)!)}</span>
+          <span className="md:hidden">{formatLocalDateRange(dayDates[0], dayDates.at(-1)!)}</span>
+        </h1>
       </div>
-      <div className="flex items-center justify-between gap-4">
-        <ScheduleLegend />
-        <ThemeToggle />
-        <AddItemButton />
-      </div>
-    </header>
+    </div>
   );
 }
