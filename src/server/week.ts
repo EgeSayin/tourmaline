@@ -10,9 +10,13 @@ export interface Week {
 
 /** The Monday-to-Sunday week, in local time, that contains `instant`. */
 export function weekContaining(instant: Temporal.Instant, timeZone: TimeZone): Week {
-  const today = instant.toZonedDateTimeISO(timeZone).toPlainDate();
-  const monday = today.subtract({ days: today.dayOfWeek - 1 });
-  const startOf = (date: Temporal.PlainDate) => new Date(date.toZonedDateTime(timeZone).epochMilliseconds);
+  return weekOf(instant.toZonedDateTimeISO(timeZone).toPlainDate(), timeZone);
+}
+
+/** The Monday-to-Sunday week, in local time, that contains `date`. */
+export function weekOf(date: Temporal.PlainDate, timeZone: TimeZone): Week {
+  const monday = date.subtract({ days: date.dayOfWeek - 1 });
+  const startOf = (day: Temporal.PlainDate) => new Date(day.toZonedDateTime(timeZone).epochMilliseconds);
 
   return { monday, range: { start: startOf(monday), end: startOf(monday.add({ weeks: 1 })) } };
 }

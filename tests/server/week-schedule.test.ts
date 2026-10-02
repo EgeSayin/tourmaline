@@ -1,16 +1,17 @@
 import { describe, expect } from "vitest";
 import type { Transaction } from "@/server/db/connection";
 import { insertItem } from "@/server/db/items-repository";
-import { loadPlacements } from "@/server/db/placements-repository";
+import { insertPlacements, loadPlacements } from "@/server/db/placements-repository";
 import { placements, settings } from "@/server/db/schema";
 import { loadWeekSchedule } from "@/server/week-schedule";
+import type { Placement } from "@/lib/placements";
 import { dbTest as it } from "../support/database";
 import { fixed, flexible } from "../support/items";
 
 const utc = (start: string, end: string) => ({ start: new Date(`${start}Z`), end: new Date(`${end}Z`) });
 const wednesdayNoon = Temporal.Instant.from("2026-10-07T16:00Z"); // Wed Oct 7, 12:00 EDT
 const week = utc("2026-10-05T04:00", "2026-10-12T04:00");
-const auto = (itemId: string, times: { start: Date; end: Date }) => ({
+const auto = (itemId: string, times: { start: Date; end: Date }): Placement => ({
   itemId,
   ...times,
   source: "auto",
@@ -47,6 +48,7 @@ describe("loadWeekSchedule", { tags: ["integration", "critical"] }, () => {
     ]);
     expect(schedule?.fixedItems.map((item) => item.title)).toEqual(["Lecture"]);
     expect(schedule?.placements).toEqual([auto(essayId, utc("2026-10-07T18:00", "2026-10-07T19:30"))]); // after the lecture
+    expect(schedule?.today).toBe("2026-10-07");
     expect(schedule?.unplaced.map((task) => task.id)).toEqual([lateId]); // its deadline has passed
     expect(await loadPlacements(tx, week)).toEqual(schedule?.placements);
   });
@@ -73,5 +75,24 @@ describe("loadWeekSchedule", { tags: ["integration", "critical"] }, () => {
     const later = await loadWeekSchedule(tx, Temporal.Instant.from("2026-10-07T16:30Z"));
     expect(later?.placements).toEqual(withReading?.placements);
     expect(await loadPlacements(tx, week)).toEqual(withReading?.placements);
+  });
+
+  it("shows another week's saved placements, but still plans and saves the week containing now", async ({ tx }) => {
+    await saveSettings(tx);
+    const essayId = await insertItem(tx, flexible("Essay", 90, utc("2026-10-05T04:00", "2026-10-09T21:00")));
+    const lastWeekEssay = auto(essayId, utc("2026-09-30T14:00", "2026-09-30T15:00")); // Wed Sep 30, 10:00
+    await insertPlacements(tx, [lastWeekEssay]);
+
+    const lastWeek = await loadWeekSchedule(tx, wednesdayNoon, Temporal.PlainDate.from("2026-10-01"));
+    expect(lastWeek?.dates[0]).toBe("2026-09-28");
+    expect(lastWeek?.today).toBe("2026-10-07");
+    expect(lastWeek?.placements).toEqual([lastWeekEssay]);
+    expect(lastWeek?.unplaced).toEqual([]);
+    // The hour done last week counts, so only 30 minutes remain.
+    expect(await loadPlacements(tx, week)).toEqual([auto(essayId, utc("2026-10-07T16:00", "2026-10-07T16:30"))]);
+
+    const nextWeek = await loadWeekSchedule(tx, wednesdayNoon, Temporal.PlainDate.from("2026-10-12"));
+    expect(nextWeek?.dates[0]).toBe("2026-10-12");
+    expect(nextWeek?.placements).toEqual([]);
   });
 });
