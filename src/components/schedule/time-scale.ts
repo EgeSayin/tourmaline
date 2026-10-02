@@ -1,6 +1,9 @@
 import type { CalendarBlock } from "@/lib/calendar-blocks";
+import { SLOT_MIN } from "@/lib/placements";
 
-const PX_PER_HOUR = 56;
+/** A one-slot block, less its 2px gap, holds one 12px line of text. */
+const PX_PER_SLOT = 14;
+const PX_PER_HOUR = (60 / SLOT_MIN) * PX_PER_SLOT;
 
 export interface TimeScale {
   /** Whole hours shown, from the earliest block's hour up to the latest block's end. */

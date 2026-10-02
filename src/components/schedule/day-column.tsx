@@ -25,6 +25,13 @@ export function DayColumn({
           style={{ top: scale.top(hour * 60) }}
         />
       ))}
+      {scale.hours.map((hour) => (
+        <div
+          key={`${hour}:30`}
+          className="absolute inset-x-0 border-t border-dashed border-border/30"
+          style={{ top: scale.top(hour * 60 + 30) }}
+        />
+      ))}
       {blocks.map((block) => (
         <ScheduleBlock
           key={block.key}
