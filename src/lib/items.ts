@@ -1,6 +1,9 @@
 import type { DailyWindow } from "./time-of-day";
 
-export type Priority = "mandatory" | "high" | "normal" | "low";
+/** Most to least important. */
+export const PRIORITIES = ["mandatory", "high", "normal", "low"] as const;
+
+export type Priority = (typeof PRIORITIES)[number];
 
 export type SpreadStrategy = "asap" | "even" | "just-in-time";
 
