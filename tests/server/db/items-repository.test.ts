@@ -48,10 +48,22 @@ describe("items repository", { tags: ["integration", "critical"] }, () => {
 
   it("updates an item in place, including switching between fixed and flexible", async ({ tx }) => {
     const essayId = await insertItem(tx, essay);
-    const placed = { start: new Date("2026-10-06T14:00Z"), end: new Date("2026-10-06T16:00Z") };
-    await insertPlacements(tx, [{ itemId: essayId, ...placed, source: "auto", pinned: false }]);
-    expect(await updateItem(tx, essayId, { ...essay, durationMin: 90 })).toBe(true);
-    expect(await loadPlacements(tx, { start: essay.earliestStart, end: essay.deadline })).toEqual([]);
+    const window = { start: essay.earliestStart, end: essay.deadline };
+    const now = new Date("2026-10-07T12:00Z");
+    const placed = (start: string, end: string) => ({
+      itemId: essayId,
+      start: new Date(start),
+      end: new Date(end),
+      source: "auto" as const,
+      pinned: false,
+    });
+    const started = placed("2026-10-07T11:00Z", "2026-10-07T13:00Z");
+    const pinned = { ...placed("2026-10-08T14:00Z", "2026-10-08T15:00Z"), pinned: true };
+    await insertPlacements(tx, [started, pinned, placed("2026-10-08T16:00Z", "2026-10-08T17:00Z")]);
+    expect(await updateItem(tx, essayId, { ...essay, durationMin: 240 }, now)).toBe(true);
+    expect(await loadPlacements(tx, window)).toEqual([started, pinned]); // the rest is placed again
+    expect(await updateItem(tx, essayId, lecture, now)).toBe(true);
+    expect(await loadPlacements(tx, window)).toEqual([]); // fixed items have no placements
     await deleteItem(tx, essayId);
 
     const id = await insertItem(tx, lecture);
@@ -62,14 +74,14 @@ describe("items repository", { tags: ["integration", "critical"] }, () => {
       start: new Date("2026-10-06T15:00:00Z"),
       end: new Date("2026-10-06T16:15:00Z"),
     };
-    expect(await updateItem(tx, id, moved)).toBe(true);
+    expect(await updateItem(tx, id, moved, now)).toBe(true);
     expect(await loadItems(tx)).toEqual([{ id, ...moved }]);
 
-    expect(await updateItem(tx, id, essay)).toBe(true);
+    expect(await updateItem(tx, id, essay, now)).toBe(true);
     expect(await loadItems(tx)).toEqual([{ id, ...essay }]);
     expect(await tx.$count(fixedItemDetails)).toBe(0);
 
-    expect(await updateItem(tx, "00000000-0000-4000-8000-000000000000", essay)).toBe(false);
+    expect(await updateItem(tx, "00000000-0000-4000-8000-000000000000", essay, now)).toBe(false);
   });
 
   it("deletes an item together with its details", async ({ tx }) => {

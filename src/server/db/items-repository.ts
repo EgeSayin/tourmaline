@@ -1,5 +1,5 @@
 import "server-only";
-import { eq } from "drizzle-orm";
+import { and, eq, gte } from "drizzle-orm";
 import type { Item, NewItem } from "@/lib/items";
 import type { Database, Transaction } from "./connection";
 import { fixedItemDetails, flexibleItemDetails, items, placements } from "./schema";
@@ -17,12 +17,14 @@ export async function insertItem(tx: Transaction, item: NewItem): Promise<string
 
 /**
  * Replaces the item's fields and details, including switching between fixed and flexible.
- * Clears the item's placements, since a changed item has to be placed again.
+ * A flexible task keeps its started and pinned placements, so time already spent on it still counts, and
+ * loses the rest to be placed again. An item that becomes fixed loses all of them.
  * Returns `false` if no item has this `id`.
  */
-export async function updateItem(tx: Transaction, id: string, item: NewItem): Promise<boolean> {
+export async function updateItem(tx: Transaction, id: string, item: NewItem, now: Date): Promise<boolean> {
   // Rows referencing the item go first: their composite foreign keys block changing `timing`.
-  await tx.delete(placements).where(eq(placements.itemId, id));
+  const pending = and(eq(placements.pinned, false), gte(placements.startAt, now));
+  await tx.delete(placements).where(and(eq(placements.itemId, id), item.timing === "fixed" ? undefined : pending));
   await tx.delete(fixedItemDetails).where(eq(fixedItemDetails.itemId, id));
   await tx.delete(flexibleItemDetails).where(eq(flexibleItemDetails.itemId, id));
 

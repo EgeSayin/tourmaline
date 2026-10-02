@@ -45,7 +45,8 @@ export async function updateItemAction(
   const { fields, parsed } = await parseSubmission(formData);
   if (!parsed.ok) return invalid(fields, parsed);
 
-  const found = await db.transaction((tx) => updateItem(tx, validId, parsed.item));
+  const now = new Date(Temporal.Now.instant().epochMilliseconds);
+  const found = await db.transaction((tx) => updateItem(tx, validId, parsed.item, now));
   if (!found) throw new Error(`Item ${validId} not found`);
   refresh();
   return { status: "saved" };
