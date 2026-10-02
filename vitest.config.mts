@@ -1,4 +1,5 @@
 import { fileURLToPath } from "node:url";
+import { loadEnv } from "vite";
 import { defineConfig } from "vitest/config";
 
 export default defineConfig({
@@ -11,6 +12,7 @@ export default defineConfig({
   },
   test: {
     include: ["tests/**/*.test.ts"],
+    env: loadEnv("test", process.cwd(), ""),
     // Playwright specs live in tests/e2e and run with their own runner.
     exclude: ["tests/e2e/**", "node_modules/**"],
     tags: [
