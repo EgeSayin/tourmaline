@@ -25,7 +25,7 @@ export interface WeekSchedule {
   flexibleItems: FlexibleItem[];
   /** Placements in the shown week, sorted by start. */
   placements: Placement[];
-  /** Tasks whose remaining time doesn't fit before their deadline; `durationMin` is the remaining time. */
+  /** Tasks due after now whose remaining time doesn't fit before their deadline; `durationMin` is the remaining time. */
   unplaced: FlexibleItem[];
 }
 
@@ -72,7 +72,7 @@ export async function loadWeekSchedule(
     fixedItems,
     flexibleItems,
     placements: placements.filter((p) => p.start < shown.range.end && p.end > shown.range.start),
-    unplaced,
+    unplaced: unplaced.filter((task) => task.deadline > nowDate),
   };
 }
 

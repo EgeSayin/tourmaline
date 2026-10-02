@@ -31,7 +31,8 @@ describe("loadWeekSchedule", { tags: ["integration", "critical"] }, () => {
     await saveSettings(tx);
     await insertItem(tx, fixed("Lecture", utc("2026-10-07T17:00", "2026-10-07T18:00"))); // Wed 13:00–14:00
     const essayId = await insertItem(tx, flexible("Essay", 90, utc("2026-10-05T04:00", "2026-10-09T21:00"))); // due Fri
-    const lateId = await insertItem(tx, flexible("Late reading", 30, utc("2026-10-05T04:00", "2026-10-06T04:00"))); // due Mon
+    await insertItem(tx, flexible("Late reading", 30, utc("2026-10-05T04:00", "2026-10-06T04:00"))); // due Mon
+    const marathonId = await insertItem(tx, flexible("Marathon", 24 * 60, utc("2026-10-05T04:00", "2026-10-09T21:00")));
 
     const schedule = await loadWeekSchedule(tx, wednesdayNoon);
 
@@ -47,7 +48,8 @@ describe("loadWeekSchedule", { tags: ["integration", "critical"] }, () => {
     expect(schedule?.fixedItems.map((item) => item.title)).toEqual(["Lecture"]);
     expect(schedule?.placements).toEqual([auto(essayId, utc("2026-10-07T18:00", "2026-10-07T19:30"))]); // after the lecture
     expect(schedule?.today).toBe("2026-10-07");
-    expect(schedule?.unplaced.map((task) => task.id)).toEqual([lateId]); // its deadline has passed
+    // No free day is 24 hours long. The late reading doesn't fit either, but its deadline has passed, so it's hidden.
+    expect(schedule?.unplaced.map((task) => task.id)).toEqual([marathonId]);
     expect(await loadPlacements(tx, week)).toEqual(schedule?.placements);
   });
 
