@@ -1,13 +1,13 @@
 import "server-only";
 import type { FixedItem, FlexibleItem, Priority } from "@/lib/items";
 import { DEFAULT_SETTINGS, type SchedulerSettings } from "@/lib/settings";
+import { toDate } from "@/server/temporal";
 import { weekContaining } from "@/server/week";
 
 const settings: SchedulerSettings = { ...DEFAULT_SETTINGS, timeZone: "America/New_York" };
 
 function local(date: string, time: string): Date {
-  const zoned = Temporal.PlainDateTime.from(`${date}T${time}`).toZonedDateTime(settings.timeZone);
-  return new Date(zoned.epochMilliseconds);
+  return toDate(Temporal.PlainDateTime.from(`${date}T${time}`).toZonedDateTime(settings.timeZone));
 }
 
 function fixed(

@@ -9,6 +9,7 @@ import { loadPlacements, replacePendingPlacements } from "@/server/db/placements
 import { loadSettings } from "@/server/db/settings-repository";
 import type { Interval } from "@/server/scheduler/intervals";
 import { replan } from "@/server/scheduler/replan";
+import { toDate } from "@/server/temporal";
 import { weekContaining, weekOf } from "@/server/week";
 
 export interface WeekSchedule {
@@ -45,7 +46,7 @@ export async function loadWeekSchedule(
   const shown = shownDate ? weekOf(shownDate, settings.timeZone) : current;
   const fixedItems = items.filter((item): item is FixedItem => item.timing === "fixed");
   const flexibleItems = items.filter((item): item is FlexibleItem => item.timing === "flexible");
-  const nowDate = new Date(now.epochMilliseconds);
+  const nowDate = toDate(now);
 
   const existing = await loadPlacements(executor, { start: new Date(0), end: current.range.end });
   const { placements, unplaced } = replan({

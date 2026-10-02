@@ -3,6 +3,7 @@ import { z } from "zod";
 import { itemFormSchema } from "@/lib/item-form";
 import type { NewItem } from "@/lib/items";
 import type { TimeZone } from "@/lib/time-zone";
+import { toDate } from "@/server/temporal";
 
 export type ItemFormErrors = Partial<Record<string, string[]>>;
 
@@ -21,8 +22,7 @@ export function parseItemForm(
   if (!parsed.success) return { ok: false, errors: z.flattenError(parsed.error).fieldErrors };
 
   const form = parsed.data;
-  const at = (local: string) =>
-    new Date(Temporal.PlainDateTime.from(local).toZonedDateTime(timeZone).epochMilliseconds);
+  const at = (local: string) => toDate(Temporal.PlainDateTime.from(local).toZonedDateTime(timeZone));
 
   if (form.timing === "fixed") {
     return {
@@ -40,9 +40,9 @@ export function parseItemForm(
     };
   }
 
-  const earliestStart = form.earliestStart ? at(form.earliestStart) : new Date(now.epochMilliseconds);
+  const earliestStart = form.earliestStart ? at(form.earliestStart) : toDate(now);
   const deadline = at(form.deadline);
-  if (deadline.getTime() <= now.epochMilliseconds) {
+  if (deadline <= toDate(now)) {
     return { ok: false, errors: { deadline: ["Deadline must be in the future"] } };
   }
   if (deadline <= earliestStart) {

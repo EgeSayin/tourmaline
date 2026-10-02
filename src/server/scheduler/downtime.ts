@@ -1,5 +1,6 @@
 import "server-only";
 import type { SchedulerSettings } from "@/lib/settings";
+import { toDate } from "@/server/temporal";
 import type { Interval } from "./intervals";
 
 /** Returns the downtime within `range` as exact times, sorted by start. */
@@ -25,10 +26,10 @@ export function downtimeIntervals(range: Interval, settings: SchedulerSettings):
 }
 
 function toLocalDate(date: Date, timeZone: string): Temporal.PlainDate {
-  return Temporal.Instant.fromEpochMilliseconds(date.getTime()).toZonedDateTimeISO(timeZone).toPlainDate();
+  return date.toTemporalInstant().toZonedDateTimeISO(timeZone).toPlainDate();
 }
 
 function atLocalTime(day: Temporal.PlainDate, minuteOfDay: number, timeZone: string): Date {
   const plainTime = new Temporal.PlainTime(Math.floor(minuteOfDay / 60), minuteOfDay % 60);
-  return new Date(day.toZonedDateTime({ timeZone, plainTime }).epochMilliseconds);
+  return toDate(day.toZonedDateTime({ timeZone, plainTime }));
 }

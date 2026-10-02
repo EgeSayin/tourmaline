@@ -1,6 +1,7 @@
 import "server-only";
 import type { TimeZone } from "@/lib/time-zone";
 import type { Interval } from "@/server/scheduler/intervals";
+import { toDate } from "@/server/temporal";
 
 export interface Week {
   monday: Temporal.PlainDate;
@@ -16,7 +17,7 @@ export function weekContaining(instant: Temporal.Instant, timeZone: TimeZone): W
 /** The Monday-to-Sunday week, in local time, that contains `date`. */
 export function weekOf(date: Temporal.PlainDate, timeZone: TimeZone): Week {
   const monday = date.subtract({ days: date.dayOfWeek - 1 });
-  const startOf = (day: Temporal.PlainDate) => new Date(day.toZonedDateTime(timeZone).epochMilliseconds);
+  const startOf = (day: Temporal.PlainDate) => toDate(day.toZonedDateTime(timeZone));
 
   return { monday, range: { start: startOf(monday), end: startOf(monday.add({ weeks: 1 })) } };
 }
