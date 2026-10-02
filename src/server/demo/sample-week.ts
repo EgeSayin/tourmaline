@@ -1,8 +1,8 @@
 import "server-only";
 import type { FixedItem, FlexibleItem, Priority } from "@/lib/items";
 import { DEFAULT_SETTINGS, type SchedulerSettings } from "@/lib/settings";
+import { weekContaining } from "@/server/days";
 import { toDate } from "@/server/temporal";
-import { weekContaining } from "@/server/week";
 
 const settings: SchedulerSettings = { ...DEFAULT_SETTINGS, timeZone: "America/New_York" };
 
@@ -56,8 +56,7 @@ const lectureBuffers = { location: "Science Hall 101", bufferBeforeMin: 15, buff
 
 /** A student's week of fixed and flexible items, in the week (Monday–Sunday) containing `now`. */
 export function sampleWeek(now: Temporal.Instant) {
-  const { monday } = weekContaining(now, settings.timeZone);
-  const week = Array.from({ length: 7 }, (_, i) => monday.add({ days: i }).toString());
+  const week = weekContaining(now, settings.timeZone).dates;
   const [MON, TUE, WED, THU, FRI, SAT, SUN] = week;
 
   const fixedItems: FixedItem[] = [

@@ -1,19 +1,19 @@
 import { connection } from "next/server";
 import { ItemPanelProvider } from "@/components/items/item-panel";
+import { CalendarGrid } from "@/components/schedule/calendar-grid";
+import { CalendarHeader } from "@/components/schedule/calendar-header";
 import { ScheduleView } from "@/components/schedule/schedule-view";
 import { TaskQueue } from "@/components/schedule/task-queue";
-import { WeekGrid } from "@/components/schedule/week-grid";
-import { WeekHeader } from "@/components/schedule/week-header";
+import { loadCalendar } from "@/server/calendar";
+import { parseDateParam } from "@/server/days";
 import { db } from "@/server/db/client";
-import { dayNavigation, parseDateParam, weekNavigation } from "@/server/week";
-import { loadWeekSchedule } from "@/server/week-schedule";
 
 export default async function Home({ searchParams }: PageProps<"/">) {
   await connection();
   const shownDate = parseDateParam((await searchParams).date);
-  const week = await loadWeekSchedule(db, Temporal.Now.instant(), shownDate);
+  const calendar = await loadCalendar(db, Temporal.Now.instant(), shownDate);
 
-  if (!week) {
+  if (!calendar) {
     return (
       <main className="mx-auto w-full max-w-6xl px-4 py-10">
         <p className="text-muted-foreground">No settings saved yet.</p>
@@ -22,32 +22,30 @@ export default async function Home({ searchParams }: PageProps<"/">) {
   }
 
   return (
-    <ItemPanelProvider timeZone={week.timeZone}>
+    <ItemPanelProvider timeZone={calendar.timeZone}>
       <main>
         <ScheduleView
           calendarHeader={
-            <WeekHeader
-              weekDates={week.weekDates}
-              dayDates={week.dayDates}
-              today={week.today}
-              weekNavigation={weekNavigation(week.weekDates[0], week.today)}
-              dayNavigation={dayNavigation(week.dayDates[0], week.dayDates.length)}
+            <CalendarHeader
+              weekDates={calendar.weekDates}
+              dayDates={calendar.dayDates}
+              today={calendar.today}
+              navigation={calendar.navigation}
             />
           }
-          queue={<TaskQueue tasks={week.unplaced} flexibleItems={week.flexibleItems} timeZone={week.timeZone} />}
-          queueCount={week.unplaced.length}
-          calendar={[week.weekDates, week.dayDates].map((dates, i) => (
-            <WeekGrid
-              key={`${i}-${dates[0]}`}
-              className={i === 0 ? "hidden md:block" : "md:hidden"}
-              today={week.today}
-              dates={dates}
-              fixedItems={week.fixedItems}
-              flexibleItems={week.flexibleItems}
-              placements={week.placements}
-              timeZone={week.timeZone}
+          queue={<TaskQueue entries={calendar.queue} timeZone={calendar.timeZone} />}
+          queueCount={calendar.queue.length}
+          calendar={
+            <CalendarGrid
+              today={calendar.today}
+              weekDates={calendar.weekDates}
+              dayDates={calendar.dayDates}
+              fixedItems={calendar.fixedItems}
+              flexibleItems={calendar.flexibleItems}
+              placements={calendar.placements}
+              timeZone={calendar.timeZone}
             />
-          ))}
+          }
         />
       </main>
     </ItemPanelProvider>

@@ -1,4 +1,4 @@
-import type { FixedItem, FlexibleItem } from "./items";
+import type { FixedItem, FlexibleItem, Item } from "./items";
 import { toLocal } from "./local-time";
 import type { Placement } from "./placements";
 import type { TimeZone } from "./time-zone";
@@ -10,8 +10,7 @@ export type BlockStyle = "fixed" | "fixed-optional" | "scheduled";
 export interface CalendarBlock {
   /** Unique among the blocks. */
   key: string;
-  itemId: string;
-  title: string;
+  item: Item;
   start: Date;
   end: Date;
   style: BlockStyle;
@@ -24,7 +23,7 @@ export interface CalendarBlock {
 }
 
 /**
- * Positions fixed items and placements on their local day.
+ * Positions fixed items and placements on their local day; placements of tasks not in `flexibleItems` are skipped.
  * A block running past midnight is cut off at the end of the day it starts on.
  */
 export function toCalendarBlocks(
@@ -38,23 +37,22 @@ export function toCalendarBlocks(
   const unpositioned = [
     ...fixedItems.map((item) => ({
       key: item.id,
-      itemId: item.id,
-      title: item.title,
+      item,
       start: item.start,
       end: item.end,
       style: item.priority === "mandatory" ? ("fixed" as const) : ("fixed-optional" as const),
       faded: false,
     })),
-    ...placements.map((placement) => {
+    ...placements.flatMap((placement) => {
       const task = tasks.get(placement.itemId);
+      if (!task) return [];
       return {
         key: `${placement.itemId}@${placement.start.toISOString()}`,
-        itemId: placement.itemId,
-        title: task?.title ?? placement.itemId,
+        item: task,
         start: placement.start,
         end: placement.end,
         style: "scheduled" as const,
-        faded: task?.priority === "low",
+        faded: task.priority === "low",
       };
     }),
   ];

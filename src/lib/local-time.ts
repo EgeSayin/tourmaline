@@ -29,15 +29,6 @@ export function toLocal(date: Date, timeZone: TimeZone): LocalDateTime {
   };
 }
 
-/** Local dates (`YYYY-MM-DD`) that overlap `range`, in order. */
-export function localDatesInRange(range: { start: Date; end: Date }, timeZone: TimeZone): string[] {
-  const dates = new Set<string>();
-  for (let t = range.start.getTime(); t < range.end.getTime(); t += 60 * 60_000) {
-    dates.add(toLocal(new Date(t), timeZone).date);
-  }
-  return [...dates];
-}
-
 /** The exact time as a `datetime-local` input value in `timeZone`, e.g. "2026-10-05T11:00". */
 export function toDateTimeInputValue(date: Date, timeZone: TimeZone): string {
   const { date: day, minuteOfDay } = toLocal(date, timeZone);

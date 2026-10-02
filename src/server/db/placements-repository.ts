@@ -36,19 +36,16 @@ export async function insertPlacements(executor: Database | Transaction, toInser
 }
 
 /**
- * Replaces the pending placements (unpinned, starting in `range` at or after `from`) with those among `next`.
+ * Replaces the pending placements (unpinned, starting in `horizon`) with those among `next`.
  * Started and pinned placements are left untouched.
  */
-export async function replacePendingPlacements(
-  tx: Transaction,
-  range: Interval,
-  from: Date,
-  next: Placement[],
-): Promise<void> {
-  const isPending = (start: Date, pinned: boolean) => !pinned && start >= from && start < range.end;
+export async function replacePendingPlacements(tx: Transaction, horizon: Interval, next: Placement[]): Promise<void> {
+  const isPending = (start: Date, pinned: boolean) => !pinned && start >= horizon.start && start < horizon.end;
   await tx
     .delete(placements)
-    .where(and(eq(placements.pinned, false), gte(placements.startAt, from), lt(placements.startAt, range.end)));
+    .where(
+      and(eq(placements.pinned, false), gte(placements.startAt, horizon.start), lt(placements.startAt, horizon.end)),
+    );
   await insertPlacements(
     tx,
     next.filter((placement) => isPending(placement.start, placement.pinned)),

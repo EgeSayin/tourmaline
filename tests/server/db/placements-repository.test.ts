@@ -60,7 +60,7 @@ describe("placements repository", { tags: ["integration", "critical"] }, () => {
     await insertPlacements(tx, [started, pinned, stale, nextWeek]);
 
     const replacement = placement("2026-10-10T14:00", "2026-10-10T15:00");
-    await replacePendingPlacements(tx, week, now, [
+    await replacePendingPlacements(tx, { start: now, end: week.end }, [
       started,
       pinned,
       replacement,

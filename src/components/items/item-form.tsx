@@ -58,6 +58,7 @@ export function ItemForm({ item, timeZone, onDone }: { item?: Item; timeZone: Ti
         <>
           <input type="hidden" name="minChunkMin" defaultValue={values.minChunkMin} />
           <input type="hidden" name="maxChunkMin" defaultValue={values.maxChunkMin} />
+          <input type="hidden" name="spread" defaultValue={values.spread} />
         </>
       )}
 

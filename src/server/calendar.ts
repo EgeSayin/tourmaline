@@ -2,6 +2,15 @@ import "server-only";
 import type { FixedItem, FlexibleItem } from "@/lib/items";
 import type { Placement } from "@/lib/placements";
 import type { TimeZone } from "@/lib/time-zone";
+import {
+  type DayNavigation,
+  dayNavigation,
+  daysFrom,
+  PHONE_DAY_COUNT,
+  type WeekNavigation,
+  weekNavigation,
+  weekOf,
+} from "@/server/days";
 import type { Database, Transaction } from "@/server/db/connection";
 import { loadItems } from "@/server/db/items-repository";
 import { loadPlacements, replacePendingPlacements } from "@/server/db/placements-repository";
@@ -9,9 +18,13 @@ import { loadSettings } from "@/server/db/settings-repository";
 import { planningHorizon } from "@/server/scheduler/horizon";
 import { replan } from "@/server/scheduler/replan";
 import { toDate } from "@/server/temporal";
-import { daysFrom, PHONE_DAY_COUNT, weekOf } from "@/server/week";
 
-export interface WeekSchedule {
+export interface QueueEntry {
+  task: FlexibleItem;
+  remainingMin: number;
+}
+
+export interface Calendar {
   timeZone: TimeZone;
   /** Local dates of the week containing the shown date, Monday first. */
   weekDates: string[];
@@ -19,12 +32,13 @@ export interface WeekSchedule {
   dayDates: string[];
   /** Local date of `now`. */
   today: string;
+  navigation: { week: WeekNavigation; days: DayNavigation };
   fixedItems: FixedItem[];
   flexibleItems: FlexibleItem[];
   /** Placements overlapping the week or the days, sorted by start. */
   placements: Placement[];
-  /** Tasks due after now whose remaining time doesn't fit before their deadline; `durationMin` is the remaining time. */
-  unplaced: FlexibleItem[];
+  /** Tasks due after now whose remaining time doesn't fit before their deadline. */
+  queue: QueueEntry[];
 }
 
 /**
@@ -33,11 +47,11 @@ export interface WeekSchedule {
  * toward each task's time. Re-planning an unchanged plan changes nothing, so repeated loads don't write.
  * `null` if no settings are saved yet.
  */
-export async function loadWeekSchedule(
+export async function loadCalendar(
   executor: Database | Transaction,
   now: Temporal.Instant,
   shownDate?: Temporal.PlainDate,
-): Promise<WeekSchedule | null> {
+): Promise<Calendar | null> {
   const [settings, items] = await Promise.all([loadSettings(executor), loadItems(executor)]);
   if (!settings) return null;
 
@@ -52,8 +66,7 @@ export async function loadWeekSchedule(
 
   const existing = await loadPlacements(executor, { start: new Date(0), end: horizon.end });
   const { placements, unplaced } = replan({
-    range: horizon,
-    now: nowDate,
+    horizon,
     fixedItems,
     flexibleItems,
     existing,
@@ -62,18 +75,24 @@ export async function loadWeekSchedule(
 
   const pending = (list: Placement[]) => list.filter((p) => !p.pinned && p.start >= nowDate);
   if (!samePlacements(pending(existing), pending(placements))) {
-    await executor.transaction((tx) => replacePendingPlacements(tx, horizon, nowDate, placements));
+    await executor.transaction((tx) => replacePendingPlacements(tx, horizon, placements));
   }
 
   return {
     timeZone: settings.timeZone,
-    weekDates: Array.from({ length: 7 }, (_, i) => week.monday.add({ days: i }).toString()),
+    weekDates: week.dates,
     dayDates: days.dates,
     today: today.toString(),
+    navigation: {
+      week: weekNavigation(week.dates[0], today.toString()),
+      days: dayNavigation(days.dates[0], PHONE_DAY_COUNT),
+    },
     fixedItems,
     flexibleItems,
     placements: placements.filter((p) => p.start < shown.end && p.end > shown.start),
-    unplaced: unplaced.filter((task) => task.deadline > nowDate),
+    queue: unplaced
+      .filter((task) => task.deadline > nowDate)
+      .map((task) => ({ task: flexibleItems.find((item) => item.id === task.id)!, remainingMin: task.durationMin })),
   };
 }
 

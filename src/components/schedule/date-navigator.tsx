@@ -3,7 +3,7 @@ import Link from "next/link";
 import { buttonVariants } from "@/components/ui/button";
 
 /** Previous, Today and Next links stepping by `unit`; links are `?date=` local dates. */
-export function WeekNavigator({
+export function DateNavigator({
   unit,
   previous,
   next,

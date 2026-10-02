@@ -19,13 +19,18 @@ describe("toCalendarBlocks", { tags: ["unit"] }, () => {
       pinned: false,
     });
 
-    const blocks = toCalendarBlocks([lecture, party], [reading], [placement(placed), placement(placedAgain)], tz);
+    const deleted = { ...placement(placed), itemId: "Deleted" }; // its task is gone, so it's skipped
+    const blocks = toCalendarBlocks(
+      [lecture, party],
+      [reading],
+      [placement(placed), placement(placedAgain), deleted],
+      tz,
+    );
     expect(new Set(blocks.map((block) => block.key)).size).toBe(blocks.length);
     expect(blocks).toEqual([
       {
         key: expect.any(String),
-        itemId: "Lecture",
-        title: "Lecture",
+        item: lecture,
         start: lecture.start,
         end: lecture.end,
         style: "fixed",
@@ -36,8 +41,7 @@ describe("toCalendarBlocks", { tags: ["unit"] }, () => {
       },
       {
         key: expect.any(String),
-        itemId: "Party",
-        title: "Party",
+        item: party,
         start: party.start,
         end: party.end,
         style: "fixed-optional",
@@ -48,8 +52,7 @@ describe("toCalendarBlocks", { tags: ["unit"] }, () => {
       },
       {
         key: expect.any(String),
-        itemId: "Reading",
-        title: "Reading",
+        item: reading,
         ...placed,
         style: "scheduled",
         faded: true,
@@ -59,8 +62,7 @@ describe("toCalendarBlocks", { tags: ["unit"] }, () => {
       },
       {
         key: expect.any(String),
-        itemId: "Reading",
-        title: "Reading",
+        item: reading,
         ...placedAgain,
         style: "scheduled",
         faded: true,

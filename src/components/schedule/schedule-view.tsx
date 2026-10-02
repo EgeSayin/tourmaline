@@ -9,9 +9,9 @@ import { ScheduleLegend } from "./schedule-legend";
 type View = "calendar" | "queue";
 
 /**
- * Tablet and up: three columns (queue, calendar, tools), each a header over a section; the queue header is empty. The tools section holds the
- * add/edit panel; while it's closed, the calendar section takes its place. Phones: the headers stack on
- * top and a bottom tab bar switches between the calendar and the queue.
+ * Tablet and up: three columns (queue, calendar, tools), each a header over a section; the queue header is empty.
+ * The tools section holds the add/edit panel; while it's closed, the calendar section takes its place.
+ * Phones: the headers stack on top and a bottom tab bar switches between the calendar and the queue.
  */
 export function ScheduleView({
   calendarHeader,

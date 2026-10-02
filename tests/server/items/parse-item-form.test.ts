@@ -62,7 +62,7 @@ describe("parseItemForm", { tags: ["unit", "critical"] }, () => {
         deadline: new Date("2026-11-02T22:00Z"), // 17:00 EST, after clocks go back
         split: { minChunkMin: 30, maxChunkMin: 60 },
         preferredWindows: [],
-        spread: "even",
+        spread: "asap",
       },
     });
   });
@@ -100,6 +100,9 @@ describe("parseItemForm", { tags: ["unit", "critical"] }, () => {
         errors: { deadline: ["Deadline must be in the future"] },
       });
     }
+    expect(
+      parseItemForm({ ...task, earliestStart: "2026-10-09T09:00", deadline: "2026-10-08T17:00" }, tz, now),
+    ).toEqual({ ok: false, errors: { deadline: ["Deadline must be after the earliest start"] } });
   });
 
   it("starts flexible tasks now when no earliest start is given", () => {

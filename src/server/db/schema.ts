@@ -99,7 +99,7 @@ export const flexibleItemDetails = pgTable(
     splitMinChunkMin: integer("split_min_chunk_min"),
     splitMaxChunkMin: integer("split_max_chunk_min"),
     preferredWindows: jsonb("preferred_windows").$type<DailyWindow[]>().notNull().default([]),
-    spread: spreadEnum("spread").notNull().default("even"),
+    spread: spreadEnum("spread").notNull().default("asap"),
   },
   (t) => [
     foreignKey({ columns: [t.itemId, t.timing], foreignColumns: [items.id, items.timing] }).onDelete("cascade"),

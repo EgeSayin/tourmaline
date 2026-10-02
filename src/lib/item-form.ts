@@ -44,11 +44,7 @@ const flexibleForm = z
     deadline: localDateTime,
     minChunkMin: z.preprocess(toNumber, minutes(1).optional()),
     maxChunkMin: z.preprocess(toNumber, minutes(1).optional()),
-    spread: z.preprocess(emptyToUndefined, z.enum(SPREAD_STRATEGIES).default("even")),
-  })
-  .refine((form) => form.earliestStart === undefined || form.earliestStart < form.deadline, {
-    path: ["deadline"],
-    message: "Deadline must be after the earliest start",
+    spread: z.preprocess(emptyToUndefined, z.enum(SPREAD_STRATEGIES).default("asap")),
   })
   .refine((form) => (form.minChunkMin === undefined) === (form.maxChunkMin === undefined), {
     path: ["maxChunkMin"],

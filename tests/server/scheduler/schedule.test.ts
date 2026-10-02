@@ -4,7 +4,7 @@ import { minutesBetween } from "@/lib/duration";
 import type { SchedulerSettings } from "@/lib/settings";
 import { freeTimeMap } from "@/server/scheduler/free-time";
 import { type Interval, subtractIntervals } from "@/server/scheduler/intervals";
-import { schedule } from "@/server/scheduler/schedule";
+import { placeTasks } from "@/server/scheduler/schedule";
 import { findEarliestSlot } from "@/server/scheduler/slots";
 import { intervalArb, SPAN_MIN } from "../../support/intervals";
 import { fixed, fixedItemArb, flexible, flexibleItemsArb } from "../../support/items";
@@ -14,7 +14,7 @@ function utc(start: string, end: string): Interval {
   return { start: new Date(`${start}Z`), end: new Date(`${end}Z`) };
 }
 
-describe("schedule", { tags: ["unit", "critical"] }, () => {
+describe("placeTasks", { tags: ["unit", "critical"] }, () => {
   it("places the most urgent tasks first around fixed items and reports what doesn't fit", () => {
     const settings: SchedulerSettings = {
       timeZone: "America/New_York",
@@ -34,7 +34,7 @@ describe("schedule", { tags: ["unit", "critical"] }, () => {
       flexible("Lab report", 5 * 60, utc("2026-10-05T04:00", "2026-10-05T22:00")), // due 18:00
     ];
 
-    const result = schedule(range, fixedItems, tasks, settings);
+    const result = placeTasks(tasks, freeTimeMap(range, fixedItems, settings));
 
     expect(result.placements).toEqual([
       { itemId: "Lunch", ...utc("2026-10-05T16:30", "2026-10-05T17:15"), source: "auto", pinned: false }, // 12:30
@@ -58,9 +58,9 @@ describe("schedule", { tags: ["unit", "critical"] }, () => {
           fixedItemsArb,
           flexibleItemsArb,
           (range, settings, fixedItems, tasks) => {
-            const { placements, unplaced } = schedule(range, fixedItems, tasks, settings);
-            const tasksById = new Map(tasks.map((task) => [task.id, task]));
             const free = freeTimeMap(range, fixedItems, settings);
+            const { placements, unplaced } = placeTasks(tasks, free);
+            const tasksById = new Map(tasks.map((task) => [task.id, task]));
 
             const outcomeIds = [...placements.map((p) => p.itemId), ...unplaced.map((task) => task.id)];
             expect(outcomeIds.toSorted()).toEqual([...tasksById.keys()].toSorted());

@@ -42,7 +42,7 @@ test.describe("editing items", () => {
 
     const panel = await openItemForEditing(page, testInfo, title);
     await panel.getByRole("button", { name: "Delete" }).click();
-    await expect(page.getByText(title).first()).toBeAttached();
+    await expect(page.getByText(title)).toBeAttached();
     await panel.getByRole("button", { name: "Confirm delete" }).click();
 
     await expect(panel).toBeHidden();

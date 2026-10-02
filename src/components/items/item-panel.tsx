@@ -9,6 +9,7 @@ import type { Item } from "@/lib/items";
 import type { TimeZone } from "@/lib/time-zone";
 import { ItemForm } from "./item-form";
 
+// Tailwind's `md` breakpoint, where `ScheduleView` switches to columns.
 const DESKTOP_QUERY = "(min-width: 768px)";
 
 type PanelMode = { kind: "closed" } | { kind: "add" } | { kind: "edit"; item: Item };

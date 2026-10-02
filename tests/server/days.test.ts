@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { dayNavigation, daysFrom, parseDateParam, weekContaining, weekNavigation, weekOf } from "@/server/week";
+import { dayNavigation, daysFrom, parseDateParam, weekContaining, weekNavigation, weekOf } from "@/server/days";
 
 const at = (iso: string) => Temporal.Instant.from(iso);
 
@@ -9,13 +9,21 @@ describe("weekContaining and weekOf", { tags: ["unit", "critical"] }, () => {
 
     // Thu Oct 8 2026, 11:00 EDT.
     const week = weekContaining(at("2026-10-08T15:00Z"), tz);
-    expect(week.monday.toString()).toBe("2026-10-05");
+    expect(week.dates).toEqual([
+      "2026-10-05",
+      "2026-10-06",
+      "2026-10-07",
+      "2026-10-08",
+      "2026-10-09",
+      "2026-10-10",
+      "2026-10-11",
+    ]);
     expect(week.range).toEqual({ start: new Date("2026-10-05T04:00Z"), end: new Date("2026-10-12T04:00Z") });
     expect(weekOf(Temporal.PlainDate.from("2026-10-11"), tz)).toEqual(week); // any day of the week, Sunday included
 
     // Mon 00:00 starts the new week; Sun 23:59 still belongs to the old one.
-    expect(weekContaining(at("2026-10-12T04:00Z"), tz).monday.toString()).toBe("2026-10-12");
-    expect(weekContaining(at("2026-10-12T03:59Z"), tz).monday.toString()).toBe("2026-10-05");
+    expect(weekContaining(at("2026-10-12T04:00Z"), tz).dates[0]).toBe("2026-10-12");
+    expect(weekContaining(at("2026-10-12T03:59Z"), tz).dates[0]).toBe("2026-10-05");
 
     // Clocks go back on Sun Nov 1, so this week starts in EDT and ends in EST: 169 hours.
     expect(weekContaining(at("2026-11-01T12:00Z"), tz).range).toEqual({

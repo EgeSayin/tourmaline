@@ -3,14 +3,16 @@ import type { TimeZone } from "@/lib/time-zone";
 import type { Interval } from "@/server/scheduler/intervals";
 import { toDate } from "@/server/temporal";
 
-export interface Week {
-  monday: Temporal.PlainDate;
-  /** Monday 00:00 to the next Monday 00:00, local time. */
+/** Consecutive local days. */
+export interface Days {
+  /** `YYYY-MM-DD`, in order. */
+  dates: string[];
+  /** From the first day's midnight to the midnight after the last, local time. */
   range: Interval;
 }
 
 /** The Monday-to-Sunday week, in local time, that contains `instant`. */
-export function weekContaining(instant: Temporal.Instant, timeZone: TimeZone): Week {
+export function weekContaining(instant: Temporal.Instant, timeZone: TimeZone): Days {
   return weekOf(instant.toZonedDateTimeISO(timeZone).toPlainDate(), timeZone);
 }
 
@@ -20,20 +22,12 @@ export const PHONE_DAY_COUNT = 3;
 const startOfDay = (day: Temporal.PlainDate, timeZone: TimeZone) => toDate(day.toZonedDateTime(timeZone));
 
 /** The Monday-to-Sunday week, in local time, that contains `date`. */
-export function weekOf(date: Temporal.PlainDate, timeZone: TimeZone): Week {
-  const monday = date.subtract({ days: date.dayOfWeek - 1 });
-  return {
-    monday,
-    range: { start: startOfDay(monday, timeZone), end: startOfDay(monday.add({ weeks: 1 }), timeZone) },
-  };
+export function weekOf(date: Temporal.PlainDate, timeZone: TimeZone): Days {
+  return daysFrom(date.subtract({ days: date.dayOfWeek - 1 }), 7, timeZone);
 }
 
-/** `count` local days starting on `date`: their dates, and their span from the first midnight to the last. */
-export function daysFrom(
-  date: Temporal.PlainDate,
-  count: number,
-  timeZone: TimeZone,
-): { dates: string[]; range: Interval } {
+/** `count` local days starting on `date`. */
+export function daysFrom(date: Temporal.PlainDate, count: number, timeZone: TimeZone): Days {
   return {
     dates: Array.from({ length: count }, (_, i) => date.add({ days: i }).toString()),
     range: { start: startOfDay(date, timeZone), end: startOfDay(date.add({ days: count }), timeZone) },

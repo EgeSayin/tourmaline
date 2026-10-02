@@ -8,8 +8,8 @@ import { type Interval, subtractIntervals } from "./intervals";
 import { placeTasks } from "./schedule";
 
 export interface ReplanInput {
-  range: Interval;
-  now: Date;
+  /** Starts now: earlier placements are done, and new ones go inside it. */
+  horizon: Interval;
   fixedItems: FixedItem[];
   flexibleItems: FlexibleItem[];
   /** Placements saved from earlier runs. */
@@ -30,17 +30,16 @@ export interface ReplanResult {
  * in the free time from `now` on. Only if some task then doesn't fit are the unpinned future placements
  * dropped and everything re-placed.
  */
-export function replan({ range, now, fixedItems, flexibleItems, existing, settings }: ReplanInput): ReplanResult {
+export function replan({ horizon, fixedItems, flexibleItems, existing, settings }: ReplanInput): ReplanResult {
+  const now = horizon.start;
   const kept = existing.filter((placement) => placement.pinned || placement.start < now);
   const movable = existing.filter((placement) => !placement.pinned && placement.start >= now);
 
-  const planFrom = now > range.start ? now : range.start;
-  const freeFromNow =
-    planFrom < range.end ? freeTimeMap({ start: planFrom, end: range.end }, fixedItems, settings) : [];
+  const freeFromNow = now < horizon.end ? freeTimeMap(horizon, fixedItems, settings) : [];
   const free = subtractIntervals(freeFromNow, kept);
   const tasks = flexibleItems.map((task) => ({
     ...task,
-    earliestStart: task.earliestStart > planFrom ? task.earliestStart : planFrom,
+    earliestStart: task.earliestStart > now ? task.earliestStart : now,
   }));
 
   const stable = fillAround(tasks, kept, movable, free);

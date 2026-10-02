@@ -1,7 +1,8 @@
 import "server-only";
+import { weekContaining } from "@/server/days";
 import { sampleWeek } from "@/server/demo/sample-week";
-import { schedule } from "@/server/scheduler/schedule";
-import { weekContaining } from "@/server/week";
+import { freeTimeMap } from "@/server/scheduler/free-time";
+import { placeTasks } from "@/server/scheduler/schedule";
 import { db } from "./client";
 import { insertItem } from "./items-repository";
 import { insertPlacements } from "./placements-repository";
@@ -22,7 +23,7 @@ async function seed() {
     downtimeEndMinute: sample.settings.downtime.endMinute,
   };
   const { range } = weekContaining(now, sample.settings.timeZone);
-  const plan = schedule(range, sample.fixedItems, sample.flexibleItems, sample.settings);
+  const plan = placeTasks(sample.flexibleItems, freeTimeMap(range, sample.fixedItems, sample.settings));
 
   await db.transaction(async (tx) => {
     await tx.delete(items);
