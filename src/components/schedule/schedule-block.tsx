@@ -16,14 +16,15 @@ export function ScheduleBlock({
   onSelect: () => void;
 }) {
   const top = scale.top(block.startMinute);
-  const durationMin = block.endMinute - block.startMinute;
-  const isShort = durationMin < 60;
-  const isTiny = durationMin < 15;
+  const isTiny = block.endMinute - block.startMinute < 15;
+  const label = `${block.title} ${formatTimeRange(block.start, block.end, timeZone)}`;
 
   return (
     <button
       type="button"
       onClick={onSelect}
+      aria-label={label}
+      title={label}
       className={`absolute inset-x-1 flex cursor-pointer flex-col justify-start overflow-hidden rounded-md px-2 text-left text-xs ${
         isTiny ? "leading-3" : "py-1"
       } transition hover:brightness-95 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none dark:hover:brightness-125 ${BLOCK_STYLES[block.style].className} ${
@@ -31,10 +32,7 @@ export function ScheduleBlock({
       }`}
       style={{ top: top + 1, height: scale.top(block.endMinute) - top - 2 }}
     >
-      <div className={isShort ? "flex gap-1.5" : ""}>
-        <div className="truncate font-medium">{block.title}</div>
-        <div className="shrink-0 tabular-nums opacity-70">{formatTimeRange(block.start, block.end, timeZone)}</div>
-      </div>
+      <div className="truncate font-medium">{block.title}</div>
     </button>
   );
 }

@@ -3,6 +3,8 @@ import type { TimeZone } from "@/lib/time-zone";
 import { ScheduleBlock } from "./schedule-block";
 import type { TimeScale } from "./time-scale";
 
+const QUARTERS = [15, 30, 45];
+
 export function DayColumn({
   blocks,
   scale,
@@ -19,19 +21,17 @@ export function DayColumn({
   return (
     <div className={`relative border-l ${className}`} style={{ height: scale.height }}>
       {scale.hours.slice(1).map((hour) => (
-        <div
-          key={hour}
-          className="absolute inset-x-0 border-t border-border/60"
-          style={{ top: scale.top(hour * 60) }}
-        />
+        <div key={hour} className="absolute inset-x-0 border-t" style={{ top: scale.top(hour * 60) }} />
       ))}
-      {scale.hours.map((hour) => (
-        <div
-          key={`${hour}:30`}
-          className="absolute inset-x-0 border-t border-dashed border-border/30"
-          style={{ top: scale.top(hour * 60 + 30) }}
-        />
-      ))}
+      {scale.hours.flatMap((hour) =>
+        QUARTERS.map((minute) => (
+          <div
+            key={`${hour}:${minute}`}
+            className="absolute inset-x-0 border-t border-border/40"
+            style={{ top: scale.top(hour * 60 + minute) }}
+          />
+        )),
+      )}
       {blocks.map((block) => (
         <ScheduleBlock
           key={block.key}
