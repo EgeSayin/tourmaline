@@ -20,7 +20,7 @@ tests/          mirrors src/; shared helpers and generators in tests/support/
 
 - Vitest, in `tests/`. Prefer a few comprehensive scenario tests over many single-assertion tests.
 - Tag tests `unit` (runs in isolation) or `integration` (needs external services). Set up services through lazy fixtures so unit runs never touch them.
-- Pair example tests for important cases with property-based tests for output guarantees, side by side in the same `describe`. Write properties as plain `it(..., { tags: ["property"] }, () => fc.assert(fc.property(...)))` with `fast-check`.
+- Example tests cover important and boundary cases. Add a property-based test only when a guarantee is easy to state and hard to get right, and keep it simpler than the code under test. Write properties as plain `it(..., { tags: ["property"] }, () => fc.assert(fc.property(...)))` with `fast-check`, in the same `describe` as the examples.
 - Tag `critical` when a failure wouldn't be caught easily without the test and breaks core functionality.
 
 # Code style
