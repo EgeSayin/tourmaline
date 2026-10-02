@@ -17,7 +17,7 @@ export async function createItem(_previous: CreateItemState, formData: FormData)
   if (!settings) throw new Error("Settings must be saved before adding items");
 
   const fields = Object.fromEntries([...formData].map(([key, value]) => [key, String(value)]));
-  const parsed = parseItemForm(fields, settings.timeZone);
+  const parsed = parseItemForm(fields, settings.timeZone, Temporal.Now.instant());
   if (!parsed.ok) return { status: "invalid", errors: parsed.errors, fields };
 
   await db.transaction((tx) => insertItem(tx, parsed.item));

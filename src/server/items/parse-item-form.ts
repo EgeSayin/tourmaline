@@ -8,8 +8,15 @@ export type ItemFormErrors = Partial<Record<string, string[]>>;
 
 export type ParsedItemForm = { ok: true; item: NewItem } | { ok: false; errors: ItemFormErrors };
 
-/** Validates submitted form fields and converts their local times to exact times in `timeZone`. */
-export function parseItemForm(fields: Record<string, unknown>, timeZone: TimeZone): ParsedItemForm {
+/**
+ * Validates submitted form fields and converts their local times to exact times in `timeZone`.
+ * A flexible task without an earliest start starts at `now`, and its deadline must be after `now`.
+ */
+export function parseItemForm(
+  fields: Record<string, unknown>,
+  timeZone: TimeZone,
+  now: Temporal.Instant,
+): ParsedItemForm {
   const parsed = itemFormSchema.safeParse(fields);
   if (!parsed.success) return { ok: false, errors: z.flattenError(parsed.error).fieldErrors };
 
@@ -33,6 +40,15 @@ export function parseItemForm(fields: Record<string, unknown>, timeZone: TimeZon
     };
   }
 
+  const earliestStart = form.earliestStart ? at(form.earliestStart) : new Date(now.epochMilliseconds);
+  const deadline = at(form.deadline);
+  if (deadline.getTime() <= now.epochMilliseconds) {
+    return { ok: false, errors: { deadline: ["Deadline must be in the future"] } };
+  }
+  if (deadline <= earliestStart) {
+    return { ok: false, errors: { deadline: ["Deadline must be after the earliest start"] } };
+  }
+
   return {
     ok: true,
     item: {
@@ -40,8 +56,8 @@ export function parseItemForm(fields: Record<string, unknown>, timeZone: TimeZon
       priority: form.priority,
       timing: "flexible",
       durationMin: form.durationMin,
-      earliestStart: at(form.earliestStart),
-      deadline: at(form.deadline),
+      earliestStart,
+      deadline,
       split:
         form.minChunkMin !== undefined && form.maxChunkMin !== undefined
           ? { minChunkMin: form.minChunkMin, maxChunkMin: form.maxChunkMin }

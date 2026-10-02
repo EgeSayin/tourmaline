@@ -33,13 +33,13 @@ const flexibleForm = z
     ...shared,
     timing: z.literal("flexible"),
     durationMin: z.preprocess(toNumber, minutes(1)),
-    earliestStart: localDateTime,
+    earliestStart: z.preprocess(emptyToUndefined, localDateTime.optional()),
     deadline: localDateTime,
     minChunkMin: z.preprocess(toNumber, minutes(1).optional()),
     maxChunkMin: z.preprocess(toNumber, minutes(1).optional()),
     spread: z.preprocess(emptyToUndefined, z.enum(SPREAD_STRATEGIES).default("even")),
   })
-  .refine((form) => form.earliestStart < form.deadline, {
+  .refine((form) => form.earliestStart === undefined || form.earliestStart < form.deadline, {
     path: ["deadline"],
     message: "Deadline must be after the earliest start",
   })

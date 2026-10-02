@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, use } from "react";
-import { Field, FieldError, FieldLabel } from "@/components/ui/field";
+import { Field, FieldDescription, FieldError, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 
@@ -17,21 +17,28 @@ export function FormStateProvider({ children, ...state }: FormState & { children
   return <FormStateContext value={state}>{children}</FormStateContext>;
 }
 
-function FormField({ name, label, children }: { name: string; label: string; children: React.ReactNode }) {
+interface FieldProps {
+  name: string;
+  label: string;
+  description?: string;
+}
+
+function FormField({ name, label, description, children }: FieldProps & { children: React.ReactNode }) {
   const messages = use(FormStateContext).errors[name];
   return (
     <Field data-invalid={messages ? true : undefined}>
       <FieldLabel htmlFor={name}>{label}</FieldLabel>
       {children}
+      {description && <FieldDescription>{description}</FieldDescription>}
       <FieldError errors={messages?.map((message) => ({ message }))} />
     </Field>
   );
 }
 
-export function FormInput({ name, label, ...props }: { name: string; label: string } & React.ComponentProps<"input">) {
+export function FormInput({ name, label, description, ...props }: FieldProps & React.ComponentProps<"input">) {
   const { values, errors } = use(FormStateContext);
   return (
-    <FormField name={name} label={label}>
+    <FormField name={name} label={label} description={description}>
       <Input
         id={name}
         name={name}

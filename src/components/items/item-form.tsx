@@ -36,7 +36,13 @@ export function ItemForm({ onSaved }: { onSaved: () => void }) {
             autoFocus
             placeholder={timing === "fixed" ? "CS 101 lecture" : "Physics homework"}
           />
-          <FormSelect name="priority" label="Priority" options={PRIORITY_OPTIONS} defaultValue="normal" />
+          <FormSelect
+            key={timing}
+            name="priority"
+            label="Priority"
+            options={PRIORITY_OPTIONS}
+            defaultValue={timing === "fixed" ? "mandatory" : "normal"}
+          />
           {timing === "fixed" ? <FixedItemFields /> : <FlexibleItemFields />}
         </FieldGroup>
       </FormStateProvider>
