@@ -53,15 +53,7 @@ export async function addFixedItemToday(
   await expect(form).toBeHidden();
 }
 
-/** On phones the calendar shows one day, starting on Monday; step forward to today. */
-export async function showToday(page: Page, testInfo: TestInfo) {
-  if (!isPhone(testInfo)) return;
-  const daysSinceMonday = Temporal.Now.plainDateISO(TIME_ZONE).dayOfWeek - 1;
-  for (let i = 0; i < daysSinceMonday; i++) await page.getByRole("button", { name: "Next day" }).click();
-}
-
 export async function openItemForEditing(page: Page, testInfo: TestInfo, title: string) {
-  await showToday(page, testInfo);
   await page.getByRole("button", { name: new RegExp(`^${RegExp.escape(title)}`) }).click();
   return itemPanel(page, testInfo, "Edit item");
 }

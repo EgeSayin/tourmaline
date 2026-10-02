@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { weekContaining, weekOf } from "@/server/week";
+import { parseWeekParam, weekContaining, weekNavigation, weekOf } from "@/server/week";
 
 const at = (iso: string) => Temporal.Instant.from(iso);
 
@@ -22,5 +22,20 @@ describe("weekContaining and weekOf", { tags: ["unit", "critical"] }, () => {
       start: new Date("2026-10-26T04:00Z"),
       end: new Date("2026-11-02T05:00Z"),
     });
+  });
+
+  it("parses the week parameter and links to the weeks around it", () => {
+    expect(parseWeekParam("2026-10-08")?.toString()).toBe("2026-10-08");
+    for (const invalid of [undefined, "", "next", "2026-13-01", "2026-10-08T10:00", ["2026-10-08", "2026-10-15"]]) {
+      expect(parseWeekParam(invalid)).toBeUndefined();
+    }
+
+    expect(weekNavigation("2026-10-05", "2026-10-07")).toEqual({
+      previous: "2026-09-28",
+      next: "2026-10-12",
+      weeksFromToday: 0,
+    });
+    expect(weekNavigation("2026-09-28", "2026-10-11").weeksFromToday).toBe(-1); // Sunday is still the later week
+    expect(weekNavigation("2026-11-02", "2026-10-05").weeksFromToday).toBe(4); // across the DST change
   });
 });

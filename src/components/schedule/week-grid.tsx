@@ -14,24 +14,27 @@ import { HourAxis } from "./hour-axis";
 import { timeScaleFor } from "./time-scale";
 
 export function WeekGrid({
+  today,
   range,
   fixedItems,
   flexibleItems,
   placements,
   timeZone,
 }: {
+  /** Local date the phone view opens on when it's in the shown week. */
+  today: string;
   range: { start: Date; end: Date };
   fixedItems: FixedItem[];
   flexibleItems: FlexibleItem[];
   placements: Placement[];
   timeZone: TimeZone;
 }) {
-  const [selected, setSelected] = useState(0);
+  const dates = localDatesInRange(range, timeZone);
+  const [selected, setSelected] = useState(Math.max(dates.indexOf(today), 0));
   const { openEdit } = useItemPanel();
   const itemsById = new Map([...fixedItems, ...flexibleItems].map((item) => [item.id, item]));
   const blocks = toCalendarBlocks(fixedItems, flexibleItems, placements, timeZone);
   const scale = timeScaleFor(blocks);
-  const dates = localDatesInRange(range, timeZone);
 
   return (
     <div className="overflow-hidden rounded-xl border bg-card shadow-sm">

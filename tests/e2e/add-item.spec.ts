@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { addFixedItemToday, earlySlot, localDateTime, openAddItemForm, showToday } from "./helpers";
+import { addFixedItemToday, earlySlot, localDateTime, openAddItemForm } from "./helpers";
 
 test.describe("adding items", () => {
   test("shows field errors when required fields are missing", async ({ page }, testInfo) => {
@@ -36,7 +36,6 @@ test.describe("adding items", () => {
     const slot = earlySlot(testInfo, 0);
     await addFixedItemToday(page, testInfo, title, slot);
 
-    await showToday(page, testInfo);
     await expect(page.getByRole("button", { name: `${title} ${slot.label}` })).toBeVisible();
   });
 });
