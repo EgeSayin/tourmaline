@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
+import { itemToFormValues } from "@/lib/item-form";
 import { parseItemForm } from "@/server/items/parse-item-form";
+import { fixed, flexible } from "../../support/items";
 
 const tz = "America/New_York";
 const now = Temporal.Instant.from("2026-10-05T12:00Z"); // Mon Oct 5, 08:00 EDT
@@ -112,5 +114,21 @@ describe("parseItemForm", { tags: ["unit", "critical"] }, () => {
       ok: true,
       item: { earliestStart: new Date("2026-10-05T12:00Z"), deadline: new Date("2026-10-06T21:00Z") },
     });
+  });
+
+  it("parses an item's own form values back into the same item", () => {
+    const lecture = {
+      ...fixed("Lecture", { start: new Date("2026-10-05T15:00Z"), end: new Date("2026-10-05T16:15Z") }, 15, 5),
+      location: "Hall 1",
+    };
+    const essay = {
+      ...flexible("Essay", 120, { start: new Date("2026-10-31T13:00Z"), end: new Date("2026-11-02T22:00Z") }, "high"),
+      split: { minChunkMin: 30, maxChunkMin: 60 },
+    };
+
+    for (const item of [lecture, essay]) {
+      const parsed = parseItemForm(itemToFormValues(item, tz), tz, now);
+      expect(parsed.ok && { id: item.id, ...parsed.item }).toEqual(item);
+    }
   });
 });

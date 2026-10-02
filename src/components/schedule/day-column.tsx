@@ -7,11 +7,13 @@ export function DayColumn({
   blocks,
   scale,
   timeZone,
+  onSelect,
   className = "",
 }: {
   blocks: CalendarBlock[];
   scale: TimeScale;
   timeZone: TimeZone;
+  onSelect: (block: CalendarBlock) => void;
   className?: string;
 }) {
   return (
@@ -24,7 +26,13 @@ export function DayColumn({
         />
       ))}
       {blocks.map((block) => (
-        <ScheduleBlock key={block.key} block={block} scale={scale} timeZone={timeZone} />
+        <ScheduleBlock
+          key={block.key}
+          block={block}
+          scale={scale}
+          timeZone={timeZone}
+          onSelect={() => onSelect(block)}
+        />
       ))}
     </div>
   );

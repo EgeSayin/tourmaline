@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useItemPanel } from "@/components/items/item-panel";
 import { toCalendarBlocks } from "@/lib/calendar-blocks";
 import { formatLocalWeekday } from "@/lib/format";
 import type { FixedItem, FlexibleItem } from "@/lib/items";
@@ -26,6 +27,8 @@ export function WeekGrid({
   timeZone: TimeZone;
 }) {
   const [selected, setSelected] = useState(0);
+  const { openEdit } = useItemPanel();
+  const itemsById = new Map([...fixedItems, ...flexibleItems].map((item) => [item.id, item]));
   const blocks = toCalendarBlocks(fixedItems, flexibleItems, placements, timeZone);
   const scale = timeScaleFor(blocks);
   const dates = localDatesInRange(range, timeZone);
@@ -52,6 +55,10 @@ export function WeekGrid({
             blocks={blocks.filter((block) => block.date === date)}
             scale={scale}
             timeZone={timeZone}
+            onSelect={(block) => {
+              const item = itemsById.get(block.key);
+              if (item) openEdit(item);
+            }}
             className={i === selected ? "" : "hidden md:block"}
           />
         ))}

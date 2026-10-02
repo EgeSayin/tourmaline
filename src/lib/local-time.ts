@@ -37,3 +37,10 @@ export function localDatesInRange(range: { start: Date; end: Date }, timeZone: T
   }
   return [...dates];
 }
+
+/** The exact time as a `datetime-local` input value in `timeZone`, e.g. "2026-10-05T11:00". */
+export function toDateTimeInputValue(date: Date, timeZone: TimeZone): string {
+  const { date: day, minuteOfDay } = toLocal(date, timeZone);
+  const pad = (value: number) => String(value).padStart(2, "0");
+  return `${day}T${pad(Math.floor(minuteOfDay / 60))}:${pad(minuteOfDay % 60)}`;
+}

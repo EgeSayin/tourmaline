@@ -19,7 +19,7 @@ export default async function Home() {
   }
 
   return (
-    <ItemPanelProvider>
+    <ItemPanelProvider timeZone={week.timeZone}>
       <main className="mx-auto flex w-full max-w-7xl flex-col gap-4 px-4 py-6 md:py-10">
         <WeekHeader dates={week.dates} />
         <ItemPanelLayout>

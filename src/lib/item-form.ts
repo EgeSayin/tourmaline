@@ -1,5 +1,7 @@
 import { z } from "zod";
-import { PRIORITIES, SPREAD_STRATEGIES } from "./items";
+import { type Item, PRIORITIES, SPREAD_STRATEGIES } from "./items";
+import { toDateTimeInputValue } from "./local-time";
+import type { TimeZone } from "./time-zone";
 
 const emptyToUndefined = (value: unknown) => (value === "" || value === null ? undefined : value);
 const toNumber = (value: unknown) => {
@@ -58,3 +60,29 @@ const flexibleForm = z
 export const itemFormSchema = z.discriminatedUnion("timing", [fixedForm, flexibleForm]);
 
 export type ItemForm = z.infer<typeof itemFormSchema>;
+
+/** The form field values that describe `item`, with times shown in `timeZone`. */
+export function itemToFormValues(item: Item, timeZone: TimeZone): Record<string, string> {
+  const local = (date: Date) => toDateTimeInputValue(date, timeZone);
+  const shared = { title: item.title, priority: item.priority, timing: item.timing };
+
+  if (item.timing === "fixed") {
+    return {
+      ...shared,
+      start: local(item.start),
+      end: local(item.end),
+      location: item.location ?? "",
+      bufferBeforeMin: String(item.bufferBeforeMin),
+      bufferAfterMin: String(item.bufferAfterMin),
+    };
+  }
+  return {
+    ...shared,
+    durationMin: String(item.durationMin),
+    earliestStart: local(item.earliestStart),
+    deadline: local(item.deadline),
+    minChunkMin: item.split ? String(item.split.minChunkMin) : "",
+    maxChunkMin: item.split ? String(item.split.maxChunkMin) : "",
+    spread: item.spread,
+  };
+}
