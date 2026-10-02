@@ -1,35 +1,13 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import { type Interval, mergeIntervals, subtractIntervals } from "@/server/scheduler/intervals";
+import { covers, expectSortedWithGaps, intervalsArb, SPAN_MIN } from "../../support/intervals";
 
 function iv(start: string, end: string): Interval {
   return {
     start: new Date(`2026-10-05T${start}:00Z`),
     end: new Date(`2026-10-05T${end}:00Z`),
   };
-}
-
-const ORIGIN = Date.UTC(2026, 9, 5);
-const SPAN_MIN = 24 * 60;
-
-const at = (minute: number) => new Date(ORIGIN + minute * 60_000);
-const minuteOf = (date: Date) => (date.getTime() - ORIGIN) / 60_000;
-
-// Whole-minute bounds, so checking every minute in the span checks coverage completely.
-const intervalArb = fc
-  .tuple(fc.integer({ min: 0, max: SPAN_MIN - 1 }), fc.integer({ min: 1, max: 6 * 60 }))
-  .map(([start, length]): Interval => ({ start: at(start), end: at(Math.min(start + length, SPAN_MIN)) }));
-const intervalsArb = fc.array(intervalArb, { maxLength: 12 });
-
-function covers(intervals: Interval[], minute: number): boolean {
-  return intervals.some((i) => minuteOf(i.start) <= minute && minute < minuteOf(i.end));
-}
-
-function expectSortedWithGaps(intervals: Interval[]) {
-  for (const [i, interval] of intervals.entries()) {
-    expect(interval.start < interval.end).toBe(true);
-    if (i > 0) expect(intervals[i - 1].end < interval.start).toBe(true);
-  }
 }
 
 describe("mergeIntervals", { tags: ["unit", "critical"] }, () => {

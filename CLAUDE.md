@@ -8,7 +8,7 @@ src/
   components/   ui/ for shadcn primitives, <feature>/ for feature UI
   lib/          browser-safe shared code: domain types, constants, pure helpers
   server/       server-only code; every file starts with `import "server-only"`
-tests/          mirrors src/
+tests/          mirrors src/; shared helpers and generators in tests/support/
 ```
 
 - Define each type in the module that owns the concept. No catch-all type files.
