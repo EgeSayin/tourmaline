@@ -8,6 +8,7 @@ src/
   components/   ui/ for shadcn primitives, <feature>/ for feature UI
   lib/          browser-safe shared code: domain types, constants, pure helpers
   server/       server-only code; every file starts with `import "server-only"`
+                (except db/schema.ts, which drizzle-kit loads outside Next.js)
 tests/          mirrors src/; shared helpers and generators in tests/support/
 ```
 
@@ -15,6 +16,7 @@ tests/          mirrors src/; shared helpers and generators in tests/support/
 - No barrel `index.ts` files; import from the defining file.
 - Client code may `import type` from `src/server/`, never runtime values.
 - Configurable values come from settings with named defaults, never inline literals.
+- Scripts that run outside Next.js (e.g. `db:seed`) use `tsx --conditions=react-server` so `server-only` imports resolve.
 
 # Tests
 

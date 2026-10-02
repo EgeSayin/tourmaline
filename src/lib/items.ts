@@ -5,7 +5,9 @@ export const PRIORITIES = ["mandatory", "high", "normal", "low"] as const;
 
 export type Priority = (typeof PRIORITIES)[number];
 
-export type SpreadStrategy = "asap" | "even" | "just-in-time";
+export const SPREAD_STRATEGIES = ["asap", "even", "just-in-time"] as const;
+
+export type SpreadStrategy = (typeof SPREAD_STRATEGIES)[number];
 
 interface BaseItem {
   id: string;
