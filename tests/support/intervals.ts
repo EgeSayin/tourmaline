@@ -6,6 +6,14 @@ import type { Interval } from "@/server/scheduler/intervals";
 export const ORIGIN = Date.UTC(2026, 9, 5);
 export const SPAN_MIN = 2 * 24 * 60;
 
+export const utc = (start: string, end: string): Interval => ({
+  start: new Date(`${start}Z`),
+  end: new Date(`${end}Z`),
+});
+
+/** Times of day on ORIGIN's date, e.g. `iv("10:00", "11:30")`. */
+export const iv = (start: string, end: string) => utc(`2026-10-05T${start}`, `2026-10-05T${end}`);
+
 export const at = (minute: number) => new Date(ORIGIN + minute * 60_000);
 export const minuteOf = (date: Date) => (date.getTime() - ORIGIN) / 60_000;
 

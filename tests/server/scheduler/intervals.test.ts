@@ -1,14 +1,7 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
-import { type Interval, mergeIntervals, subtractIntervals } from "@/server/scheduler/intervals";
-import { covers, expectSortedWithGaps, intervalsArb, SPAN_MIN } from "../../support/intervals";
-
-function iv(start: string, end: string): Interval {
-  return {
-    start: new Date(`2026-10-05T${start}:00Z`),
-    end: new Date(`2026-10-05T${end}:00Z`),
-  };
-}
+import { mergeIntervals, subtractIntervals } from "@/server/scheduler/intervals";
+import { covers, expectSortedWithGaps, intervalsArb, iv, SPAN_MIN } from "../../support/intervals";
 
 describe("mergeIntervals", { tags: ["unit", "critical"] }, () => {
   it("sorts busy blocks and merges overlapping, touching, and nested ones", () => {

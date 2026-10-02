@@ -27,7 +27,7 @@ function invalid(fields: Record<string, string>, parsed: Extract<ParsedItemForm,
   return { status: "invalid", errors: parsed.errors, fields };
 }
 
-export async function createItem(_previous: ItemFormState, formData: FormData): Promise<ItemFormState> {
+export async function createItemAction(_previous: ItemFormState, formData: FormData): Promise<ItemFormState> {
   const { fields, parsed } = await parseSubmission(formData);
   if (!parsed.ok) return invalid(fields, parsed);
 

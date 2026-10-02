@@ -8,11 +8,9 @@ import { freeTimeMap } from "@/server/scheduler/free-time";
 import { subtractIntervals } from "@/server/scheduler/intervals";
 import { replan } from "@/server/scheduler/replan";
 import { findEarliestSlot } from "@/server/scheduler/slots";
-import { at, intervalArb, SPAN_MIN } from "../../support/intervals";
+import { at, intervalArb, SPAN_MIN, utc } from "../../support/intervals";
 import { fixed, fixedItemArb, flexible, flexibleItemsArb } from "../../support/items";
 import { utcSettingsArb } from "../../support/settings";
-
-const utc = (start: string, end: string) => ({ start: new Date(`${start}Z`), end: new Date(`${end}Z`) });
 
 const scenarioArb = fc
   .tuple(

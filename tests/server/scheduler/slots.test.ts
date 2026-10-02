@@ -3,14 +3,7 @@ import { describe, expect, it } from "vitest";
 import { SLOT_MIN } from "@/lib/placements";
 import { type Interval, mergeIntervals } from "@/server/scheduler/intervals";
 import { findEarliestSlot } from "@/server/scheduler/slots";
-import { at, covers, intervalArb, intervalsArb, SPAN_MIN } from "../../support/intervals";
-
-function iv(start: string, end: string): Interval {
-  return {
-    start: new Date(`2026-10-05T${start}:00Z`),
-    end: new Date(`2026-10-05T${end}:00Z`),
-  };
-}
+import { at, covers, intervalArb, intervalsArb, iv, SPAN_MIN } from "../../support/intervals";
 
 /** Earliest minute on the `SLOT_MIN` grid starting `durationMin` consecutive minutes inside both `free` and `window`. */
 function earliestFittingMinute(free: Interval[], window: Interval, durationMin: number): number | null {

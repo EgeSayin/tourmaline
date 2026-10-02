@@ -1,24 +1,13 @@
 import { describe, expect, it } from "vitest";
-import type { FlexibleItem, Priority } from "@/lib/items";
+import type { Priority } from "@/lib/items";
 import type { Interval } from "@/server/scheduler/intervals";
 import { orderByUrgency, pressure } from "@/server/scheduler/urgency";
+import { flexible } from "../../support/items";
 
 const oct = (day: number, hour = 0) => new Date(Date.UTC(2026, 9, day, hour));
 
-function task(title: string, durationMin: number, deadline: Date, priority: Priority = "normal"): FlexibleItem {
-  return {
-    id: title,
-    title,
-    priority,
-    timing: "flexible",
-    durationMin,
-    earliestStart: oct(5),
-    deadline,
-    split: null,
-    preferredWindows: [],
-    spread: "asap",
-  };
-}
+const task = (title: string, durationMin: number, deadline: Date, priority?: Priority) =>
+  flexible(title, durationMin, { start: oct(5), end: deadline }, priority);
 
 describe("orderByUrgency", { tags: ["unit", "critical"] }, () => {
   it("orders by priority, then pressure, then deadline", () => {

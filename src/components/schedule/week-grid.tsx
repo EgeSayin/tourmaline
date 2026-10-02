@@ -5,7 +5,6 @@ import { useItemPanel } from "@/components/items/item-panel";
 import { toCalendarBlocks } from "@/lib/calendar-blocks";
 import { formatLocalWeekday } from "@/lib/format";
 import type { FixedItem, FlexibleItem } from "@/lib/items";
-import { localDatesInRange } from "@/lib/local-time";
 import type { Placement } from "@/lib/placements";
 import type { TimeZone } from "@/lib/time-zone";
 import { DayColumn } from "./day-column";
@@ -15,7 +14,7 @@ import { timeScaleFor } from "./time-scale";
 
 export function WeekGrid({
   today,
-  range,
+  dates,
   fixedItems,
   flexibleItems,
   placements,
@@ -23,13 +22,12 @@ export function WeekGrid({
 }: {
   /** Local date the phone view opens on when it's in the shown week. */
   today: string;
-  range: { start: Date; end: Date };
+  dates: string[];
   fixedItems: FixedItem[];
   flexibleItems: FlexibleItem[];
   placements: Placement[];
   timeZone: TimeZone;
 }) {
-  const dates = localDatesInRange(range, timeZone);
   const [selected, setSelected] = useState(Math.max(dates.indexOf(today), 0));
   const { openEdit } = useItemPanel();
   const itemsById = new Map([...fixedItems, ...flexibleItems].map((item) => [item.id, item]));

@@ -7,8 +7,8 @@ import { loadWeekSchedule } from "@/server/week-schedule";
 import type { Placement } from "@/lib/placements";
 import { dbTest as it } from "../support/database";
 import { fixed, flexible } from "../support/items";
+import { utc } from "../support/intervals";
 
-const utc = (start: string, end: string) => ({ start: new Date(`${start}Z`), end: new Date(`${end}Z`) });
 const wednesdayNoon = Temporal.Instant.from("2026-10-07T16:00Z"); // Wed Oct 7, 12:00 EDT
 const week = utc("2026-10-05T04:00", "2026-10-12T04:00");
 const auto = (itemId: string, times: { start: Date; end: Date }): Placement => ({

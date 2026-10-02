@@ -4,8 +4,8 @@ import { deleteItem, insertItem } from "@/server/db/items-repository";
 import { insertPlacements, loadPlacements, replacePendingPlacements } from "@/server/db/placements-repository";
 import { dbTest as it } from "../../support/database";
 import { fixed, flexible } from "../../support/items";
+import { utc } from "../../support/intervals";
 
-const utc = (start: string, end: string) => ({ start: new Date(`${start}Z`), end: new Date(`${end}Z`) });
 const week = utc("2026-10-05T04:00", "2026-10-12T04:00");
 
 describe("placements repository", { tags: ["integration", "critical"] }, () => {

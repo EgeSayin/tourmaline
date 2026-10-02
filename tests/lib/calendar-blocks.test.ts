@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { toCalendarBlocks } from "@/lib/calendar-blocks";
 import { fixed, flexible } from "../support/items";
+import { utc } from "../support/intervals";
 
 const tz = "America/New_York";
-const utc = (start: string, end: string) => ({ start: new Date(`${start}Z`), end: new Date(`${end}Z`) });
 
 describe("toCalendarBlocks", { tags: ["unit"] }, () => {
   it("places blocks on their local day with a style per kind, cutting off blocks that pass midnight, each with a unique key", () => {

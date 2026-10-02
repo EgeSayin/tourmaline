@@ -29,7 +29,7 @@ export default async function Home({ searchParams }: PageProps<"/">) {
           <WeekGrid
             key={week.dates[0]}
             today={week.today}
-            range={week.range}
+            dates={week.dates}
             fixedItems={week.fixedItems}
             flexibleItems={week.flexibleItems}
             placements={week.placements}

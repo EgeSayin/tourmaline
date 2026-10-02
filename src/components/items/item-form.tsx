@@ -7,7 +7,7 @@ import { FieldGroup } from "@/components/ui/field";
 import { itemToFormValues } from "@/lib/item-form";
 import { type Item, PRIORITIES } from "@/lib/items";
 import type { TimeZone } from "@/lib/time-zone";
-import { createItem, type ItemFormState, updateItemAction } from "@/server/items/actions";
+import { createItemAction, type ItemFormState, updateItemAction } from "@/server/items/actions";
 import { DeleteItemButton } from "./delete-item-button";
 import { FixedItemFields } from "./fixed-item-fields";
 import { FlexibleItemFields } from "./flexible-item-fields";
@@ -18,7 +18,7 @@ const PRIORITY_OPTIONS = PRIORITIES.map((value) => ({ value, label: value.charAt
 /** Adds a new item, or edits `item` when given. */
 export function ItemForm({ item, timeZone, onDone }: { item?: Item; timeZone: TimeZone; onDone: () => void }) {
   const [timing, setTiming] = useState<Item["timing"]>(item?.timing ?? "flexible");
-  const save = item ? updateItemAction.bind(null, item.id) : createItem;
+  const save = item ? updateItemAction.bind(null, item.id) : createItemAction;
   const [state, formAction, pending] = useActionState(
     async (previous: ItemFormState, formData: FormData) => {
       const result = await save(previous, formData);
