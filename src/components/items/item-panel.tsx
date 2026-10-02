@@ -2,8 +2,9 @@
 
 import { Dialog } from "@base-ui/react/dialog";
 import { Plus, X } from "lucide-react";
-import { createContext, use, useState, useSyncExternalStore } from "react";
+import { createContext, use, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { useMediaQuery } from "@/hooks/use-media-query";
 import { ItemForm } from "./item-form";
 
 const DESKTOP_QUERY = "(min-width: 768px)";
@@ -14,18 +15,6 @@ function usePanel() {
   const context = use(PanelContext);
   if (!context) throw new Error("usePanel must be used inside ItemPanelProvider");
   return context;
-}
-
-function useIsDesktop() {
-  return useSyncExternalStore(
-    (onChange) => {
-      const query = window.matchMedia(DESKTOP_QUERY);
-      query.addEventListener("change", onChange);
-      return () => query.removeEventListener("change", onChange);
-    },
-    () => window.matchMedia(DESKTOP_QUERY).matches,
-    () => false,
-  );
 }
 
 export function ItemPanelProvider({ children }: { children: React.ReactNode }) {
@@ -62,7 +51,7 @@ function PanelHeader({ onClose }: { onClose: () => void }) {
 /** Shows `children` with the add-item panel beside them on desktop, or as a bottom sheet on phones. */
 export function ItemPanelLayout({ children }: { children: React.ReactNode }) {
   const { open, setOpen } = usePanel();
-  const isDesktop = useIsDesktop();
+  const isDesktop = useMediaQuery(DESKTOP_QUERY);
   const close = () => setOpen(false);
 
   return (

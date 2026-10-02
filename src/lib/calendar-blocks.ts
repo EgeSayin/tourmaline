@@ -1,0 +1,64 @@
+import type { FixedItem, FlexibleItem } from "./items";
+import { toLocal } from "./local-time";
+import type { Placement } from "./placements";
+import type { TimeZone } from "./time-zone";
+
+const MINUTES_PER_DAY = 24 * 60;
+
+export type BlockStyle = "fixed" | "fixed-optional" | "scheduled";
+
+export interface CalendarBlock {
+  key: string;
+  title: string;
+  start: Date;
+  end: Date;
+  style: BlockStyle;
+  /** Low-priority scheduled tasks are shown faded. */
+  faded: boolean;
+  /** Local `YYYY-MM-DD` of the block's start. */
+  date: string;
+  startMinute: number;
+  endMinute: number;
+}
+
+/**
+ * Positions fixed items and placements on their local day.
+ * A block running past midnight is cut off at the end of the day it starts on.
+ */
+export function toCalendarBlocks(
+  fixedItems: FixedItem[],
+  flexibleItems: FlexibleItem[],
+  placements: Placement[],
+  timeZone: TimeZone,
+): CalendarBlock[] {
+  const tasks = new Map(flexibleItems.map((item) => [item.id, item]));
+
+  const unpositioned = [
+    ...fixedItems.map((item) => ({
+      key: item.id,
+      title: item.title,
+      start: item.start,
+      end: item.end,
+      style: item.priority === "mandatory" ? ("fixed" as const) : ("fixed-optional" as const),
+      faded: false,
+    })),
+    ...placements.map((placement) => {
+      const task = tasks.get(placement.itemId);
+      return {
+        key: placement.itemId,
+        title: task?.title ?? placement.itemId,
+        start: placement.start,
+        end: placement.end,
+        style: "scheduled" as const,
+        faded: task?.priority === "low",
+      };
+    }),
+  ];
+
+  return unpositioned.map((block) => {
+    const start = toLocal(block.start, timeZone);
+    const end = toLocal(block.end, timeZone);
+    const endMinute = end.date === start.date ? end.minuteOfDay : MINUTES_PER_DAY;
+    return { ...block, date: start.date, startMinute: start.minuteOfDay, endMinute };
+  });
+}

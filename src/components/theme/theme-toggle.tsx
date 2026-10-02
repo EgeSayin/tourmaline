@@ -2,8 +2,8 @@
 
 import { Monitor, Moon, Sun } from "lucide-react";
 import { useTheme } from "next-themes";
-import { useSyncExternalStore } from "react";
 import { Button } from "@/components/ui/button";
+import { useIsClient } from "@/hooks/use-is-client";
 
 const OPTIONS = [
   { value: "light", label: "Light theme", Icon: Sun },
@@ -11,16 +11,10 @@ const OPTIONS = [
   { value: "system", label: "System theme", Icon: Monitor },
 ] as const;
 
-const subscribeNever = () => () => {};
-
 export function ThemeToggle() {
   const { theme, setTheme } = useTheme();
   // The chosen theme lives in the browser; showing it during server rendering would cause a hydration mismatch.
-  const isClient = useSyncExternalStore(
-    subscribeNever,
-    () => true,
-    () => false,
-  );
+  const isClient = useIsClient();
 
   return (
     <div role="group" aria-label="Theme" className="inline-flex gap-0.5 rounded-lg border bg-card p-0.5">

@@ -5,7 +5,8 @@
 ```
 src/
   app/          Next.js routes only; keep thin
-  components/   ui/ for shadcn primitives, <feature>/ for feature UI
+  components/   ui/ for shadcn primitives, forms/ for shared form fields, <feature>/ for feature UI
+  hooks/        shared client hooks
   lib/          browser-safe shared code: domain types, constants, pure helpers
   server/       server-only code; every file starts with `import "server-only"`
                 (except db/schema.ts, which drizzle-kit loads outside Next.js)
@@ -14,6 +15,7 @@ tests/          mirrors src/; shared helpers and generators in tests/support/
 
 - Define each type in the module that owns the concept. No catch-all type files.
 - No barrel `index.ts` files; import from the defining file.
+- Split components by responsibility: data shaping goes in `lib/` (pure, testable), repeated or self-contained UI pieces become their own components; don't split further than that.
 - Client code may `import type` from `src/server/`, never runtime values.
 - Configurable values come from settings with named defaults, never inline literals.
 - Scripts that run outside Next.js (e.g. `db:seed`) use `tsx --conditions=react-server` so `server-only` imports resolve.
@@ -27,5 +29,7 @@ tests/          mirrors src/; shared helpers and generators in tests/support/
 
 # Code style
 
+- Format with Prettier (`npm run format`); `format:check` must pass.
+- `src/components/ui/` is vendored shadcn code: update it through the shadcn CLI, don't hand-edit it.
 - Comments only for non-obvious contracts or reasons. No tutorial explanations, usage advice, or comments restating the code.
 - Output guarantees stated in a doc comment must be enforced by a test. Input preconditions may be documented and assumed without tests.
