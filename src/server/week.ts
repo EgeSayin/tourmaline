@@ -1,5 +1,4 @@
 import "server-only";
-import type { FlexibleItem } from "@/lib/items";
 import type { TimeZone } from "@/lib/time-zone";
 import type { Interval } from "@/server/scheduler/intervals";
 import { toDate } from "@/server/temporal";
@@ -21,22 +20,6 @@ export function weekOf(date: Temporal.PlainDate, timeZone: TimeZone): Week {
   const startOf = (day: Temporal.PlainDate) => toDate(day.toZonedDateTime(timeZone));
 
   return { monday, range: { start: startOf(monday), end: startOf(monday.add({ weeks: 1 })) } };
-}
-
-/**
- * The span to plan: from the start of the `current` week to the latest task deadline, but at least to the end of
- * that week and at most to the end of the `horizonWeeks`-th week, counting the current one.
- */
-export function planningHorizon(
-  current: Week,
-  tasks: FlexibleItem[],
-  horizonWeeks: number,
-  timeZone: TimeZone,
-): Interval {
-  const cap = weekOf(current.monday.add({ weeks: horizonWeeks - 1 }), timeZone).range.end;
-  let end = current.range.end;
-  for (const task of tasks) if (task.deadline > end) end = task.deadline;
-  return { start: current.range.start, end: end < cap ? end : cap };
 }
 
 /** The date in a `week` search parameter, or `undefined` unless it is a single valid `YYYY-MM-DD` date. */
