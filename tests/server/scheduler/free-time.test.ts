@@ -6,15 +6,12 @@ import type { DailyWindow } from "@/lib/time-of-day";
 import { freeTimeMap } from "@/server/scheduler/free-time";
 import type { Interval } from "@/server/scheduler/intervals";
 import { covers, expectSortedWithGaps, intervalArb, minuteOf, SPAN_MIN } from "../../support/intervals";
+import { fixed } from "../../support/items";
 
 const MINUTES_PER_DAY = 24 * 60;
 
 function utc(start: string, end: string): Interval {
   return { start: new Date(`${start}Z`), end: new Date(`${end}Z`) };
-}
-
-function fixed(title: string, { start, end }: Interval, bufferBeforeMin = 0, bufferAfterMin = bufferBeforeMin): FixedItem {
-  return { id: title, title, priority: "mandatory", timing: "fixed", start, end, location: null, bufferBeforeMin, bufferAfterMin };
 }
 
 const downtimeArb = fc.record({
