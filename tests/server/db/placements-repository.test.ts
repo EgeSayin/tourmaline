@@ -1,0 +1,44 @@
+import { describe, expect } from "vitest";
+import type { Placement } from "@/lib/placements";
+import { deleteItem, insertItem } from "@/server/db/items-repository";
+import { insertPlacements, loadPlacements } from "@/server/db/placements-repository";
+import { dbTest as it } from "../../support/database";
+import { fixed, flexible } from "../../support/items";
+
+const utc = (start: string, end: string) => ({ start: new Date(`${start}Z`), end: new Date(`${end}Z`) });
+const week = utc("2026-10-05T04:00", "2026-10-12T04:00");
+
+describe("placements repository", { tags: ["integration", "critical"] }, () => {
+  it("loads the placements overlapping a range, sorted by start", async ({ tx }) => {
+    const essayId = await insertItem(tx, flexible("Essay", 120, week));
+    const placement = (start: string, end: string, extra: Partial<Placement> = {}): Placement => ({
+      itemId: essayId,
+      ...utc(start, end),
+      source: "auto",
+      pinned: false,
+      ...extra,
+    });
+
+    const wednesday = placement("2026-10-07T14:00", "2026-10-07T15:00", { source: "manual", pinned: true });
+    const monday = placement("2026-10-05T14:00", "2026-10-05T15:00");
+    const acrossWeekStart = placement("2026-10-05T03:00", "2026-10-05T05:00");
+    const nextWeek = placement("2026-10-12T14:00", "2026-10-12T15:00");
+    await insertPlacements(tx, [wednesday, nextWeek, monday, acrossWeekStart]);
+
+    expect(await loadPlacements(tx, week)).toEqual([acrossWeekStart, monday, wednesday]);
+  });
+
+  it("only allows placements for flexible tasks and removes them with their task", async ({ tx }) => {
+    const lectureId = await insertItem(tx, fixed("Lecture", utc("2026-10-05T14:00", "2026-10-05T15:00")));
+    const essayId = await insertItem(tx, flexible("Essay", 60, week));
+    const slot = { ...utc("2026-10-06T14:00", "2026-10-06T15:00"), source: "auto" as const, pinned: false };
+
+    await expect(
+      tx.transaction((nested) => insertPlacements(nested, [{ itemId: lectureId, ...slot }])),
+    ).rejects.toThrow();
+
+    await insertPlacements(tx, [{ itemId: essayId, ...slot }]);
+    await deleteItem(tx, essayId);
+    expect(await loadPlacements(tx, week)).toEqual([]);
+  });
+});

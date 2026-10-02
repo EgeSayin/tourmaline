@@ -20,15 +20,23 @@ export function schedule(
   flexibleItems: FlexibleItem[],
   settings: SchedulerSettings,
 ): ScheduleResult {
-  let free = freeTimeMap(range, fixedItems, settings);
+  return placeTasks(flexibleItems, freeTimeMap(range, fixedItems, settings));
+}
+
+/**
+ * Places each task as one block in `free`, most urgent first.
+ * `free` must be sorted by start with gaps between blocks, as `freeTimeMap` returns it.
+ */
+export function placeTasks(tasks: FlexibleItem[], free: Interval[]): ScheduleResult {
+  let remaining = free;
   const placements: Placement[] = [];
   const unplaced: FlexibleItem[] = [];
 
-  for (const task of orderByUrgency(flexibleItems, free)) {
-    const placed = placeSingleBlock(task, free);
+  for (const task of orderByUrgency(tasks, remaining)) {
+    const placed = placeSingleBlock(task, remaining);
     if (placed) {
       placements.push(placed.placement);
-      free = placed.free;
+      remaining = placed.free;
     } else {
       unplaced.push(task);
     }

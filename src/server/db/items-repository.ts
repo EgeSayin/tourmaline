@@ -2,7 +2,7 @@ import "server-only";
 import { eq } from "drizzle-orm";
 import type { Item, NewItem } from "@/lib/items";
 import type { Database, Transaction } from "./connection";
-import { fixedItemDetails, flexibleItemDetails, items } from "./schema";
+import { fixedItemDetails, flexibleItemDetails, items, placements } from "./schema";
 
 /** Inserts the item and its details row; requiring a transaction keeps the two from being written separately. */
 export async function insertItem(tx: Transaction, item: NewItem): Promise<string> {
@@ -17,10 +17,12 @@ export async function insertItem(tx: Transaction, item: NewItem): Promise<string
 
 /**
  * Replaces the item's fields and details, including switching between fixed and flexible.
+ * Clears the item's placements, since a changed item has to be placed again.
  * Returns `false` if no item has this `id`.
  */
 export async function updateItem(tx: Transaction, id: string, item: NewItem): Promise<boolean> {
-  // Old details go first: the composite foreign key blocks changing `timing` while they reference it.
+  // Rows referencing the item go first: their composite foreign keys block changing `timing`.
+  await tx.delete(placements).where(eq(placements.itemId, id));
   await tx.delete(fixedItemDetails).where(eq(fixedItemDetails.itemId, id));
   await tx.delete(flexibleItemDetails).where(eq(flexibleItemDetails.itemId, id));
 

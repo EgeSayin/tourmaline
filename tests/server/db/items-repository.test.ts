@@ -1,6 +1,7 @@
 import { describe, expect } from "vitest";
 import type { FixedItem, FlexibleItem } from "@/lib/items";
 import { deleteItem, insertItem, loadItems, updateItem } from "@/server/db/items-repository";
+import { insertPlacements, loadPlacements } from "@/server/db/placements-repository";
 import { fixedItemDetails, flexibleItemDetails, items } from "@/server/db/schema";
 import { dbTest as it } from "../../support/database";
 
@@ -46,6 +47,13 @@ describe("items repository", { tags: ["integration", "critical"] }, () => {
   });
 
   it("updates an item in place, including switching between fixed and flexible", async ({ tx }) => {
+    const essayId = await insertItem(tx, essay);
+    const placed = { start: new Date("2026-10-06T14:00Z"), end: new Date("2026-10-06T16:00Z") };
+    await insertPlacements(tx, [{ itemId: essayId, ...placed, source: "auto", pinned: false }]);
+    expect(await updateItem(tx, essayId, { ...essay, durationMin: 90 })).toBe(true);
+    expect(await loadPlacements(tx, { start: essay.earliestStart, end: essay.deadline })).toEqual([]);
+    await deleteItem(tx, essayId);
+
     const id = await insertItem(tx, lecture);
 
     const moved = {

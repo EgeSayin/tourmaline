@@ -1,13 +1,28 @@
 // No `import "server-only"`: drizzle-kit loads this file outside Next.js.
 import { relations, sql } from "drizzle-orm";
-import { check, foreignKey, integer, jsonb, pgEnum, pgTable, text, timestamp, unique, uuid } from "drizzle-orm/pg-core";
+import {
+  boolean,
+  check,
+  foreignKey,
+  index,
+  integer,
+  jsonb,
+  pgEnum,
+  pgTable,
+  text,
+  timestamp,
+  unique,
+  uuid,
+} from "drizzle-orm/pg-core";
 import { type Item, PRIORITIES, SPREAD_STRATEGIES } from "@/lib/items";
+import { PLACEMENT_SOURCES } from "@/lib/placements";
 import type { DailyWindow } from "@/lib/time-of-day";
 import type { TimeZone } from "@/lib/time-zone";
 
 export const priorityEnum = pgEnum("priority", PRIORITIES);
 export const timingEnum = pgEnum("timing", ["fixed", "flexible"] as const satisfies readonly Item["timing"][]);
 export const spreadEnum = pgEnum("spread", SPREAD_STRATEGIES);
+export const placementSourceEnum = pgEnum("placement_source", PLACEMENT_SOURCES);
 
 const timestamptz = (name: string) => timestamp(name, { withTimezone: true });
 
@@ -98,9 +113,35 @@ export const flexibleItemDetails = pgTable(
   ],
 );
 
-export const itemsRelations = relations(items, ({ one }) => ({
+/** Where flexible tasks are scheduled. Fixed items never have placements. */
+export const placements = pgTable(
+  "placements",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    itemId: uuid("item_id").notNull(),
+    timing: timingEnum("timing").notNull().default("flexible"),
+    startAt: timestamptz("start_at").notNull(),
+    endAt: timestamptz("end_at").notNull(),
+    source: placementSourceEnum("source").notNull().default("auto"),
+    pinned: boolean("pinned").notNull().default(false),
+    createdAt: timestamptz("created_at").notNull().defaultNow(),
+  },
+  (t) => [
+    foreignKey({ columns: [t.itemId, t.timing], foreignColumns: [items.id, items.timing] }).onDelete("cascade"),
+    check("placements_timing", sql`${t.timing} = 'flexible'`),
+    check("placements_times", sql`${t.startAt} < ${t.endAt}`),
+    index("placements_start_at").on(t.startAt),
+  ],
+);
+
+export const itemsRelations = relations(items, ({ one, many }) => ({
   fixedDetails: one(fixedItemDetails),
   flexibleDetails: one(flexibleItemDetails),
+  placements: many(placements),
+}));
+
+export const placementsRelations = relations(placements, ({ one }) => ({
+  item: one(items, { fields: [placements.itemId], references: [items.id] }),
 }));
 
 export const fixedItemDetailsRelations = relations(fixedItemDetails, ({ one }) => ({
