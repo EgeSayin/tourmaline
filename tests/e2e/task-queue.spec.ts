@@ -11,7 +11,8 @@ test.describe("task queue", () => {
     await form.getByRole("button", { name: "Add item" }).click();
     await expect(form).toBeHidden();
 
-    const queue = page.getByRole("region", { name: "Task queue" });
+    await page.getByRole("button", { name: /^Task queue: / }).click();
+    const queue = page.getByRole("dialog", { name: "Task queue" });
     const entry = queue.getByRole("button", { name: new RegExp(`^${RegExp.escape(title)}`) });
     await expect(entry).toContainText("24h left");
 

@@ -23,9 +23,12 @@ export default async function Home({ searchParams }: PageProps<"/">) {
   return (
     <ItemPanelProvider timeZone={week.timeZone}>
       <main className="mx-auto flex w-full max-w-7xl flex-col gap-4 px-4 py-6 md:py-10">
-        <WeekHeader dates={week.dates} navigation={weekNavigation(week.dates[0], week.today)} />
+        <WeekHeader
+          dates={week.dates}
+          navigation={weekNavigation(week.dates[0], week.today)}
+          queue={<TaskQueue tasks={week.unplaced} flexibleItems={week.flexibleItems} timeZone={week.timeZone} />}
+        />
         <ItemPanelLayout>
-          <TaskQueue tasks={week.unplaced} flexibleItems={week.flexibleItems} timeZone={week.timeZone} />
           <WeekGrid
             key={week.dates[0]}
             today={week.today}
