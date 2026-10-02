@@ -8,7 +8,9 @@ const MINUTES_PER_DAY = 24 * 60;
 export type BlockStyle = "fixed" | "fixed-optional" | "scheduled";
 
 export interface CalendarBlock {
+  /** Unique among the blocks. */
   key: string;
+  itemId: string;
   title: string;
   start: Date;
   end: Date;
@@ -36,6 +38,7 @@ export function toCalendarBlocks(
   const unpositioned = [
     ...fixedItems.map((item) => ({
       key: item.id,
+      itemId: item.id,
       title: item.title,
       start: item.start,
       end: item.end,
@@ -45,7 +48,8 @@ export function toCalendarBlocks(
     ...placements.map((placement) => {
       const task = tasks.get(placement.itemId);
       return {
-        key: placement.itemId,
+        key: `${placement.itemId}@${placement.start.toISOString()}`,
+        itemId: placement.itemId,
         title: task?.title ?? placement.itemId,
         start: placement.start,
         end: placement.end,

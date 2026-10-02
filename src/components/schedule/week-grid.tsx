@@ -59,7 +59,7 @@ export function WeekGrid({
             scale={scale}
             timeZone={timeZone}
             onSelect={(block) => {
-              const item = itemsById.get(block.key);
+              const item = itemsById.get(block.itemId);
               if (item) openEdit(item);
             }}
             className={i === selected ? "" : "hidden md:block"}
