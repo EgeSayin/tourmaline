@@ -37,3 +37,6 @@ export interface FlexibleItem extends BaseItem {
 }
 
 export type Item = FixedItem | FlexibleItem;
+
+/** An item before the database assigns its `id`. */
+export type NewItem = Omit<FixedItem, "id"> | Omit<FlexibleItem, "id">;

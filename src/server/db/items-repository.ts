@@ -1,9 +1,7 @@
 import "server-only";
-import type { FixedItem, FlexibleItem, Item } from "@/lib/items";
+import type { Item, NewItem } from "@/lib/items";
 import type { Database, Transaction } from "./connection";
 import { fixedItemDetails, flexibleItemDetails, items } from "./schema";
-
-export type NewItem = Omit<FixedItem, "id"> | Omit<FlexibleItem, "id">;
 
 /** Inserts the item and its details row; requiring a transaction keeps the two from being written separately. */
 export async function insertItem(tx: Transaction, item: NewItem): Promise<string> {
