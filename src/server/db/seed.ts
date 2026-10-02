@@ -4,11 +4,11 @@ import { db } from "./client";
 import { insertItem } from "./items-repository";
 import { items, settings } from "./schema";
 
-/** Replaces all items and settings with the sample week. */
+/** Replaces all items and settings with the sample week for the current week. */
 async function seed() {
   if (process.env.NODE_ENV === "production") throw new Error("Refusing to seed a production database");
 
-  const sample = sampleWeek();
+  const sample = sampleWeek(Temporal.Now.instant());
   const settingsRow = {
     timeZone: sample.settings.timeZone,
     downtimeStartMinute: sample.settings.downtime.startMinute,

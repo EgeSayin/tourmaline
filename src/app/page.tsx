@@ -9,8 +9,8 @@ import { localDatesInRange } from "@/lib/local-time";
 import { db } from "@/server/db/client";
 import { loadItems } from "@/server/db/items-repository";
 import { loadSettings } from "@/server/db/settings-repository";
-import { sampleWeek } from "@/server/demo/sample-week";
 import { schedule } from "@/server/scheduler/schedule";
+import { weekContaining } from "@/server/week";
 
 export default async function Home() {
   await connection();
@@ -24,7 +24,7 @@ export default async function Home() {
     );
   }
 
-  const { range } = sampleWeek();
+  const { range } = weekContaining(Temporal.Now.instant(), settings.timeZone);
   const fixedItems = items.filter((item): item is FixedItem => item.timing === "fixed");
   const flexibleItems = items.filter((item): item is FlexibleItem => item.timing === "flexible");
   const { placements, unplaced } = schedule(range, fixedItems, flexibleItems, settings);
