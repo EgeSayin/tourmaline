@@ -9,7 +9,17 @@ export function fixed(
   bufferBeforeMin = 0,
   bufferAfterMin = bufferBeforeMin,
 ): FixedItem {
-  return { id: title, title, priority: "mandatory", timing: "fixed", start, end, location: null, bufferBeforeMin, bufferAfterMin };
+  return {
+    id: title,
+    title,
+    priority: "mandatory",
+    timing: "fixed",
+    start,
+    end,
+    location: null,
+    bufferBeforeMin,
+    bufferAfterMin,
+  };
 }
 
 export function flexible(
@@ -38,8 +48,9 @@ export const fixedItemArb = fc
 
 /** Tasks with unique ids. */
 export const flexibleItemsArb = fc
-  .array(
-    fc.tuple(fc.integer({ min: 1, max: 4 * 60 }), intervalArb(SPAN_MIN), fc.constantFrom(...PRIORITIES)),
-    { maxLength: 10 },
-  )
-  .map((tasks) => tasks.map(([durationMin, window, priority], i) => flexible(`Task ${i}`, durationMin, window, priority)));
+  .array(fc.tuple(fc.integer({ min: 1, max: 4 * 60 }), intervalArb(SPAN_MIN), fc.constantFrom(...PRIORITIES)), {
+    maxLength: 10,
+  })
+  .map((tasks) =>
+    tasks.map(([durationMin, window, priority], i) => flexible(`Task ${i}`, durationMin, window, priority)),
+  );

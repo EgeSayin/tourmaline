@@ -6,11 +6,7 @@ import type { Interval } from "./intervals";
  * Returns the earliest `durationMin`-long block inside both a `free` interval and `window`,
  * or `null` if none fits. `free` must be sorted by start with gaps between blocks, as `freeTimeMap` returns it.
  */
-export function findEarliestSlot(
-  free: Interval[],
-  durationMin: number,
-  window: Interval,
-): Interval | null {
+export function findEarliestSlot(free: Interval[], durationMin: number, window: Interval): Interval | null {
   for (const slot of free) {
     const start = slot.start > window.start ? slot.start : window.start;
     const end = slot.end < window.end ? slot.end : window.end;

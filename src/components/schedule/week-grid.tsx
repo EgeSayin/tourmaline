@@ -53,7 +53,14 @@ export function WeekGrid({
     ...fixedItems.map((item) => ({ ...item, key: item.id, kind: "fixed" as const })),
     ...placements.map((p) => {
       const task = tasks.get(p.itemId);
-      return { key: p.itemId, title: task?.title ?? p.itemId, priority: task?.priority ?? "normal", start: p.start, end: p.end, kind: "auto" as const };
+      return {
+        key: p.itemId,
+        title: task?.title ?? p.itemId,
+        priority: task?.priority ?? "normal",
+        start: p.start,
+        end: p.end,
+        kind: "auto" as const,
+      };
     }),
   ].map((block) => {
     const start = toLocal(block.start, timeZone);
@@ -74,7 +81,13 @@ export function WeekGrid({
   return (
     <div className="overflow-hidden rounded-xl border bg-card shadow-sm">
       <div className="flex items-center justify-between border-b px-2 py-2 md:hidden">
-        <Button variant="ghost" size="icon" aria-label="Previous day" disabled={selected === 0} onClick={() => setSelected(selected - 1)}>
+        <Button
+          variant="ghost"
+          size="icon"
+          aria-label="Previous day"
+          disabled={selected === 0}
+          onClick={() => setSelected(selected - 1)}
+        >
           <ChevronLeft />
         </Button>
         <span className="text-sm font-semibold">{formatLocalDate(dates[selected])}</span>
@@ -93,7 +106,9 @@ export function WeekGrid({
         <div className="sticky top-0 z-10 hidden border-b bg-card md:block" />
         {dates.map((date) => (
           <div key={date} className="sticky top-0 z-10 hidden border-b border-l bg-card py-3 text-center md:block">
-            <div className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{formatLocalWeekday(date)}</div>
+            <div className="text-[11px] font-medium tracking-wide text-muted-foreground uppercase">
+              {formatLocalWeekday(date)}
+            </div>
             <div className="text-xl font-semibold tabular-nums">{Number(date.slice(8))}</div>
           </div>
         ))}
@@ -102,7 +117,7 @@ export function WeekGrid({
           {hours.slice(1).map((hour) => (
             <span
               key={hour}
-              className="absolute right-2 -translate-y-1/2 text-[11px] tabular-nums text-muted-foreground"
+              className="absolute right-2 -translate-y-1/2 text-[11px] text-muted-foreground tabular-nums"
               style={{ top: top(hour * 60) }}
             >
               {String(hour).padStart(2, "0")}:00
@@ -111,9 +126,17 @@ export function WeekGrid({
         </div>
 
         {dates.map((date, i) => (
-          <div key={date} className={`relative border-l ${visibleOnPhone(i)}`} style={{ height: hours.length * PX_PER_HOUR }}>
+          <div
+            key={date}
+            className={`relative border-l ${visibleOnPhone(i)}`}
+            style={{ height: hours.length * PX_PER_HOUR }}
+          >
             {hours.slice(1).map((hour) => (
-              <div key={hour} className="absolute inset-x-0 border-t border-border/60" style={{ top: top(hour * 60) }} />
+              <div
+                key={hour}
+                className="absolute inset-x-0 border-t border-border/60"
+                style={{ top: top(hour * 60) }}
+              />
             ))}
             {blocks
               .filter((block) => block.date === date)
@@ -125,7 +148,9 @@ export function WeekGrid({
                 >
                   <div className={block.endMinute - block.startMinute < 60 ? "flex gap-1.5" : ""}>
                     <div className="truncate font-medium">{block.title}</div>
-                    <div className="shrink-0 tabular-nums opacity-70">{formatTimeRange(block.start, block.end, timeZone)}</div>
+                    <div className="shrink-0 tabular-nums opacity-70">
+                      {formatTimeRange(block.start, block.end, timeZone)}
+                    </div>
                   </div>
                 </div>
               ))}

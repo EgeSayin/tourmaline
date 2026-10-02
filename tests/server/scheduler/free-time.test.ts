@@ -18,24 +18,30 @@ function inDowntime(minute: number, { startMinute, endMinute }: DailyWindow): bo
 
 function inBufferedItem(minute: number, items: FixedItem[]): boolean {
   return items.some(
-    (item) => minuteOf(item.start) - item.bufferBeforeMin <= minute && minute < minuteOf(item.end) + item.bufferAfterMin,
+    (item) =>
+      minuteOf(item.start) - item.bufferBeforeMin <= minute && minute < minuteOf(item.end) + item.bufferAfterMin,
   );
 }
 
 describe("freeTimeMap", { tags: ["unit", "critical"] }, () => {
-  it("frees exactly the minutes in range, outside downtime, and outside every buffered item", { tags: ["property"] }, () => {
-    const itemsArb = fc.array(fixedItemArb, { maxLength: 8 });
+  it(
+    "frees exactly the minutes in range, outside downtime, and outside every buffered item",
+    { tags: ["property"] },
+    () => {
+      const itemsArb = fc.array(fixedItemArb, { maxLength: 8 });
 
-    fc.assert(
-      fc.property(intervalArb(SPAN_MIN), utcSettingsArb, itemsArb, (range, settings, items) => {
-        const result = freeTimeMap(range, items, settings);
+      fc.assert(
+        fc.property(intervalArb(SPAN_MIN), utcSettingsArb, itemsArb, (range, settings, items) => {
+          const result = freeTimeMap(range, items, settings);
 
-        expectSortedWithGaps(result);
-        for (let minute = 0; minute < SPAN_MIN; minute++) {
-          const expected = covers([range], minute) && !inDowntime(minute, settings.downtime) && !inBufferedItem(minute, items);
-          expect(covers(result, minute)).toBe(expected);
-        }
-      }),
-    );
-  });
+          expectSortedWithGaps(result);
+          for (let minute = 0; minute < SPAN_MIN; minute++) {
+            const expected =
+              covers([range], minute) && !inDowntime(minute, settings.downtime) && !inBufferedItem(minute, items);
+            expect(covers(result, minute)).toBe(expected);
+          }
+        }),
+      );
+    },
+  );
 });

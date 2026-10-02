@@ -25,9 +25,7 @@ export function downtimeIntervals(range: Interval, settings: SchedulerSettings):
 }
 
 function toLocalDate(date: Date, timeZone: string): Temporal.PlainDate {
-  return Temporal.Instant.fromEpochMilliseconds(date.getTime())
-    .toZonedDateTimeISO(timeZone)
-    .toPlainDate();
+  return Temporal.Instant.fromEpochMilliseconds(date.getTime()).toZonedDateTimeISO(timeZone).toPlainDate();
 }
 
 function atLocalTime(day: Temporal.PlainDate, minuteOfDay: number, timeZone: string): Date {

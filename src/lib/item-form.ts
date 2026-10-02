@@ -39,15 +39,21 @@ const flexibleForm = z
     maxChunkMin: z.preprocess(toNumber, minutes(1).optional()),
     spread: z.preprocess(emptyToUndefined, z.enum(SPREAD_STRATEGIES).default("even")),
   })
-  .refine((form) => form.earliestStart < form.deadline, { path: ["deadline"], message: "Deadline must be after the earliest start" })
+  .refine((form) => form.earliestStart < form.deadline, {
+    path: ["deadline"],
+    message: "Deadline must be after the earliest start",
+  })
   .refine((form) => (form.minChunkMin === undefined) === (form.maxChunkMin === undefined), {
     path: ["maxChunkMin"],
     message: "Set both chunk sizes or neither",
   })
-  .refine((form) => form.minChunkMin === undefined || form.maxChunkMin === undefined || form.minChunkMin <= form.maxChunkMin, {
-    path: ["maxChunkMin"],
-    message: "Maximum chunk must be at least the minimum",
-  });
+  .refine(
+    (form) => form.minChunkMin === undefined || form.maxChunkMin === undefined || form.minChunkMin <= form.maxChunkMin,
+    {
+      path: ["maxChunkMin"],
+      message: "Maximum chunk must be at least the minimum",
+    },
+  );
 
 export const itemFormSchema = z.discriminatedUnion("timing", [fixedForm, flexibleForm]);
 

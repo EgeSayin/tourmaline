@@ -2,17 +2,9 @@
 
 import { useActionState, useState } from "react";
 import { Button } from "@/components/ui/button";
-import {
-  Field,
-  FieldError,
-  FieldGroup,
-  FieldLabel,
-} from "@/components/ui/field";
+import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import {
-  NativeSelect,
-  NativeSelectOption,
-} from "@/components/ui/native-select";
+import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 import { type Item, PRIORITIES, SPREAD_STRATEGIES } from "@/lib/items";
 import { type CreateItemState, createItem } from "@/server/items/actions";
 
@@ -27,8 +19,7 @@ const SPREAD_LABELS = {
   "just-in-time": "Close to the deadline",
 };
 
-const capitalize = (text: string) =>
-  text.charAt(0).toUpperCase() + text.slice(1);
+const capitalize = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
 
 export function ItemForm({ onSaved }: { onSaved: () => void }) {
   const [timing, setTiming] = useState<Item["timing"]>("flexible");
@@ -55,11 +46,7 @@ export function ItemForm({ onSaved }: { onSaved: () => void }) {
     );
   }
 
-  const text = (
-    name: string,
-    type = "text",
-    props: React.ComponentProps<"input"> = {},
-  ) => (
+  const text = (name: string, type = "text", props: React.ComponentProps<"input"> = {}) => (
     <Input
       id={name}
       name={name}
@@ -73,11 +60,7 @@ export function ItemForm({ onSaved }: { onSaved: () => void }) {
   return (
     <form action={formAction} className="flex flex-col gap-6">
       <input type="hidden" name="timing" value={timing} />
-      <div
-        role="radiogroup"
-        aria-label="Timing"
-        className="grid grid-cols-2 gap-1 rounded-lg border p-1"
-      >
+      <div role="radiogroup" aria-label="Timing" className="grid grid-cols-2 gap-1 rounded-lg border p-1">
         {TIMING_OPTIONS.map((option) => (
           <Button
             key={option.value}
@@ -98,18 +81,13 @@ export function ItemForm({ onSaved }: { onSaved: () => void }) {
           "Title",
           text("title", "text", {
             autoFocus: true,
-            placeholder:
-              timing === "fixed" ? "CS 101 lecture" : "Physics homework",
+            placeholder: timing === "fixed" ? "CS 101 lecture" : "Physics homework",
           }),
         )}
         {field(
           "priority",
           "Priority",
-          <NativeSelect
-            id="priority"
-            name="priority"
-            defaultValue={values.priority ?? "normal"}
-          >
+          <NativeSelect id="priority" name="priority" defaultValue={values.priority ?? "normal"}>
             {PRIORITIES.map((priority) => (
               <NativeSelectOption key={priority} value={priority}>
                 {capitalize(priority)}
@@ -122,11 +100,7 @@ export function ItemForm({ onSaved }: { onSaved: () => void }) {
           <>
             {field("start", "Starts", text("start", "datetime-local"))}
             {field("end", "Ends", text("end", "datetime-local"))}
-            {field(
-              "location",
-              "Location",
-              text("location", "text", { placeholder: "Optional" }),
-            )}
+            {field("location", "Location", text("location", "text", { placeholder: "Optional" }))}
             <div className="grid grid-cols-2 gap-4">
               {field(
                 "bufferBeforeMin",
@@ -142,25 +116,13 @@ export function ItemForm({ onSaved }: { onSaved: () => void }) {
           </>
         ) : (
           <>
-            {field(
-              "durationMin",
-              "Duration (min)",
-              text("durationMin", "number", { min: 1, placeholder: "90" }),
-            )}
-            {field(
-              "earliestStart",
-              "Not before",
-              text("earliestStart", "datetime-local"),
-            )}
+            {field("durationMin", "Duration (min)", text("durationMin", "number", { min: 1, placeholder: "90" }))}
+            {field("earliestStart", "Not before", text("earliestStart", "datetime-local"))}
             {field("deadline", "Due", text("deadline", "datetime-local"))}
             {field(
               "spread",
               "Spread",
-              <NativeSelect
-                id="spread"
-                name="spread"
-                defaultValue={values.spread ?? "even"}
-              >
+              <NativeSelect id="spread" name="spread" defaultValue={values.spread ?? "even"}>
                 {SPREAD_STRATEGIES.map((spread) => (
                   <NativeSelectOption key={spread} value={spread}>
                     {SPREAD_LABELS[spread]}

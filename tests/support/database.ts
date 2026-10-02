@@ -37,7 +37,8 @@ export const dbTest = test.extend<{ $worker: { db: Database }; $test: { tx: Tran
     async ({}, use) => {
       const adminUrl = process.env.DATABASE_URL;
       const testUrl = process.env.TEST_DATABASE_URL;
-      if (!adminUrl || !testUrl) throw new Error("DATABASE_URL and TEST_DATABASE_URL must be set for integration tests");
+      if (!adminUrl || !testUrl)
+        throw new Error("DATABASE_URL and TEST_DATABASE_URL must be set for integration tests");
 
       await prepareTestDatabase(adminUrl, testUrl);
       const client = postgres(testUrl, { onnotice: () => {} });

@@ -11,8 +11,6 @@ export interface TimeZoneOption {
 export function timeZoneOptions(now: Temporal.Instant = Temporal.Now.instant()): TimeZoneOption[] {
   return [...new Set(TIME_ZONES)]
     .map((value) => ({ value, zoned: now.toZonedDateTimeISO(value) }))
-    .sort(
-      (a, b) => a.zoned.offsetNanoseconds - b.zoned.offsetNanoseconds || a.value.localeCompare(b.value),
-    )
+    .sort((a, b) => a.zoned.offsetNanoseconds - b.zoned.offsetNanoseconds || a.value.localeCompare(b.value))
     .map(({ value, zoned }) => ({ value, offset: zoned.offset }));
 }

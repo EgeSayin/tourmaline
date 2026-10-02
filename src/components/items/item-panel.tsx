@@ -48,7 +48,9 @@ function PanelHeader({ onClose }: { onClose: () => void }) {
     <div className="flex items-start justify-between gap-2">
       <div>
         <h2 className="font-semibold">Add item</h2>
-        <p className="text-sm text-muted-foreground">Fixed items keep their time; flexible ones are scheduled for you.</p>
+        <p className="text-sm text-muted-foreground">
+          Fixed items keep their time; flexible ones are scheduled for you.
+        </p>
       </div>
       <Button variant="ghost" size="icon-sm" aria-label="Close" onClick={onClose}>
         <X />

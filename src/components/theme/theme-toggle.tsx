@@ -16,7 +16,11 @@ const subscribeNever = () => () => {};
 export function ThemeToggle() {
   const { theme, setTheme } = useTheme();
   // The chosen theme lives in the browser; showing it during server rendering would cause a hydration mismatch.
-  const isClient = useSyncExternalStore(subscribeNever, () => true, () => false);
+  const isClient = useSyncExternalStore(
+    subscribeNever,
+    () => true,
+    () => false,
+  );
 
   return (
     <div role="group" aria-label="Theme" className="inline-flex gap-0.5 rounded-lg border bg-card p-0.5">

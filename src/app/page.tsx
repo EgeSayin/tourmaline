@@ -47,7 +47,13 @@ export default async function Home() {
         </header>
         <ItemPanelLayout>
           <UnplacedTasks tasks={unplaced} timeZone={settings.timeZone} />
-          <WeekGrid range={range} fixedItems={fixedItems} flexibleItems={flexibleItems} placements={placements} timeZone={settings.timeZone} />
+          <WeekGrid
+            range={range}
+            fixedItems={fixedItems}
+            flexibleItems={flexibleItems}
+            placements={placements}
+            timeZone={settings.timeZone}
+          />
         </ItemPanelLayout>
       </main>
     </ItemPanelProvider>

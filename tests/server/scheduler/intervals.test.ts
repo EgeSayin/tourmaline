@@ -54,11 +54,7 @@ describe("subtractIntervals", { tags: ["unit", "critical"] }, () => {
       iv("19:00", "21:00"), // trims the end of a free slot
     ];
 
-    expect(subtractIntervals(free, busy)).toEqual([
-      iv("10:30", "12:00"),
-      iv("14:00", "15:00"),
-      iv("17:00", "19:00"),
-    ]);
+    expect(subtractIntervals(free, busy)).toEqual([iv("10:30", "12:00"), iv("14:00", "15:00"), iv("17:00", "19:00")]);
     expect(subtractIntervals(free, [])).toEqual([iv("10:00", "12:00"), iv("14:00", "20:00")]);
     expect(subtractIntervals(free, [iv("08:00", "22:00")])).toEqual([]);
   });

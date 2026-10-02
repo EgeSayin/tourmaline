@@ -7,7 +7,15 @@ describe("parseItemForm", { tags: ["unit", "critical"] }, () => {
   it("turns valid form fields into items, converting local times in the user's time zone", () => {
     expect(
       parseItemForm(
-        { timing: "fixed", title: "  CS 101 lecture ", start: "2026-10-05T11:00", end: "2026-10-05T12:15", location: "", bufferBeforeMin: "15", bufferAfterMin: "" },
+        {
+          timing: "fixed",
+          title: "  CS 101 lecture ",
+          start: "2026-10-05T11:00",
+          end: "2026-10-05T12:15",
+          location: "",
+          bufferBeforeMin: "15",
+          bufferAfterMin: "",
+        },
         tz,
       ),
     ).toEqual({
@@ -26,7 +34,16 @@ describe("parseItemForm", { tags: ["unit", "critical"] }, () => {
 
     expect(
       parseItemForm(
-        { timing: "flexible", title: "Essay", priority: "high", durationMin: "120", earliestStart: "2026-10-31T09:00", deadline: "2026-11-02T17:00", minChunkMin: "30", maxChunkMin: "60" },
+        {
+          timing: "flexible",
+          title: "Essay",
+          priority: "high",
+          durationMin: "120",
+          earliestStart: "2026-10-31T09:00",
+          deadline: "2026-11-02T17:00",
+          minChunkMin: "30",
+          maxChunkMin: "60",
+        },
         tz,
       ),
     ).toEqual({
@@ -46,13 +63,25 @@ describe("parseItemForm", { tags: ["unit", "critical"] }, () => {
   });
 
   it("reports field errors for invalid input", () => {
-    expect(parseItemForm({ timing: "fixed", title: " ", start: "2026-10-05T12:00", end: "2026-10-05T11:00" }, tz)).toEqual({
+    expect(
+      parseItemForm({ timing: "fixed", title: " ", start: "2026-10-05T12:00", end: "2026-10-05T11:00" }, tz),
+    ).toEqual({
       ok: false,
       errors: { title: ["Enter a title"], end: ["End must be after start"] },
     });
 
     expect(
-      parseItemForm({ timing: "flexible", title: "Essay", durationMin: "0", earliestStart: "2026-10-05T09:00", deadline: "tomorrow", minChunkMin: "30" }, tz),
+      parseItemForm(
+        {
+          timing: "flexible",
+          title: "Essay",
+          durationMin: "0",
+          earliestStart: "2026-10-05T09:00",
+          deadline: "tomorrow",
+          minChunkMin: "30",
+        },
+        tz,
+      ),
     ).toMatchObject({
       ok: false,
       errors: { durationMin: [expect.any(String)], deadline: ["Enter a date and time"] },

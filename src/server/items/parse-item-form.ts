@@ -14,7 +14,8 @@ export function parseItemForm(fields: Record<string, unknown>, timeZone: TimeZon
   if (!parsed.success) return { ok: false, errors: z.flattenError(parsed.error).fieldErrors };
 
   const form = parsed.data;
-  const at = (local: string) => new Date(Temporal.PlainDateTime.from(local).toZonedDateTime(timeZone).epochMilliseconds);
+  const at = (local: string) =>
+    new Date(Temporal.PlainDateTime.from(local).toZonedDateTime(timeZone).epochMilliseconds);
 
   if (form.timing === "fixed") {
     return {
