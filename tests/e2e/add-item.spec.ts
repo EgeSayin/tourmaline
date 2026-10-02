@@ -1,22 +1,9 @@
-import { expect, type Page, test } from "@playwright/test";
-
-// Matches the seeded settings.
-const TIME_ZONE = "America/New_York";
-
-/** A local `datetime-local` value `days` from today, in the seeded time zone. */
-function localDateTime(days: number, time: string): string {
-  return `${Temporal.Now.plainDateISO(TIME_ZONE).add({ days })}T${time}`;
-}
-
-async function openAddItemForm(page: Page, isPhone: boolean) {
-  await page.goto("/");
-  await page.getByRole("button", { name: "Add item" }).click();
-  return page.getByRole(isPhone ? "dialog" : "complementary", { name: "Add item" });
-}
+import { expect, test } from "@playwright/test";
+import { addFixedItemToday, earlySlot, localDateTime, openAddItemForm, showToday } from "./helpers";
 
 test.describe("adding items", () => {
   test("shows field errors when required fields are missing", async ({ page }, testInfo) => {
-    const form = await openAddItemForm(page, testInfo.project.name === "phone");
+    const form = await openAddItemForm(page, testInfo);
 
     await form.getByRole("button", { name: "Add item" }).click();
 
@@ -27,7 +14,7 @@ test.describe("adding items", () => {
 
   test("schedules a new flexible task", async ({ page }, testInfo) => {
     const title = `E2E homework (${testInfo.project.name})`;
-    const form = await openAddItemForm(page, testInfo.project.name === "phone");
+    const form = await openAddItemForm(page, testInfo);
 
     await form.getByLabel("Title").fill(title);
     await form.getByLabel("Duration (min)").fill("60");
@@ -39,19 +26,17 @@ test.describe("adding items", () => {
     await expect(page.getByText(title).first()).toBeAttached();
   });
 
-  test("adds a fixed item at its time", async ({ page }, testInfo) => {
+  test("adds a fixed item at its time, defaulting to mandatory", async ({ page }, testInfo) => {
     const title = `E2E office hours (${testInfo.project.name})`;
-    const form = await openAddItemForm(page, testInfo.project.name === "phone");
-
+    const form = await openAddItemForm(page, testInfo);
     await form.getByRole("radio", { name: "At a set time" }).click();
     await expect(form.getByLabel("Priority")).toHaveValue("mandatory");
-    await form.getByLabel("Title").fill(title);
-    await form.getByLabel("Starts").fill(localDateTime(0, "15:00"));
-    await form.getByLabel("Ends").fill(localDateTime(0, "16:00"));
-    await form.getByRole("button", { name: "Add item" }).click();
+    await form.getByRole("button", { name: "Close" }).click();
 
-    await expect(form).toBeHidden();
-    await expect(page.getByText(title)).toBeAttached();
-    await expect(page.getByText("15:00–16:00").first()).toBeAttached();
+    const slot = earlySlot(testInfo, 0);
+    await addFixedItemToday(page, testInfo, title, slot);
+
+    await showToday(page, testInfo);
+    await expect(page.getByRole("button", { name: `${title} ${slot.label}` })).toBeVisible();
   });
 });
