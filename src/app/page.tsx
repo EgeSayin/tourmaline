@@ -1,5 +1,6 @@
 import { connection } from "next/server";
 import { ItemPanelLayout, ItemPanelProvider } from "@/components/items/item-panel";
+import { ScheduleView } from "@/components/schedule/schedule-view";
 import { TaskQueue } from "@/components/schedule/task-queue";
 import { WeekGrid } from "@/components/schedule/week-grid";
 import { WeekHeader } from "@/components/schedule/week-header";
@@ -22,18 +23,23 @@ export default async function Home({ searchParams }: PageProps<"/">) {
 
   return (
     <ItemPanelProvider timeZone={week.timeZone}>
-      <main className="mx-auto flex w-full max-w-7xl flex-col gap-4 px-4 py-6 md:py-10">
+      <main className="mx-auto flex w-full max-w-[96rem] flex-col gap-4 px-4 py-6 md:py-10">
         <WeekHeader dates={week.dates} navigation={weekNavigation(week.dates[0], week.today)} />
         <ItemPanelLayout>
-          <TaskQueue tasks={week.unplaced} flexibleItems={week.flexibleItems} timeZone={week.timeZone} />
-          <WeekGrid
-            key={week.dates[0]}
-            today={week.today}
-            dates={week.dates}
-            fixedItems={week.fixedItems}
-            flexibleItems={week.flexibleItems}
-            placements={week.placements}
-            timeZone={week.timeZone}
+          <ScheduleView
+            queue={<TaskQueue tasks={week.unplaced} flexibleItems={week.flexibleItems} timeZone={week.timeZone} />}
+            queueCount={week.unplaced.length}
+            calendar={
+              <WeekGrid
+                key={week.dates[0]}
+                today={week.today}
+                dates={week.dates}
+                fixedItems={week.fixedItems}
+                flexibleItems={week.flexibleItems}
+                placements={week.placements}
+                timeZone={week.timeZone}
+              />
+            }
           />
         </ItemPanelLayout>
       </main>
