@@ -25,6 +25,7 @@ tests/          mirrors src/; shared helpers and generators in tests/support/
 - Vitest, in `tests/`. Prefer a few comprehensive scenario tests over many single-assertion tests.
 - Tag tests `unit` (runs in isolation) or `integration` (needs external services). Set up services through lazy fixtures so unit runs never touch them; database tests use `dbTest` from `tests/support/database.ts`, whose `tx` is rolled back after each test.
 - Example tests cover important and boundary cases. Add a property-based test only when a guarantee is easy to state and hard to get right, and keep it simpler than the code under test. Write properties as plain `it(..., { tags: ["property"] }, () => fc.assert(fc.property(...)))` with `fast-check`, in the same `describe` as the examples.
+- End-to-end tests are Playwright specs in `tests/e2e/` (`npm run test:e2e`), run against their own seeded database (`E2E_DATABASE_URL`) on desktop and phone profiles. Make assertions hold whatever weekday the suite runs on.
 - Tag `critical` when a failure wouldn't be caught easily without the test and breaks core functionality.
 
 # Code style
