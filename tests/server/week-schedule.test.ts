@@ -25,9 +25,7 @@ async function saveSettings(tx: Transaction) {
 }
 
 describe("loadWeekSchedule", { tags: ["integration", "critical"] }, () => {
-  it("returns null without settings, otherwise plans the week containing now from now on and saves the plan", async ({
-    tx,
-  }) => {
+  it("returns null without settings, otherwise plans from now on and saves the plan", async ({ tx }) => {
     expect(await loadWeekSchedule(tx, wednesdayNoon)).toBeNull();
 
     await saveSettings(tx);
@@ -77,7 +75,9 @@ describe("loadWeekSchedule", { tags: ["integration", "critical"] }, () => {
     expect(await loadPlacements(tx, week)).toEqual(withReading?.placements);
   });
 
-  it("shows another week's saved placements, but still plans and saves the week containing now", async ({ tx }) => {
+  it("shows earlier weeks' saved placements and later weeks' planned ones, up to the latest deadline", async ({
+    tx,
+  }) => {
     await saveSettings(tx);
     const essayId = await insertItem(tx, flexible("Essay", 90, utc("2026-10-05T04:00", "2026-10-09T21:00")));
     const lastWeekEssay = auto(essayId, utc("2026-09-30T14:00", "2026-09-30T15:00")); // Wed Sep 30, 10:00
@@ -91,8 +91,14 @@ describe("loadWeekSchedule", { tags: ["integration", "critical"] }, () => {
     // The hour done last week counts, so only 30 minutes remain.
     expect(await loadPlacements(tx, week)).toEqual([auto(essayId, utc("2026-10-07T16:00", "2026-10-07T16:30"))]);
 
-    const nextWeek = await loadWeekSchedule(tx, wednesdayNoon, Temporal.PlainDate.from("2026-10-12"));
+    // A task added later, due after everything else, is planned next week and saved there.
+    const nextMonday = Temporal.PlainDate.from("2026-10-12");
+    expect((await loadWeekSchedule(tx, wednesdayNoon, nextMonday))?.placements).toEqual([]);
+    const projectId = await insertItem(tx, flexible("Project", 60, utc("2026-10-12T14:00", "2026-10-16T21:00")));
+    const nextWeek = await loadWeekSchedule(tx, wednesdayNoon, nextMonday);
     expect(nextWeek?.dates[0]).toBe("2026-10-12");
-    expect(nextWeek?.placements).toEqual([]);
+    const projectPlacement = auto(projectId, utc("2026-10-12T14:00", "2026-10-12T15:00")); // Mon 10:00
+    expect(nextWeek?.placements).toEqual([projectPlacement]);
+    expect(await loadPlacements(tx, utc("2026-10-12T04:00", "2026-10-19T04:00"))).toEqual([projectPlacement]);
   });
 });

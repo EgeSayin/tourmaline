@@ -7,6 +7,7 @@ import type { Database, Transaction } from "@/server/db/connection";
 import { loadItems } from "@/server/db/items-repository";
 import { loadPlacements, replacePendingPlacements } from "@/server/db/placements-repository";
 import { loadSettings } from "@/server/db/settings-repository";
+import { planningHorizon } from "@/server/scheduler/horizon";
 import type { Interval } from "@/server/scheduler/intervals";
 import { replan } from "@/server/scheduler/replan";
 import { toDate } from "@/server/temporal";
@@ -24,15 +25,15 @@ export interface WeekSchedule {
   flexibleItems: FlexibleItem[];
   /** Placements in the shown week, sorted by start. */
   placements: Placement[];
-  /** Tasks whose remaining time doesn't fit the week containing now; `durationMin` is the remaining time. */
+  /** Tasks whose remaining time doesn't fit before their deadline; `durationMin` is the remaining time. */
   unplaced: FlexibleItem[];
 }
 
 /**
- * Re-plans the week containing `now` from `now` on around its saved placements, saves the plan if it changed,
- * and returns the week containing `shownDate` (default: the week containing `now`). Placements from earlier
- * weeks count toward each task's time. Re-planning an unchanged plan changes nothing, so repeated loads
- * don't write. `null` if no settings are saved yet.
+ * Re-plans from `now` to the latest item date around the saved placements, saves the plan if it changed, and
+ * returns the week containing `shownDate` (default: the week containing `now`). Placements before `now` count
+ * toward each task's time. Re-planning an unchanged plan changes nothing, so repeated loads don't write.
+ * `null` if no settings are saved yet.
  */
 export async function loadWeekSchedule(
   executor: Database | Transaction,
@@ -42,15 +43,15 @@ export async function loadWeekSchedule(
   const [settings, items] = await Promise.all([loadSettings(executor), loadItems(executor)]);
   if (!settings) return null;
 
-  const current = weekContaining(now, settings.timeZone);
-  const shown = shownDate ? weekOf(shownDate, settings.timeZone) : current;
+  const shown = shownDate ? weekOf(shownDate, settings.timeZone) : weekContaining(now, settings.timeZone);
   const fixedItems = items.filter((item): item is FixedItem => item.timing === "fixed");
   const flexibleItems = items.filter((item): item is FlexibleItem => item.timing === "flexible");
   const nowDate = toDate(now);
+  const horizon = planningHorizon(nowDate, items);
 
-  const existing = await loadPlacements(executor, { start: new Date(0), end: current.range.end });
+  const existing = await loadPlacements(executor, { start: new Date(0), end: horizon.end });
   const { placements, unplaced } = replan({
-    range: current.range,
+    range: horizon,
     now: nowDate,
     fixedItems,
     flexibleItems,
@@ -60,12 +61,8 @@ export async function loadWeekSchedule(
 
   const pending = (list: Placement[]) => list.filter((p) => !p.pinned && p.start >= nowDate);
   if (!samePlacements(pending(existing), pending(placements))) {
-    await executor.transaction((tx) => replacePendingPlacements(tx, current.range, nowDate, placements));
+    await executor.transaction((tx) => replacePendingPlacements(tx, horizon, nowDate, placements));
   }
-
-  const shownPlacements = shown.monday.equals(current.monday)
-    ? placements.filter((p) => p.start < shown.range.end && p.end > shown.range.start)
-    : await loadPlacements(executor, shown.range);
 
   return {
     timeZone: settings.timeZone,
@@ -74,7 +71,7 @@ export async function loadWeekSchedule(
     today: now.toZonedDateTimeISO(settings.timeZone).toPlainDate().toString(),
     fixedItems,
     flexibleItems,
-    placements: shownPlacements,
+    placements: placements.filter((p) => p.start < shown.range.end && p.end > shown.range.start),
     unplaced,
   };
 }
