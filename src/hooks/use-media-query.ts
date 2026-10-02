@@ -14,5 +14,3 @@ export function useMediaQuery(query: string): boolean {
     () => false,
   );
 }
-
-export const DESKTOP_QUERY = "(min-width: 768px)";
