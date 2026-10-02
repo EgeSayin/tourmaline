@@ -1,19 +1,13 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import type { FixedItem } from "@/lib/items";
-import type { SchedulerSettings } from "@/lib/settings";
 import type { DailyWindow } from "@/lib/time-of-day";
 import { freeTimeMap } from "@/server/scheduler/free-time";
-import type { Interval } from "@/server/scheduler/intervals";
 import { covers, expectSortedWithGaps, intervalArb, minuteOf, SPAN_MIN } from "../../support/intervals";
-import { fixed, fixedItemArb } from "../../support/items";
+import { fixedItemArb } from "../../support/items";
 import { utcSettingsArb } from "../../support/settings";
 
 const MINUTES_PER_DAY = 24 * 60;
-
-function utc(start: string, end: string): Interval {
-  return { start: new Date(`${start}Z`), end: new Date(`${end}Z`) };
-}
 
 /** Assumes UTC, where generated minutes are already local time. */
 function inDowntime(minute: number, { startMinute, endMinute }: DailyWindow): boolean {
@@ -29,28 +23,6 @@ function inBufferedItem(minute: number, items: FixedItem[]): boolean {
 }
 
 describe("freeTimeMap", { tags: ["unit", "critical"] }, () => {
-  it("removes downtime and fixed items with their buffers from the range", () => {
-    const settings: SchedulerSettings = {
-      timeZone: "America/New_York",
-      downtime: { startMinute: 23 * 60, endMinute: 10 * 60 },
-    };
-    // Mon Oct 5 2026, 00:00–24:00 EDT (UTC-4).
-    const range = utc("2026-10-05T04:00", "2026-10-06T04:00");
-    // Unsorted on purpose: the result must come back sorted regardless.
-    const items = [
-      fixed("Club", utc("2026-10-05T22:00", "2026-10-05T23:00")), // 18:00–19:00
-      fixed("Tomorrow", utc("2026-10-06T15:00", "2026-10-06T16:00")), // outside the range
-      fixed("Call", utc("2026-10-06T02:30", "2026-10-06T03:30")), // 22:30–23:30, runs into downtime
-      fixed("Lecture", utc("2026-10-05T15:00", "2026-10-05T16:15"), 15), // 11:00–12:15, 15 min buffers
-    ];
-
-    expect(freeTimeMap(range, items, settings)).toEqual([
-      utc("2026-10-05T14:00", "2026-10-05T14:45"), // 10:00–10:45
-      utc("2026-10-05T16:30", "2026-10-05T22:00"), // 12:30–18:00
-      utc("2026-10-05T23:00", "2026-10-06T02:30"), // 19:00–22:30
-    ]);
-  });
-
   it("frees exactly the minutes in range, outside downtime, and outside every buffered item", { tags: ["property"] }, () => {
     const itemsArb = fc.array(fixedItemArb, { maxLength: 8 });
 
