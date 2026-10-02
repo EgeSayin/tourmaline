@@ -1,7 +1,7 @@
 import { describe, expect } from "vitest";
 import type { FixedItem, FlexibleItem } from "@/lib/items";
-import { insertItem, loadItems } from "@/server/db/items-repository";
-import { items } from "@/server/db/schema";
+import { deleteItem, insertItem, loadItems, updateItem } from "@/server/db/items-repository";
+import { fixedItemDetails, flexibleItemDetails, items } from "@/server/db/schema";
 import { dbTest as it } from "../../support/database";
 
 const lecture: Omit<FixedItem, "id"> = {
@@ -43,5 +43,35 @@ describe("items repository", { tags: ["integration", "critical"] }, () => {
     await tx.insert(items).values({ title: "Orphan", timing: "fixed" });
 
     await expect(loadItems(tx)).rejects.toThrow("has no details row");
+  });
+
+  it("updates an item in place, including switching between fixed and flexible", async ({ tx }) => {
+    const id = await insertItem(tx, lecture);
+
+    const moved = {
+      ...lecture,
+      title: "CS 101 lecture (moved)",
+      start: new Date("2026-10-06T15:00:00Z"),
+      end: new Date("2026-10-06T16:15:00Z"),
+    };
+    expect(await updateItem(tx, id, moved)).toBe(true);
+    expect(await loadItems(tx)).toEqual([{ id, ...moved }]);
+
+    expect(await updateItem(tx, id, essay)).toBe(true);
+    expect(await loadItems(tx)).toEqual([{ id, ...essay }]);
+    expect(await tx.$count(fixedItemDetails)).toBe(0);
+
+    expect(await updateItem(tx, "00000000-0000-4000-8000-000000000000", essay)).toBe(false);
+  });
+
+  it("deletes an item together with its details", async ({ tx }) => {
+    const lectureId = await insertItem(tx, lecture);
+    const essayId = await insertItem(tx, essay);
+
+    expect(await deleteItem(tx, essayId)).toBe(true);
+    expect(await loadItems(tx)).toEqual([{ id: lectureId, ...lecture }]);
+    expect(await tx.$count(flexibleItemDetails)).toBe(0);
+
+    expect(await deleteItem(tx, essayId)).toBe(false);
   });
 });

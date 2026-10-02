@@ -1,4 +1,5 @@
 import "server-only";
+import { eq } from "drizzle-orm";
 import type { Item, NewItem } from "@/lib/items";
 import type { Database, Transaction } from "./connection";
 import { fixedItemDetails, flexibleItemDetails, items } from "./schema";
@@ -10,9 +11,40 @@ export async function insertItem(tx: Transaction, item: NewItem): Promise<string
     .values({ title: item.title, priority: item.priority, timing: item.timing })
     .returning({ id: items.id });
 
+  await insertDetails(tx, id, item);
+  return id;
+}
+
+/**
+ * Replaces the item's fields and details, including switching between fixed and flexible.
+ * Returns `false` if no item has this `id`.
+ */
+export async function updateItem(tx: Transaction, id: string, item: NewItem): Promise<boolean> {
+  // Old details go first: the composite foreign key blocks changing `timing` while they reference it.
+  await tx.delete(fixedItemDetails).where(eq(fixedItemDetails.itemId, id));
+  await tx.delete(flexibleItemDetails).where(eq(flexibleItemDetails.itemId, id));
+
+  const updated = await tx
+    .update(items)
+    .set({ title: item.title, priority: item.priority, timing: item.timing })
+    .where(eq(items.id, id))
+    .returning({ id: items.id });
+  if (updated.length === 0) return false;
+
+  await insertDetails(tx, id, item);
+  return true;
+}
+
+/** Deletes the item and, through the cascade, its details. Returns `false` if no item has this `id`. */
+export async function deleteItem(executor: Database | Transaction, id: string): Promise<boolean> {
+  const deleted = await executor.delete(items).where(eq(items.id, id)).returning({ id: items.id });
+  return deleted.length > 0;
+}
+
+async function insertDetails(tx: Transaction, itemId: string, item: NewItem) {
   if (item.timing === "fixed") {
     await tx.insert(fixedItemDetails).values({
-      itemId: id,
+      itemId,
       startAt: item.start,
       endAt: item.end,
       location: item.location,
@@ -21,7 +53,7 @@ export async function insertItem(tx: Transaction, item: NewItem): Promise<string
     });
   } else {
     await tx.insert(flexibleItemDetails).values({
-      itemId: id,
+      itemId,
       durationMin: item.durationMin,
       earliestStart: item.earliestStart,
       deadline: item.deadline,
@@ -31,7 +63,6 @@ export async function insertItem(tx: Transaction, item: NewItem): Promise<string
       spread: item.spread,
     });
   }
-  return id;
 }
 
 /** Every item with its details. Throws if an item's details row is missing. */

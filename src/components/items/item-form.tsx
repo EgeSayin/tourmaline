@@ -5,7 +5,7 @@ import { FormInput, FormSelect, FormStateProvider } from "@/components/forms/for
 import { Button } from "@/components/ui/button";
 import { FieldGroup } from "@/components/ui/field";
 import { type Item, PRIORITIES } from "@/lib/items";
-import { type CreateItemState, createItem } from "@/server/items/actions";
+import { type ItemFormState, createItem } from "@/server/items/actions";
 import { FixedItemFields } from "./fixed-item-fields";
 import { FlexibleItemFields } from "./flexible-item-fields";
 import { TimingSwitch } from "./timing-switch";
@@ -15,7 +15,7 @@ const PRIORITY_OPTIONS = PRIORITIES.map((value) => ({ value, label: value.charAt
 export function ItemForm({ onSaved }: { onSaved: () => void }) {
   const [timing, setTiming] = useState<Item["timing"]>("flexible");
   const [state, formAction, pending] = useActionState(
-    async (previous: CreateItemState, formData: FormData) => {
+    async (previous: ItemFormState, formData: FormData) => {
       const result = await createItem(previous, formData);
       if (result.status === "saved") onSaved();
       return result;
