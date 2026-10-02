@@ -12,3 +12,6 @@ export interface Placement {
   /** Pinned placements are never moved by the scheduler. */
   pinned: boolean;
 }
+
+/** Placements start on multiples of this many minutes, and task durations are multiples of it. */
+export const SLOT_MIN = 5;

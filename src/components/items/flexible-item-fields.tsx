@@ -1,5 +1,6 @@
 import { FormInput, FormSelect } from "@/components/forms/form-fields";
 import { SPREAD_STRATEGIES, type SpreadStrategy } from "@/lib/items";
+import { SLOT_MIN } from "@/lib/placements";
 
 const SPREAD_LABELS: Record<SpreadStrategy, string> = {
   asap: "As soon as possible",
@@ -12,7 +13,14 @@ const SPREAD_OPTIONS = SPREAD_STRATEGIES.map((value) => ({ value, label: SPREAD_
 export function FlexibleItemFields() {
   return (
     <>
-      <FormInput name="durationMin" label="Duration (min)" type="number" min={1} placeholder="90" />
+      <FormInput
+        name="durationMin"
+        label="Duration (min)"
+        type="number"
+        min={SLOT_MIN}
+        step={SLOT_MIN}
+        placeholder="90"
+      />
       <FormInput
         name="earliestStart"
         label="Not before"

@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { type Item, PRIORITIES, SPREAD_STRATEGIES } from "./items";
 import { toDateTimeInputValue } from "./local-time";
+import { SLOT_MIN } from "./placements";
 import type { TimeZone } from "./time-zone";
 
 const emptyToUndefined = (value: unknown) => (value === "" || value === null ? undefined : value);
@@ -12,6 +13,10 @@ const toNumber = (value: unknown) => {
 /** Local wall-clock time as sent by `<input type="datetime-local">`, e.g. "2026-10-01T14:00". */
 const localDateTime = z.iso.datetime({ local: true, error: "Enter a date and time" });
 const minutes = (min: number) => z.number({ error: "Enter a whole number of minutes" }).int().min(min);
+const taskMinutes = z
+  .number({ error: "Enter a whole number of minutes" })
+  .min(SLOT_MIN)
+  .multipleOf(SLOT_MIN, `Use multiples of ${SLOT_MIN} minutes`);
 
 const shared = {
   title: z.string().trim().min(1, "Enter a title").max(200),
@@ -34,7 +39,7 @@ const flexibleForm = z
   .object({
     ...shared,
     timing: z.literal("flexible"),
-    durationMin: z.preprocess(toNumber, minutes(1)),
+    durationMin: z.preprocess(toNumber, taskMinutes),
     earliestStart: z.preprocess(emptyToUndefined, localDateTime.optional()),
     deadline: localDateTime,
     minChunkMin: z.preprocess(toNumber, minutes(1).optional()),

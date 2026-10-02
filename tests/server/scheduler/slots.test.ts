@@ -1,5 +1,6 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
+import { SLOT_MIN } from "@/lib/placements";
 import { type Interval, mergeIntervals } from "@/server/scheduler/intervals";
 import { findEarliestSlot } from "@/server/scheduler/slots";
 import { at, covers, intervalArb, intervalsArb, SPAN_MIN } from "../../support/intervals";
@@ -11,13 +12,13 @@ function iv(start: string, end: string): Interval {
   };
 }
 
-/** Earliest minute starting `durationMin` consecutive minutes inside both `free` and `window`. */
+/** Earliest minute on the `SLOT_MIN` grid starting `durationMin` consecutive minutes inside both `free` and `window`. */
 function earliestFittingMinute(free: Interval[], window: Interval, durationMin: number): number | null {
   const run = new Array<number>(SPAN_MIN + 1).fill(0);
   for (let minute = SPAN_MIN - 1; minute >= 0; minute--) {
     run[minute] = covers(free, minute) && covers([window], minute) ? run[minute + 1] + 1 : 0;
   }
-  const start = run.findIndex((length) => length >= durationMin);
+  const start = run.findIndex((length, minute) => minute % SLOT_MIN === 0 && length >= durationMin);
   return start === -1 ? null : start;
 }
 
@@ -32,9 +33,11 @@ describe("findEarliestSlot", { tags: ["unit", "critical"] }, () => {
     expect(findEarliestSlot(free, 60, iv("13:00", "23:59"))).toEqual(iv("13:00", "14:00")); // starts mid-slot
     expect(findEarliestSlot(free, 60, iv("00:00", "13:15"))).toBeNull(); // deadline cuts the slot short
     expect(findEarliestSlot(free, 6 * 60, day)).toBeNull(); // longer than any free block
+    expect(findEarliestSlot([iv("10:03", "10:40")], 30, day)).toEqual(iv("10:05", "10:35")); // rounded up to the grid
+    expect(findEarliestSlot([iv("10:03", "10:29")], 25, day)).toBeNull(); // fits only off the grid
   });
 
-  it("returns a slot at the earliest minute that fits, or null when none does", { tags: ["property"] }, () => {
+  it("returns a slot at the earliest grid minute that fits, or null when none does", { tags: ["property"] }, () => {
     const freeArb = intervalsArb.map(mergeIntervals);
     const durationArb = fc.integer({ min: 1, max: 8 * 60 });
 

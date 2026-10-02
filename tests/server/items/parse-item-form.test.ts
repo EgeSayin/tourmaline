@@ -80,7 +80,7 @@ describe("parseItemForm", { tags: ["unit", "critical"] }, () => {
         {
           timing: "flexible",
           title: "Essay",
-          durationMin: "0",
+          durationMin: "42",
           earliestStart: "2026-10-05T09:00",
           deadline: "tomorrow",
           minChunkMin: "30",
@@ -90,7 +90,7 @@ describe("parseItemForm", { tags: ["unit", "critical"] }, () => {
       ),
     ).toMatchObject({
       ok: false,
-      errors: { durationMin: [expect.any(String)], deadline: ["Enter a date and time"] },
+      errors: { durationMin: ["Use multiples of 5 minutes"], deadline: ["Enter a date and time"] },
     });
 
     const task = { timing: "flexible", title: "Essay", durationMin: "60" };
