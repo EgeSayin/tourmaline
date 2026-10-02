@@ -1,14 +1,32 @@
+import { connection } from "next/server";
 import { ScheduleLegend } from "@/components/schedule/schedule-legend";
 import { UnplacedTasks } from "@/components/schedule/unplaced-tasks";
 import { WeekGrid } from "@/components/schedule/week-grid";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { formatLocalDateRange } from "@/lib/format";
+import type { FixedItem, FlexibleItem } from "@/lib/items";
 import { localDatesInRange } from "@/lib/local-time";
+import { db } from "@/server/db/client";
+import { loadItems } from "@/server/db/items-repository";
+import { loadSettings } from "@/server/db/settings-repository";
 import { sampleWeek } from "@/server/demo/sample-week";
 import { schedule } from "@/server/scheduler/schedule";
 
-export default function Home() {
-  const { range, fixedItems, flexibleItems, settings } = sampleWeek();
+export default async function Home() {
+  await connection();
+  const [settings, items] = await Promise.all([loadSettings(db), loadItems(db)]);
+
+  if (!settings) {
+    return (
+      <main className="mx-auto w-full max-w-6xl px-4 py-10">
+        <p className="text-muted-foreground">No settings saved yet.</p>
+      </main>
+    );
+  }
+
+  const { range } = sampleWeek();
+  const fixedItems = items.filter((item): item is FixedItem => item.timing === "fixed");
+  const flexibleItems = items.filter((item): item is FlexibleItem => item.timing === "flexible");
   const { placements, unplaced } = schedule(range, fixedItems, flexibleItems, settings);
   const dates = localDatesInRange(range, settings.timeZone);
 
