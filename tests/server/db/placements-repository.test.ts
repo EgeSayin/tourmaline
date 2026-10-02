@@ -1,7 +1,7 @@
 import { describe, expect } from "vitest";
 import type { Placement } from "@/lib/placements";
 import { deleteItem, insertItem } from "@/server/db/items-repository";
-import { insertPlacements, loadPlacements } from "@/server/db/placements-repository";
+import { insertPlacements, loadPlacements, replacePendingPlacements } from "@/server/db/placements-repository";
 import { dbTest as it } from "../../support/database";
 import { fixed, flexible } from "../../support/items";
 
@@ -40,5 +40,38 @@ describe("placements repository", { tags: ["integration", "critical"] }, () => {
     await insertPlacements(tx, [{ itemId: essayId, ...slot }]);
     await deleteItem(tx, essayId);
     expect(await loadPlacements(tx, week)).toEqual([]);
+  });
+
+  it("replaces only the pending placements in range, keeping started, pinned and later ones", async ({ tx }) => {
+    const essayId = await insertItem(tx, flexible("Essay", 600, utc("2026-10-05T04:00", "2026-10-19T04:00")));
+    const placement = (start: string, end: string, extra: Partial<Placement> = {}): Placement => ({
+      itemId: essayId,
+      ...utc(start, end),
+      source: "auto",
+      pinned: false,
+      ...extra,
+    });
+    const now = new Date("2026-10-07T12:00Z");
+
+    const started = placement("2026-10-07T11:30", "2026-10-07T12:30");
+    const pinned = placement("2026-10-08T14:00", "2026-10-08T15:00", { source: "manual", pinned: true });
+    const stale = placement("2026-10-09T14:00", "2026-10-09T15:00");
+    const nextWeek = placement("2026-10-13T14:00", "2026-10-13T15:00");
+    await insertPlacements(tx, [started, pinned, stale, nextWeek]);
+
+    const replacement = placement("2026-10-10T14:00", "2026-10-10T15:00");
+    await replacePendingPlacements(tx, week, now, [
+      started,
+      pinned,
+      replacement,
+      placement("2026-10-14T14:00", "2026-10-14T15:00"),
+    ]);
+
+    expect(await loadPlacements(tx, utc("2026-10-05T04:00", "2026-10-19T04:00"))).toEqual([
+      started,
+      pinned,
+      replacement,
+      nextWeek,
+    ]);
   });
 });
