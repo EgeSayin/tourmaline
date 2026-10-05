@@ -2,14 +2,14 @@ import "server-only";
 import { weekContaining } from "@/server/time/days";
 import type { Item } from "@/lib/items";
 import { occurrenceId, parseOccurrenceId } from "@/lib/recurrence";
-import { sampleWeek } from "@/server/demo/sample-week";
+import { sampleWeek } from "./sample-week";
 import { expandOccurrences } from "@/server/recurrence";
 import { freeTimeMap } from "@/server/scheduler/free-time";
 import { placeTasks } from "@/server/scheduler/placement";
-import { db } from "./client";
-import { insertItem } from "./items-repository";
-import { insertPlacements } from "./placements-repository";
-import { items, settings } from "./schema";
+import { db } from "@/server/db/client";
+import { insertItem } from "@/server/db/items-repository";
+import { insertPlacements } from "@/server/db/placements-repository";
+import { items, settings } from "@/server/db/schema";
 
 /**
  * Replaces all items and settings with the sample week for the current week, planned from the week's start,
