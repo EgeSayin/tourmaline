@@ -1,7 +1,8 @@
 "use client";
 
-import { createContext, use } from "react";
-import { Field, FieldDescription, FieldError, FieldLabel } from "@/components/ui/field";
+import { createContext, use, useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Field, FieldDescription, FieldError, FieldLabel, FieldLegend, FieldSet } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 
@@ -55,16 +56,23 @@ export function FormSelect({
   label,
   options,
   defaultValue,
+  onValueChange,
 }: {
   name: string;
   label: string;
   options: readonly { value: string; label: string }[];
   defaultValue: string;
+  onValueChange?: (value: string) => void;
 }) {
   const { values } = use(FormStateContext);
   return (
     <FormField name={name} label={label}>
-      <NativeSelect id={name} name={name} defaultValue={values[name] ?? defaultValue}>
+      <NativeSelect
+        id={name}
+        name={name}
+        defaultValue={values[name] ?? defaultValue}
+        onChange={(event) => onValueChange?.(event.target.value)}
+      >
         {options.map((option) => (
           <NativeSelectOption key={option.value} value={option.value}>
             {option.label}
@@ -72,5 +80,55 @@ export function FormSelect({
         ))}
       </NativeSelect>
     </FormField>
+  );
+}
+
+/** Toggle buttons for picking any of `options`; the picked values are submitted comma-separated. */
+export function FormToggleGroup({
+  name,
+  label,
+  options,
+}: {
+  name: string;
+  label: string;
+  options: readonly { value: string; label: string }[];
+}) {
+  const { values, errors } = use(FormStateContext);
+  const [picked, setPicked] = useState(() => new Set(values[name]?.split(",").filter(Boolean)));
+  const messages = errors[name];
+  const toggle = (value: string) =>
+    setPicked((current) => {
+      const next = new Set(current);
+      if (!next.delete(value)) next.add(value);
+      return next;
+    });
+
+  return (
+    <FieldSet data-invalid={messages ? true : undefined} className="gap-0">
+      <FieldLegend variant="label">{label}</FieldLegend>
+      <input
+        type="hidden"
+        name={name}
+        value={options
+          .filter((option) => picked.has(option.value))
+          .map((option) => option.value)
+          .join(",")}
+      />
+      <div className="flex flex-wrap gap-1">
+        {options.map((option) => (
+          <Button
+            key={option.value}
+            type="button"
+            size="sm"
+            variant={picked.has(option.value) ? "default" : "outline"}
+            aria-pressed={picked.has(option.value)}
+            onClick={() => toggle(option.value)}
+          >
+            {option.label}
+          </Button>
+        ))}
+      </div>
+      <FieldError className="mt-2" errors={messages?.map((message) => ({ message }))} />
+    </FieldSet>
   );
 }

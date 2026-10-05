@@ -176,6 +176,21 @@ describe("parseItemForm", { tags: ["unit", "critical"] }, () => {
       errors: { until: ["The series ends before it first occurs"] },
     });
 
+    // Missing fields are all reported at once, whichever check finds them.
+    expect(parseItemForm({ timing: "flexible", title: "", repeat: "weekly" }, tz, now)).toMatchObject({
+      ok: false,
+      errors: {
+        title: [expect.any(String)],
+        durationMin: [expect.any(String)],
+        earliestStart: [expect.any(String)],
+        weekdays: [expect.any(String)],
+      },
+    });
+    expect(parseItemForm({ timing: "flexible", title: "" }, tz, now)).toMatchObject({
+      ok: false,
+      errors: { deadline: ["Enter a date and time"] },
+    });
+
     const task = { timing: "flexible", title: "Gym", durationMin: "60" };
     expect(parseItemForm({ ...task, repeat: "daily" }, tz, now)).toEqual({
       ok: false,

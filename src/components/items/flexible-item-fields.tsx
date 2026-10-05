@@ -1,7 +1,8 @@
 import { FormInput } from "@/components/forms/form-fields";
 import { SLOT_MIN } from "@/lib/placements";
 
-export function FlexibleItemFields() {
+/** A repeating task isn't asked for a due date: each occurrence is due when the next one starts. */
+export function FlexibleItemFields({ repeating }: { repeating: boolean }) {
   return (
     <>
       <FormInput
@@ -16,9 +17,9 @@ export function FlexibleItemFields() {
         name="earliestStart"
         label="Not before"
         type="datetime-local"
-        description="Leave empty to start now."
+        description={repeating ? "The first one; each is due when the next one starts." : "Leave empty to start now."}
       />
-      <FormInput name="deadline" label="Due" type="datetime-local" />
+      {!repeating && <FormInput name="deadline" label="Due" type="datetime-local" />}
     </>
   );
 }

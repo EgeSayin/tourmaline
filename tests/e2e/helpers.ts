@@ -5,9 +5,14 @@ export const TIME_ZONE = "America/New_York";
 
 export const isPhone = (testInfo: TestInfo) => testInfo.project.name === "phone";
 
+/** The local date `days` from today, in the seeded time zone. */
+export function localDate(days: number): Temporal.PlainDate {
+  return Temporal.Now.plainDateISO(TIME_ZONE).add({ days });
+}
+
 /** A local `datetime-local` value `days` from today, in the seeded time zone. */
 export function localDateTime(days: number, time: string): string {
-  return `${Temporal.Now.plainDateISO(TIME_ZONE).add({ days })}T${time}`;
+  return `${localDate(days)}T${time}`;
 }
 
 /** The add/edit panel: docked beside the calendar on desktop, a bottom sheet on phones. */

@@ -21,6 +21,8 @@ const taskMinutes = z
 
 export const REPEAT_OPTIONS = ["none", "daily", "weekly"] as const;
 
+export type Repeat = (typeof REPEAT_OPTIONS)[number];
+
 /** Comma-separated ISO weekday numbers, e.g. "1,3,5", as kept by the weekday toggles. */
 const weekdayList = z
   .string()
@@ -36,9 +38,13 @@ const shared = {
   until: z.preprocess(emptyToUndefined, z.iso.date({ error: "Enter a date" }).optional()),
 };
 
+// Zod skips refinements while any field is invalid. These only test whether a field is present, which works on
+// unparsed values too, so they run anyway and their errors show together with the rest.
+const evenIfInvalid = { when: () => true };
+
 const weekdaysChosen = {
   check: (form: { repeat: string; weekdays: number[] }) => form.repeat !== "weekly" || form.weekdays.length > 0,
-  params: { path: ["weekdays"], message: "Choose at least one day" },
+  params: { path: ["weekdays"], message: "Choose at least one day", ...evenIfInvalid },
 };
 
 const fixedForm = z
@@ -70,10 +76,12 @@ const flexibleForm = z
   .refine((form) => form.repeat !== "none" || form.deadline !== undefined, {
     path: ["deadline"],
     message: "Enter a date and time",
+    ...evenIfInvalid,
   })
   .refine((form) => form.repeat === "none" || form.earliestStart !== undefined, {
     path: ["earliestStart"],
     message: "Enter when each occurrence can start",
+    ...evenIfInvalid,
   })
   .refine((form) => (form.minChunkMin === undefined) === (form.maxChunkMin === undefined), {
     path: ["maxChunkMin"],
