@@ -10,6 +10,13 @@ export function formatLocalWeekday(date: string): string {
   return new Intl.DateTimeFormat("en-US", { timeZone: "UTC", weekday: "short" }).format(new Date(`${date}T12:00:00Z`));
 }
 
+/** Formats a `YYYY-MM-DD` local date with its weekday, e.g. "Wed, Oct 7". */
+export function formatLocalDate(date: string): string {
+  return new Intl.DateTimeFormat("en-US", { timeZone: "UTC", weekday: "short", month: "short", day: "numeric" }).format(
+    new Date(`${date}T12:00:00Z`),
+  );
+}
+
 /** Formats two `YYYY-MM-DD` local dates as a range, e.g. "Oct 5 – 11, 2026". */
 export function formatLocalDateRange(first: string, last: string): string {
   return new Intl.DateTimeFormat("en-US", {

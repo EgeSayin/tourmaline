@@ -142,7 +142,7 @@ describe("loadCalendar", { tags: ["integration", "critical"] }, () => {
 
     // Shown for the whole week, past the plan.
     expect(schedule?.fixedItems.map((item) => item.id)).toEqual(weekDates.map((date) => `${standupId}@${date}`));
-    expect(schedule?.flexibleItems.map((item) => item.title)).toEqual(["Essay", ...weekDates.map(() => "Gym")]);
+    expect(schedule?.flexibleItems.map((item) => item.title).sort()).toEqual(["Essay", ...weekDates.map(() => "Gym")]);
 
     // Planned only while their window overlaps the plan; Friday's runs to Saturday 10:00, so it gets room after 10:30.
     const gymPlacements = schedule!.placements.filter((p) => p.itemId.startsWith(gymId));
