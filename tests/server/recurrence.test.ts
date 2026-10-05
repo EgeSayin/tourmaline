@@ -1,7 +1,9 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import { type Recurrence, WEEKDAYS } from "@/lib/recurrence";
-import { occurrenceDates } from "@/server/recurrence";
+import { expandOccurrences, occurrenceDates } from "@/server/recurrence";
+import { utc } from "../support/intervals";
+import { fixed, flexible } from "../support/items";
 
 const day = (iso: string) => Temporal.PlainDate.from(iso);
 const expand = (rule: Recurrence, first: string, from: string, to: string) =>
@@ -86,5 +88,69 @@ describe("occurrenceDates", { tags: ["unit", "critical"] }, () => {
         expect(new Set(whole).size).toBe(whole.length);
       }),
     );
+  });
+});
+
+describe("expandOccurrences", { tags: ["unit", "critical"] }, () => {
+  const tz = "America/New_York";
+  const ids = (items: { id: string }[]) => items.map((item) => item.id);
+
+  it("places fixed occurrences at the first one's local times, skipping dates and stopping at until", () => {
+    const lecture = {
+      ...fixed("Lecture", utc("2026-10-26T15:00", "2026-10-26T16:15")), // Mon 11:00 EDT
+      recurrence: { frequency: "weekly", interval: 1, weekdays: [1, 3], until: "2026-11-09" } satisfies Recurrence,
+      skippedDates: ["2026-10-28"],
+    };
+    const times = (start: string, end: string) => ({ ...lecture, ...utc(start, end) });
+
+    // Clocks go back on Sun Nov 1: still 11:00 local, now EST.
+    expect(expandOccurrences(lecture, utc("2026-10-26T04:00", "2026-11-30T05:00"), tz)).toEqual([
+      { ...times("2026-10-26T15:00", "2026-10-26T16:15"), id: "Lecture@2026-10-26" },
+      { ...times("2026-11-02T16:00", "2026-11-02T17:15"), id: "Lecture@2026-11-02" },
+      { ...times("2026-11-04T16:00", "2026-11-04T17:15"), id: "Lecture@2026-11-04" },
+      { ...times("2026-11-09T16:00", "2026-11-09T17:15"), id: "Lecture@2026-11-09" },
+    ]);
+    // Overlap is exclusive at both ends: one starting mid-lecture counts, one ending at a start doesn't.
+    expect(ids(expandOccurrences(lecture, utc("2026-10-26T16:00", "2026-11-02T16:00"), tz))).toEqual([
+      "Lecture@2026-10-26",
+    ]);
+
+    // Starting two dates before the range: clocks go forward on Sun Mar 8, so a shift from Sat 23:30 to Mon 00:05
+    // is under a day long but ends two dates later.
+    const shift = {
+      ...fixed("Shift", utc("2026-03-08T04:30", "2026-03-09T04:05")),
+      recurrence: { frequency: "weekly", interval: 1, weekdays: [6], until: null } satisfies Recurrence,
+    };
+    expect(ids(expandOccurrences(shift, utc("2026-03-09T04:00", "2026-03-09T04:30"), tz))).toEqual([
+      "Shift@2026-03-07",
+    ]);
+  });
+
+  it("gives each task occurrence a window that runs until the rule next occurs", () => {
+    const gym = {
+      ...flexible("Gym", 60, utc("2026-10-05T14:00", "2026-10-09T14:00")), // Mon 10:00 EDT to Fri 10:00
+      recurrence: { frequency: "weekly", interval: 1, weekdays: [1, 5], until: "2026-10-16" } satisfies Recurrence,
+      skippedDates: ["2026-10-12"],
+    };
+    const window = (start: string, end: string) => {
+      const { start: earliestStart, end: deadline } = utc(start, end);
+      return { ...gym, earliestStart, deadline };
+    };
+
+    expect(expandOccurrences(gym, utc("2026-10-05T04:00", "2026-11-02T05:00"), tz)).toEqual([
+      { ...window("2026-10-05T14:00", "2026-10-09T14:00"), id: "Gym@2026-10-05" },
+      // Ends where the skipped Monday would have started.
+      { ...window("2026-10-09T14:00", "2026-10-12T14:00"), id: "Gym@2026-10-09" },
+      // The last one still runs until the Monday after `until`.
+      { ...window("2026-10-16T14:00", "2026-10-19T14:00"), id: "Gym@2026-10-16" },
+    ]);
+    // A Saturday is inside Friday's window.
+    expect(ids(expandOccurrences(gym, utc("2026-10-10T04:00", "2026-10-11T04:00"), tz))).toEqual(["Gym@2026-10-09"]);
+  });
+
+  it("returns a one-off item unchanged, whatever the range", () => {
+    const essay = flexible("Essay", 60, utc("2026-10-05T14:00", "2026-10-09T14:00"));
+
+    expect(expandOccurrences(essay, utc("2027-01-01T00:00", "2027-01-02T00:00"), tz)).toEqual([essay]);
   });
 });

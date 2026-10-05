@@ -33,6 +33,7 @@ export interface FlexibleItem extends BaseItem {
   timing: "flexible";
   durationMin: number;
   earliestStart: Date;
+  /** For a recurring task, the first occurrence's; each occurrence's window ends where the rule next occurs. */
   deadline: Date;
   /** `null` means the item must be placed as a single block. */
   split: { minChunkMin: number; maxChunkMin: number } | null;
