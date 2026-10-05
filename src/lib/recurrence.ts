@@ -18,6 +18,13 @@ export type Recurrence =
       weekdays: Weekday[];
     });
 
+/** What differs about one occurrence of a recurring item. */
+export interface OccurrenceOverride {
+  /** The occurrence's local date, `YYYY-MM-DD`. */
+  date: string;
+  skipped: boolean;
+}
+
 const OCCURRENCE_SEPARATOR = "@";
 
 /** The id an occurrence of a recurring item goes by, e.g. in placements; unique per item and local date. */

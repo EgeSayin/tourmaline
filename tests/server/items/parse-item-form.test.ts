@@ -133,7 +133,7 @@ describe("parseItemForm", { tags: ["unit", "critical"] }, () => {
 
     for (const item of [lecture, essay]) {
       const parsed = parseItemForm(itemToFormValues(item, tz), tz, now);
-      expect(parsed.ok && { id: item.id, skippedDates: item.skippedDates, ...parsed.item }).toEqual(item);
+      expect(parsed.ok && { id: item.id, overrides: item.overrides, ...parsed.item }).toEqual(item);
     }
   });
 });

@@ -72,10 +72,11 @@ export function expandOccurrences(item: Item, range: Interval, timeZone: TimeZon
 
   // The last date only bounds the window before it: dates run a full period past `range`, so it starts after it.
   const { until } = item.recurrence;
+  const skipped = new Set(item.overrides.filter((override) => override.skipped).map((override) => override.date));
   const occurrences: Item[] = [];
   for (const [i, date] of dates.slice(0, -1).entries()) {
     const day = date.toString();
-    if ((until && day > until) || item.skippedDates.includes(day)) continue;
+    if ((until && day > until) || skipped.has(day)) continue;
 
     const start = startOn(date);
     const end = item.timing === "fixed" ? addMinutes(start, lengthMin) : startOn(dates[i + 1]);

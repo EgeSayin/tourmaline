@@ -1,12 +1,12 @@
-import { eq } from "drizzle-orm";
 import { describe, expect } from "vitest";
 import type { FixedItem, FlexibleItem, NewItem } from "@/lib/items";
+import type { OccurrenceOverride } from "@/lib/recurrence";
 import { deleteItem, insertItem, loadItems, updateItem } from "@/server/db/items-repository";
 import { insertPlacements, loadPlacements } from "@/server/db/placements-repository";
-import { fixedItemDetails, flexibleItemDetails, items } from "@/server/db/schema";
+import { fixedItemDetails, flexibleItemDetails, items, occurrenceOverrides } from "@/server/db/schema";
 import { dbTest as it } from "../../support/database";
 
-const lecture: Omit<FixedItem, "id" | "skippedDates"> = {
+const lecture: Omit<FixedItem, "id" | "overrides"> = {
   title: "CS 101 lecture",
   priority: "mandatory",
   timing: "fixed",
@@ -18,7 +18,7 @@ const lecture: Omit<FixedItem, "id" | "skippedDates"> = {
   bufferAfterMin: 10,
 };
 
-const essay: Omit<FlexibleItem, "id" | "skippedDates"> = {
+const essay: Omit<FlexibleItem, "id" | "overrides"> = {
   title: "Essay draft",
   priority: "high",
   timing: "flexible",
@@ -31,7 +31,7 @@ const essay: Omit<FlexibleItem, "id" | "skippedDates"> = {
   spread: "just-in-time",
 };
 
-const stored = (id: string, item: NewItem, skippedDates: string[] = []) => ({ id, skippedDates, ...item });
+const stored = (id: string, item: NewItem, overrides: OccurrenceOverride[] = []) => ({ id, overrides, ...item });
 
 describe("items repository", { tags: ["integration", "critical"] }, () => {
   it("reads back fixed and flexible items exactly as they were inserted", async ({ tx }) => {
@@ -89,23 +89,26 @@ describe("items repository", { tags: ["integration", "critical"] }, () => {
     expect(await updateItem(tx, "00000000-0000-4000-8000-000000000000", essay, now)).toBe(false);
   });
 
-  it("keeps skipped dates while an item recurs, and allows them only on recurring items", async ({ tx }) => {
+  it("keeps occurrence overrides, sorted by date, only while an item recurs", async ({ tx }) => {
     const id = await insertItem(tx, lecture);
-    const skippedDates = ["2026-10-07", "2026-10-19"];
-    await tx.update(items).set({ skippedDates }).where(eq(items.id, id));
+    const later = { date: "2026-10-19", skipped: true };
+    const earlier = { date: "2026-10-07", skipped: true };
+    const override = ({ date, skipped }: OccurrenceOverride) => ({ itemId: id, occurrenceDate: date, skipped });
+    await tx.insert(occurrenceOverrides).values([override(later), override(earlier)]);
     const now = new Date("2026-10-05T12:00Z");
 
     const everyOtherWeek = { ...lecture, recurrence: { ...lecture.recurrence!, interval: 2 } };
     expect(await updateItem(tx, id, everyOtherWeek, now)).toBe(true);
-    expect(await loadItems(tx)).toEqual([stored(id, everyOtherWeek, skippedDates)]);
+    expect(await loadItems(tx)).toEqual([stored(id, everyOtherWeek, [earlier, later])]);
 
     const once = { ...lecture, recurrence: null };
     expect(await updateItem(tx, id, once, now)).toBe(true);
     expect(await loadItems(tx)).toEqual([stored(id, once)]);
 
-    await expect(
-      tx.transaction((inner) => inner.update(items).set({ skippedDates }).where(eq(items.id, id))),
-    ).rejects.toThrow();
+    await updateItem(tx, id, lecture, now);
+    await tx.insert(occurrenceOverrides).values(override(earlier));
+    await deleteItem(tx, id);
+    expect(await tx.$count(occurrenceOverrides)).toBe(0);
   });
 
   it("deletes an item together with its details", async ({ tx }) => {

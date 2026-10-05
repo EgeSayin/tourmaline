@@ -2,7 +2,7 @@ import "server-only";
 import { and, eq, gte } from "drizzle-orm";
 import type { Item, NewItem } from "@/lib/items";
 import type { Database, Transaction } from "./connection";
-import { fixedItemDetails, flexibleItemDetails, items, placements } from "./schema";
+import { fixedItemDetails, flexibleItemDetails, items, occurrenceOverrides, placements } from "./schema";
 
 /** Inserts the item and its details row; requiring a transaction keeps the two from being written separately. */
 export async function insertItem(tx: Transaction, item: NewItem): Promise<string> {
@@ -16,8 +16,8 @@ export async function insertItem(tx: Transaction, item: NewItem): Promise<string
 }
 
 /**
- * Replaces the item's fields and details, including switching between fixed and flexible. Skipped dates are kept
- * while the item still recurs.
+ * Replaces the item's fields and details, including switching between fixed and flexible. Occurrence overrides
+ * are kept while the item still recurs.
  * A flexible task keeps its started and pinned placements, so time already spent on it still counts, and
  * loses the rest to be placed again. An item that becomes fixed loses all of them.
  * Returns `false` if no item has this `id`.
@@ -36,12 +36,12 @@ export async function updateItem(tx: Transaction, id: string, item: NewItem, now
       priority: item.priority,
       timing: item.timing,
       recurrence: item.recurrence,
-      ...(item.recurrence ? {} : { skippedDates: [] }),
     })
     .where(eq(items.id, id))
     .returning({ id: items.id });
   if (updated.length === 0) return false;
 
+  if (!item.recurrence) await tx.delete(occurrenceOverrides).where(eq(occurrenceOverrides.itemId, id));
   await insertDetails(tx, id, item);
   return true;
 }
@@ -78,10 +78,22 @@ async function insertDetails(tx: Transaction, itemId: string, item: NewItem) {
 
 /** Every item with its details. Throws if an item's details row is missing. */
 export async function loadItems(executor: Database | Transaction): Promise<Item[]> {
-  const rows = await executor.query.items.findMany({ with: { fixedDetails: true, flexibleDetails: true } });
+  const rows = await executor.query.items.findMany({
+    with: {
+      fixedDetails: true,
+      flexibleDetails: true,
+      overrides: { orderBy: (override, { asc }) => [asc(override.occurrenceDate)] },
+    },
+  });
 
-  return rows.map(({ id, title, priority, timing, recurrence, skippedDates, fixedDetails, flexibleDetails }): Item => {
-    const shared = { id, title, priority, recurrence, skippedDates };
+  return rows.map(({ id, title, priority, timing, recurrence, overrides, fixedDetails, flexibleDetails }): Item => {
+    const shared = {
+      id,
+      title,
+      priority,
+      recurrence,
+      overrides: overrides.map(({ occurrenceDate, skipped }) => ({ date: occurrenceDate, skipped })),
+    };
     if (timing === "fixed") {
       if (!fixedDetails) throw new Error(`Fixed item ${id} has no details row`);
       return {

@@ -10,6 +10,7 @@ import {
   jsonb,
   pgEnum,
   pgTable,
+  primaryKey,
   text,
   timestamp,
   unique,
@@ -67,13 +68,9 @@ export const items = pgTable(
     priority: priorityEnum("priority").notNull().default("normal"),
     timing: timingEnum("timing").notNull(),
     recurrence: jsonb("recurrence").$type<Recurrence>(),
-    skippedDates: date("skipped_dates").array().notNull().default([]),
     ...auditColumns,
   },
-  (t) => [
-    unique("items_id_timing").on(t.id, t.timing),
-    check("items_skipped_dates", sql`${t.recurrence} is not null or cardinality(${t.skippedDates}) = 0`),
-  ],
+  (t) => [unique("items_id_timing").on(t.id, t.timing)],
 );
 
 export const fixedItemDetails = pgTable(
@@ -120,6 +117,19 @@ export const flexibleItemDetails = pgTable(
   ],
 );
 
+/** Per-occurrence state of a recurring item. The repository removes an item's overrides when it stops recurring. */
+export const occurrenceOverrides = pgTable(
+  "occurrence_overrides",
+  {
+    itemId: uuid("item_id")
+      .notNull()
+      .references(() => items.id, { onDelete: "cascade" }),
+    occurrenceDate: date("occurrence_date").notNull(),
+    skipped: boolean("skipped").notNull().default(false),
+  },
+  (t) => [primaryKey({ columns: [t.itemId, t.occurrenceDate] })],
+);
+
 /** Where flexible tasks are scheduled. Fixed items never have placements. */
 export const placements = pgTable(
   "placements",
@@ -146,7 +156,12 @@ export const placements = pgTable(
 export const itemsRelations = relations(items, ({ one, many }) => ({
   fixedDetails: one(fixedItemDetails),
   flexibleDetails: one(flexibleItemDetails),
+  overrides: many(occurrenceOverrides),
   placements: many(placements),
+}));
+
+export const occurrenceOverridesRelations = relations(occurrenceOverrides, ({ one }) => ({
+  item: one(items, { fields: [occurrenceOverrides.itemId], references: [items.id] }),
 }));
 
 export const placementsRelations = relations(placements, ({ one }) => ({
