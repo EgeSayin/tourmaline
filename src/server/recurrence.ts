@@ -1,6 +1,6 @@
 import "server-only";
 import { addMinutes, minutesBetween } from "@/lib/duration";
-import type { Item } from "@/lib/items";
+import type { Item, NewItem } from "@/lib/items";
 import { occurrenceId, type Recurrence } from "@/lib/recurrence";
 import type { TimeZone } from "@/lib/time-zone";
 import type { Interval } from "@/server/scheduler/intervals";
@@ -58,7 +58,7 @@ export function expandOccurrences(item: Item, range: Interval, timeZone: TimeZon
   const startOn = (date: Temporal.PlainDate) => toDate(firstStart.add({ days: first.until(date).days }));
 
   const lengthMin = item.timing === "fixed" ? minutesBetween(item.start, item.end) : 0;
-  const periodDays = item.recurrence.interval * (item.recurrence.frequency === "daily" ? 1 : 7);
+  const periodDays = daysPerPeriod(item.recurrence);
   // Plus a day: around a clock change, an occurrence under a day long can end two local dates after it starts.
   const spanDays = item.timing === "fixed" ? Math.ceil(lengthMin / MINUTES_PER_DAY) + 1 : periodDays;
   const dates = occurrenceDates(
@@ -89,3 +89,14 @@ export function expandOccurrences(item: Item, range: Interval, timeZone: TimeZon
   }
   return occurrences;
 }
+
+/** The first occurrence of a recurring `item`, ignoring overrides, or `undefined` if it ends before occurring. */
+export function firstOccurrence(item: NewItem, timeZone: TimeZone): Item | undefined {
+  if (!item.recurrence) return undefined;
+  const start = item.timing === "fixed" ? item.start : item.earliestStart;
+  // Every period holds a date the rule could occur on, so the first occurrence starts within one.
+  const range = { start, end: addMinutes(start, (daysPerPeriod(item.recurrence) + 1) * MINUTES_PER_DAY) };
+  return expandOccurrences({ ...item, id: "", overrides: [] }, range, timeZone)[0];
+}
+
+const daysPerPeriod = (rule: Recurrence) => rule.interval * (rule.frequency === "daily" ? 1 : 7);

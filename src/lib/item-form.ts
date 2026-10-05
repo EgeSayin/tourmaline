@@ -2,6 +2,7 @@ import { z } from "zod";
 import { type Item, PRIORITIES, SPREAD_STRATEGIES } from "./items";
 import { toDateTimeInputValue } from "./local-time";
 import { SLOT_MIN } from "./placements";
+import { WEEKDAYS } from "./recurrence";
 import type { TimeZone } from "./time-zone";
 
 const emptyToUndefined = (value: unknown) => (value === "" || value === null ? undefined : value);
@@ -18,9 +19,26 @@ const taskMinutes = z
   .min(SLOT_MIN)
   .multipleOf(SLOT_MIN, `Use multiples of ${SLOT_MIN} minutes`);
 
+export const REPEAT_OPTIONS = ["none", "daily", "weekly"] as const;
+
+/** Comma-separated ISO weekday numbers, e.g. "1,3,5", as kept by the weekday toggles. */
+const weekdayList = z
+  .string()
+  .transform((value) => value.split(",").filter(Boolean).map(Number))
+  .pipe(z.array(z.literal(WEEKDAYS)));
+
 const shared = {
   title: z.string().trim().min(1, "Enter a title").max(200),
   priority: z.preprocess(emptyToUndefined, z.enum(PRIORITIES).default("normal")),
+  repeat: z.preprocess(emptyToUndefined, z.enum(REPEAT_OPTIONS).default("none")),
+  interval: z.preprocess(toNumber, z.number({ error: "Enter a whole number" }).int().min(1).max(99).default(1)),
+  weekdays: z.preprocess((value) => value ?? "", weekdayList),
+  until: z.preprocess(emptyToUndefined, z.iso.date({ error: "Enter a date" }).optional()),
+};
+
+const weekdaysChosen = {
+  check: (form: { repeat: string; weekdays: number[] }) => form.repeat !== "weekly" || form.weekdays.length > 0,
+  params: { path: ["weekdays"], message: "Choose at least one day" },
 };
 
 const fixedForm = z
@@ -33,7 +51,8 @@ const fixedForm = z
     bufferBeforeMin: z.preprocess(toNumber, minutes(0).default(0)),
     bufferAfterMin: z.preprocess(toNumber, minutes(0).default(0)),
   })
-  .refine((form) => form.start < form.end, { path: ["end"], message: "End must be after start" });
+  .refine((form) => form.start < form.end, { path: ["end"], message: "End must be after start" })
+  .refine(weekdaysChosen.check, weekdaysChosen.params);
 
 const flexibleForm = z
   .object({
@@ -41,10 +60,20 @@ const flexibleForm = z
     timing: z.literal("flexible"),
     durationMin: z.preprocess(toNumber, taskMinutes),
     earliestStart: z.preprocess(emptyToUndefined, localDateTime.optional()),
-    deadline: localDateTime,
+    /** Not asked for a recurring task: each occurrence is due when the next one starts. */
+    deadline: z.preprocess(emptyToUndefined, localDateTime.optional()),
     minChunkMin: z.preprocess(toNumber, minutes(1).optional()),
     maxChunkMin: z.preprocess(toNumber, minutes(1).optional()),
     spread: z.preprocess(emptyToUndefined, z.enum(SPREAD_STRATEGIES).default("asap")),
+  })
+  .refine(weekdaysChosen.check, weekdaysChosen.params)
+  .refine((form) => form.repeat !== "none" || form.deadline !== undefined, {
+    path: ["deadline"],
+    message: "Enter a date and time",
+  })
+  .refine((form) => form.repeat === "none" || form.earliestStart !== undefined, {
+    path: ["earliestStart"],
+    message: "Enter when each occurrence can start",
   })
   .refine((form) => (form.minChunkMin === undefined) === (form.maxChunkMin === undefined), {
     path: ["maxChunkMin"],
@@ -63,7 +92,16 @@ export const itemFormSchema = z.discriminatedUnion("timing", [fixedForm, flexibl
 /** The form field values that describe `item`, with times shown in `timeZone`. */
 export function itemToFormValues(item: Item, timeZone: TimeZone): Record<string, string> {
   const local = (date: Date) => toDateTimeInputValue(date, timeZone);
-  const shared = { title: item.title, priority: item.priority, timing: item.timing };
+  const { recurrence } = item;
+  const shared = {
+    title: item.title,
+    priority: item.priority,
+    timing: item.timing,
+    repeat: recurrence?.frequency ?? "none",
+    interval: String(recurrence?.interval ?? 1),
+    weekdays: recurrence?.frequency === "weekly" ? recurrence.weekdays.join(",") : "",
+    until: recurrence?.until ?? "",
+  };
 
   if (item.timing === "fixed") {
     return {
@@ -79,7 +117,7 @@ export function itemToFormValues(item: Item, timeZone: TimeZone): Record<string,
     ...shared,
     durationMin: String(item.durationMin),
     earliestStart: local(item.earliestStart),
-    deadline: local(item.deadline),
+    deadline: recurrence ? "" : local(item.deadline),
     minChunkMin: item.split ? String(item.split.minChunkMin) : "",
     maxChunkMin: item.split ? String(item.split.maxChunkMin) : "",
     spread: item.spread,
