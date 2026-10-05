@@ -127,6 +127,8 @@ export const placements = pgTable(
     id: uuid("id").primaryKey().defaultRandom(),
     itemId: uuid("item_id").notNull(),
     timing: timingEnum("timing").notNull().default("flexible"),
+    /** Which occurrence of a recurring task this is for; `null` for a one-off task. */
+    occurrenceDate: date("occurrence_date"),
     startAt: timestamptz("start_at").notNull(),
     endAt: timestamptz("end_at").notNull(),
     source: placementSourceEnum("source").notNull().default("auto"),

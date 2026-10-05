@@ -17,3 +17,16 @@ export type Recurrence =
       /** Non-empty. Occurrences fall only on these days, in every `interval`-th week from the first date's week. */
       weekdays: Weekday[];
     });
+
+const OCCURRENCE_SEPARATOR = "@";
+
+/** The id an occurrence of a recurring item goes by, e.g. in placements; unique per item and local date. */
+export function occurrenceId(itemId: string, date: string): string {
+  return `${itemId}${OCCURRENCE_SEPARATOR}${date}`;
+}
+
+/** The item and local date (`null` for a one-off item) behind an item or occurrence id. */
+export function parseOccurrenceId(id: string): { itemId: string; date: string | null } {
+  const [itemId, date = null] = id.split(OCCURRENCE_SEPARATOR);
+  return { itemId, date };
+}

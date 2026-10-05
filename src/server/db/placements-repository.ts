@@ -1,6 +1,7 @@
 import "server-only";
 import { and, asc, eq, gt, gte, lt } from "drizzle-orm";
 import type { Placement } from "@/lib/placements";
+import { occurrenceId, parseOccurrenceId } from "@/lib/recurrence";
 import type { Interval } from "@/server/scheduler/intervals";
 import type { Database, Transaction } from "./connection";
 import { placements } from "./schema";
@@ -14,7 +15,7 @@ export async function loadPlacements(executor: Database | Transaction, range: In
     .orderBy(asc(placements.startAt));
 
   return rows.map((row) => ({
-    itemId: row.itemId,
+    itemId: row.occurrenceDate ? occurrenceId(row.itemId, row.occurrenceDate) : row.itemId,
     start: row.startAt,
     end: row.endAt,
     source: row.source,
@@ -25,13 +26,17 @@ export async function loadPlacements(executor: Database | Transaction, range: In
 export async function insertPlacements(executor: Database | Transaction, toInsert: Placement[]): Promise<void> {
   if (toInsert.length === 0) return;
   await executor.insert(placements).values(
-    toInsert.map((placement) => ({
-      itemId: placement.itemId,
-      startAt: placement.start,
-      endAt: placement.end,
-      source: placement.source,
-      pinned: placement.pinned,
-    })),
+    toInsert.map((placement) => {
+      const { itemId, date } = parseOccurrenceId(placement.itemId);
+      return {
+        itemId,
+        occurrenceDate: date,
+        startAt: placement.start,
+        endAt: placement.end,
+        source: placement.source,
+        pinned: placement.pinned,
+      };
+    }),
   );
 }
 

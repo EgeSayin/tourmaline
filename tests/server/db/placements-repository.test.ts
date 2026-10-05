@@ -1,5 +1,6 @@
 import { describe, expect } from "vitest";
 import type { Placement } from "@/lib/placements";
+import { occurrenceId } from "@/lib/recurrence";
 import { deleteItem, insertItem } from "@/server/db/items-repository";
 import { insertPlacements, loadPlacements, replacePendingPlacements } from "@/server/db/placements-repository";
 import { dbTest as it } from "../../support/database";
@@ -26,6 +27,29 @@ describe("placements repository", { tags: ["integration", "critical"] }, () => {
     await insertPlacements(tx, [wednesday, nextWeek, monday, acrossWeekStart]);
 
     expect(await loadPlacements(tx, week)).toEqual([acrossWeekStart, monday, wednesday]);
+  });
+
+  it("keeps track of which occurrence of a recurring task each placement is for", async ({ tx }) => {
+    const essayId = await insertItem(tx, flexible("Essay", 60, week));
+    const gymId = await insertItem(tx, {
+      ...flexible("Gym", 60, utc("2026-10-05T04:00", "2026-10-06T04:00")),
+      recurrence: { frequency: "daily", interval: 1, until: null },
+    });
+    const placement = (itemId: string, start: string, end: string): Placement => ({
+      itemId,
+      ...utc(start, end),
+      source: "auto",
+      pinned: false,
+    });
+
+    const placed = [
+      placement(occurrenceId(gymId, "2026-10-05"), "2026-10-05T14:00", "2026-10-05T15:00"),
+      placement(essayId, "2026-10-05T16:00", "2026-10-05T17:00"),
+      placement(occurrenceId(gymId, "2026-10-06"), "2026-10-06T14:00", "2026-10-06T15:00"),
+    ];
+    await insertPlacements(tx, placed);
+
+    expect(await loadPlacements(tx, week)).toEqual(placed);
   });
 
   it("only allows placements for flexible tasks and removes them with their task", async ({ tx }) => {

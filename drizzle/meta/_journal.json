@@ -29,6 +29,13 @@
       "when": 1791163646569,
       "tag": "0003_items_recurrence",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1791163898810,
+      "tag": "0004_placements_occurrence_date",
+      "breakpoints": true
     }
   ]
 }

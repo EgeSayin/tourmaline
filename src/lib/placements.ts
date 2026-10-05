@@ -5,6 +5,7 @@ export type PlacementSource = (typeof PLACEMENT_SOURCES)[number];
 
 /** Where (part of) a flexible task is scheduled. Fixed items have no placements; their own times are final. */
 export interface Placement {
+  /** The task's id, or the occurrence's (see `occurrenceId`) for a recurring task. */
   itemId: string;
   start: Date;
   end: Date;
