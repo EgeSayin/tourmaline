@@ -19,8 +19,8 @@ import {
 import { type Item, PRIORITIES, SPREAD_STRATEGIES } from "@/lib/items";
 import { PLACEMENT_SOURCES } from "@/lib/placements";
 import type { Recurrence } from "@/lib/recurrence";
-import type { DailyWindow } from "@/lib/time-of-day";
-import type { TimeZone } from "@/lib/time-zone";
+import type { DailyWindow } from "@/lib/time/time-of-day";
+import type { TimeZone } from "@/lib/time/time-zone";
 
 export const priorityEnum = pgEnum("priority", PRIORITIES);
 export const timingEnum = pgEnum("timing", ["fixed", "flexible"] as const satisfies readonly Item["timing"][]);

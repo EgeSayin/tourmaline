@@ -1,11 +1,11 @@
 import { FormInput, FormSelect, FormToggleGroup } from "@/components/forms/form-fields";
 import { type Repeat, REPEAT_OPTIONS } from "@/lib/item-form";
 import { WEEKDAYS } from "@/lib/recurrence";
+import { WEEKDAY_NAMES } from "@/lib/time/format";
 
 const REPEAT_LABELS = { none: "Doesn't repeat", daily: "Daily", weekly: "Weekly" } satisfies Record<Repeat, string>;
 
-const WEEKDAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-const WEEKDAY_OPTIONS = WEEKDAYS.map((day) => ({ value: String(day), label: WEEKDAY_LABELS[day - 1] }));
+const WEEKDAY_OPTIONS = WEEKDAYS.map((day) => ({ value: String(day), label: WEEKDAY_NAMES[day - 1] }));
 
 export function RepeatFields({ repeat, onRepeatChange }: { repeat: Repeat; onRepeatChange: (repeat: Repeat) => void }) {
   return (

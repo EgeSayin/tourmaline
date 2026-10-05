@@ -1,13 +1,19 @@
-import "server-only";
-
 /** `end` is exclusive. */
 export interface Interval {
   start: Date;
   end: Date;
 }
 
+declare const normalized: unique symbol;
+
+/**
+ * Intervals sorted by start, with gaps between them. Only `mergeIntervals` and `subtractIntervals` produce one, so
+ * code that scans free time in order can require it.
+ */
+export type IntervalSet = readonly Interval[] & { readonly [normalized]: true };
+
 /** Returns the intervals sorted by start, with overlapping or touching ones merged. */
-export function mergeIntervals(intervals: Interval[]): Interval[] {
+export function mergeIntervals(intervals: readonly Interval[]): IntervalSet {
   const sorted = [...intervals].sort((a, b) => a.start.getTime() - b.start.getTime());
   const merged: Interval[] = [];
 
@@ -19,11 +25,11 @@ export function mergeIntervals(intervals: Interval[]): Interval[] {
       merged.push({ ...current });
     }
   }
-  return merged;
+  return merged as unknown as IntervalSet;
 }
 
 /** Returns the parts of `free` not covered by `busy`, sorted by start. */
-export function subtractIntervals(free: Interval[], busy: Interval[]): Interval[] {
+export function subtractIntervals(free: readonly Interval[], busy: readonly Interval[]): IntervalSet {
   const blocks = mergeIntervals(busy);
   const result: Interval[] = [];
 
@@ -37,5 +43,5 @@ export function subtractIntervals(free: Interval[], busy: Interval[]): Interval[
     }
     if (cursor < slot.end) result.push({ start: cursor, end: slot.end });
   }
-  return result;
+  return result as unknown as IntervalSet;
 }

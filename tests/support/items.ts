@@ -1,7 +1,12 @@
 import fc from "fast-check";
-import { type FixedItem, type FlexibleItem, PRIORITIES, type Priority } from "@/lib/items";
-import type { Interval } from "@/server/scheduler/intervals";
+import { type FixedItem, type Task, type Item, type NewItem, PRIORITIES, type Priority } from "@/lib/items";
+import type { Interval } from "@/lib/time/interval";
 import { intervalArb, SPAN_MIN } from "./intervals";
+
+/** `item` as it's saved, without the id and overrides the database adds. */
+export function unsaved<T extends Item>({ id, overrides, ...item }: T): Omit<T, "id" | "overrides"> & NewItem {
+  return item as Omit<T, "id" | "overrides"> & NewItem;
+}
 
 export function fixed(
   title: string,
@@ -24,12 +29,7 @@ export function fixed(
   };
 }
 
-export function flexible(
-  title: string,
-  durationMin: number,
-  window: Interval,
-  priority: Priority = "normal",
-): FlexibleItem {
+export function flexible(title: string, durationMin: number, window: Interval, priority: Priority = "normal"): Task {
   return {
     id: title,
     title,

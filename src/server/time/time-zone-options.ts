@@ -1,5 +1,6 @@
 import "server-only";
-import { TIME_ZONES, type TimeZone } from "@/lib/time-zone";
+import { TIME_ZONES, type TimeZone } from "@/lib/time/time-zone";
+import { zoned } from "./temporal";
 
 export interface TimeZoneOption {
   value: TimeZone;
@@ -8,9 +9,9 @@ export interface TimeZoneOption {
 }
 
 /** Unique zones sorted by their UTC offset at `now`, then by name. */
-export function timeZoneOptions(now: Temporal.Instant = Temporal.Now.instant()): TimeZoneOption[] {
+export function timeZoneOptions(now: Date = new Date()): TimeZoneOption[] {
   return [...new Set(TIME_ZONES)]
-    .map((value) => ({ value, zoned: now.toZonedDateTimeISO(value) }))
+    .map((value) => ({ value, zoned: zoned(now, value) }))
     .sort((a, b) => a.zoned.offsetNanoseconds - b.zoned.offsetNanoseconds || a.value.localeCompare(b.value))
     .map(({ value, zoned }) => ({ value, offset: zoned.offset }));
 }

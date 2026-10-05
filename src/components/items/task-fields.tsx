@@ -2,7 +2,7 @@ import { FormInput } from "@/components/forms/form-fields";
 import { SLOT_MIN } from "@/lib/placements";
 
 /** A repeating task isn't asked for a due date: each occurrence is due when the next one starts. */
-export function FlexibleItemFields({ repeating }: { repeating: boolean }) {
+export function TaskFields({ repeating }: { repeating: boolean }) {
   return (
     <>
       <FormInput

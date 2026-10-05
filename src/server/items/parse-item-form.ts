@@ -3,9 +3,9 @@ import { z } from "zod";
 import { itemFormSchema } from "@/lib/item-form";
 import type { NewItem } from "@/lib/items";
 import type { Recurrence } from "@/lib/recurrence";
-import type { TimeZone } from "@/lib/time-zone";
-import { firstOccurrence } from "@/server/recurrence";
-import { toDate } from "@/server/temporal";
+import type { TimeZone } from "@/lib/time/time-zone";
+import { firstOccurrence, withFirstDeadline } from "@/server/recurrence";
+import { toDate } from "@/server/time/temporal";
 
 export type ItemFormErrors = Partial<Record<string, string[]>>;
 
@@ -16,11 +16,7 @@ export type ParsedItemForm = { ok: true; item: NewItem } | { ok: false; errors: 
  * A one-off flexible task without an earliest start starts at `now`, and its deadline must be after `now`.
  * A recurring item must occur at least once; a recurring task is due when its first occurrence's window ends.
  */
-export function parseItemForm(
-  fields: Record<string, unknown>,
-  timeZone: TimeZone,
-  now: Temporal.Instant,
-): ParsedItemForm {
+export function parseItemForm(fields: Record<string, unknown>, timeZone: TimeZone, now: Date): ParsedItemForm {
   const parsed = itemFormSchema.safeParse(fields);
   if (!parsed.success) return { ok: false, errors: z.flattenError(parsed.error).fieldErrors };
 
@@ -63,16 +59,15 @@ export function parseItemForm(
     preferredWindows: [],
     spread: form.spread,
   };
-  const earliestStart = form.earliestStart ? at(form.earliestStart) : toDate(now);
+  const earliestStart = form.earliestStart ? at(form.earliestStart) : now;
 
   if (recurrence) {
-    const first = firstOccurrence({ ...task, earliestStart, deadline: earliestStart }, timeZone);
-    if (first?.timing !== "flexible") return neverOccurs;
-    return { ok: true, item: { ...task, earliestStart, deadline: first.deadline } };
+    const item = withFirstDeadline({ ...task, earliestStart }, timeZone);
+    return item ? { ok: true, item } : neverOccurs;
   }
 
   const deadline = at(form.deadline!);
-  if (deadline <= toDate(now)) {
+  if (deadline <= now) {
     return { ok: false, errors: { deadline: ["Deadline must be in the future"] } };
   }
   if (deadline <= earliestStart) {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { planningHorizon } from "@/server/scheduler/horizon";
+import { planningHorizon } from "@/server/planning/horizon";
 import { utc } from "../../support/intervals";
 import { fixed, flexible } from "../../support/items";
 

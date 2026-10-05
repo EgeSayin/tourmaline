@@ -1,6 +1,6 @@
 import type { CalendarBlock } from "@/lib/calendar-blocks";
-import { formatTimeRange } from "@/lib/format";
-import type { TimeZone } from "@/lib/time-zone";
+import { formatTimeRange } from "@/lib/time/format";
+import type { TimeZone } from "@/lib/time/time-zone";
 import { BLOCK_STYLES } from "./block-styles";
 import type { TimeScale } from "./time-scale";
 
@@ -17,7 +17,7 @@ export function ScheduleBlock({
 }) {
   const top = scale.top(block.startMinute);
   const isTiny = block.endMinute - block.startMinute < 15;
-  const label = `${block.item.title} ${formatTimeRange(block.start, block.end, timeZone)}`;
+  const label = `${block.title} ${formatTimeRange(block.start, block.end, timeZone)}`;
 
   return (
     <button
@@ -32,7 +32,7 @@ export function ScheduleBlock({
       }`}
       style={{ top: top + 1, height: scale.top(block.endMinute) - top - 2 }}
     >
-      <div className="truncate font-medium">{block.item.title}</div>
+      <div className="truncate font-medium">{block.title}</div>
     </button>
   );
 }

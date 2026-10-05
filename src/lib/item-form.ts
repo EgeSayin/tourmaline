@@ -1,9 +1,9 @@
 import { z } from "zod";
 import { type Item, PRIORITIES, SPREAD_STRATEGIES } from "./items";
-import { toDateTimeInputValue } from "./local-time";
+import { toDateTimeInputValue } from "@/lib/time/local-time";
 import { SLOT_MIN } from "./placements";
 import { WEEKDAYS } from "./recurrence";
-import type { TimeZone } from "./time-zone";
+import type { TimeZone } from "@/lib/time/time-zone";
 
 const emptyToUndefined = (value: unknown) => (value === "" || value === null ? undefined : value);
 const toNumber = (value: unknown) => {

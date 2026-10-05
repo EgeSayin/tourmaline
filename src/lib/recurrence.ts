@@ -1,5 +1,3 @@
-import type { Item } from "./items";
-
 /** ISO weekday numbers, Monday first. */
 export const WEEKDAYS = [1, 2, 3, 4, 5, 6, 7] as const;
 
@@ -38,10 +36,4 @@ export function occurrenceId(itemId: string, date: string): string {
 export function parseOccurrenceId(id: string): { itemId: string; date: string | null } {
   const [itemId, date = null] = id.split(OCCURRENCE_SEPARATOR);
   return { itemId, date };
-}
-
-/** The stored item, one-off or series, behind an item or occurrence id. */
-export function seriesOf(items: Item[], id: string): Item | undefined {
-  const { itemId } = parseOccurrenceId(id);
-  return items.find((item) => item.id === itemId);
 }

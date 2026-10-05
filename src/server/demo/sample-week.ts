@@ -1,9 +1,10 @@
 import "server-only";
-import type { FixedItem, FlexibleItem, Priority } from "@/lib/items";
+import type { FixedItem, Task, Priority } from "@/lib/items";
 import type { Recurrence, Weekday } from "@/lib/recurrence";
 import { DEFAULT_SETTINGS, type SchedulerSettings } from "@/lib/settings";
-import { weekContaining } from "@/server/days";
-import { toDate } from "@/server/temporal";
+import { withFirstDeadline } from "@/server/recurrence";
+import { weekContaining } from "@/server/time/days";
+import { toDate } from "@/server/time/temporal";
 
 const settings: SchedulerSettings = { ...DEFAULT_SETTINGS, timeZone: "America/New_York" };
 
@@ -40,14 +41,13 @@ function flexible(
   durationMin: number,
   [earliestStart, deadline]: [Date, Date],
   priority: Priority = "normal",
-  recurrence: Recurrence | null = null,
-): FlexibleItem {
+): Task {
   return {
     id,
     title,
     timing: "flexible",
     priority,
-    recurrence,
+    recurrence: null,
     overrides: [],
     durationMin,
     earliestStart,
@@ -58,15 +58,27 @@ function flexible(
   };
 }
 
+function recurringTask(
+  id: string,
+  title: string,
+  durationMin: number,
+  earliestStart: Date,
+  recurrence: Recurrence,
+  priority: Priority = "normal",
+): Task {
+  const { deadline: _, ...task } = flexible(id, title, durationMin, [earliestStart, earliestStart], priority);
+  return withFirstDeadline<Task>({ ...task, recurrence }, settings.timeZone)!;
+}
+
 const lectureBuffers = { location: "Science Hall 101", bufferBeforeMin: 15, bufferAfterMin: 15 };
 const weekly = (...weekdays: Weekday[]): Recurrence => ({ frequency: "weekly", interval: 1, weekdays, until: null });
 const daily: Recurrence = { frequency: "daily", interval: 1, until: null };
 
 /**
- * A student's week of fixed and flexible items, in the week (Monday–Sunday) containing `now`. Lectures, chess club,
+ * A student's week of fixed items and tasks, in the week (Monday–Sunday) containing `now`. Lectures, chess club,
  * gym and language practice repeat from that week on.
  */
-export function sampleWeek(now: Temporal.Instant) {
+export function sampleWeek(now: Date) {
   const week = weekContaining(now, settings.timeZone).dates;
   const [MON, TUE, WED, THU, FRI, SAT, SUN] = week;
 
@@ -77,11 +89,10 @@ export function sampleWeek(now: Temporal.Instant) {
     fixed("hangout", "Dinner with friends", SAT, ["19:00", "22:00"], { priority: "normal" }),
   ];
 
-  const flexibleItems: FlexibleItem[] = [
+  const tasks: Task[] = [
     ...week.map((d) => flexible(`lunch-${d}`, "Lunch", 45, [local(d, "11:30"), local(d, "14:30")], "mandatory")),
-    // A recurring task's stored deadline is its first window's end, where the rule next occurs.
-    flexible("gym", "Gym", 60, [local(TUE, "17:00"), local(THU, "17:00")], "high", weekly(2, 4, 6)),
-    flexible("language", "Language practice", 20, [local(MON, "10:00"), local(TUE, "10:00")], "normal", daily),
+    recurringTask("gym", "Gym", 60, local(TUE, "17:00"), weekly(2, 4, 6), "high"),
+    recurringTask("language", "Language practice", 20, local(MON, "10:00"), daily),
     flexible("calc-pset", "Calculus problem set", 3 * 60, [local(MON, "00:00"), local(THU, "14:00")]),
     flexible("cs-project", "CS project", 8 * 60, [local(MON, "00:00"), local(SUN, "23:00")]),
     flexible("essay", "Essay draft", 2 * 60, [local(MON, "00:00"), local(FRI, "17:00")]),
@@ -90,5 +101,5 @@ export function sampleWeek(now: Temporal.Instant) {
     flexible("research-paper", "Research paper", 10 * 60, [local(MON, "00:00"), local(TUE, "12:00")]),
   ];
 
-  return { fixedItems, flexibleItems, settings };
+  return { fixedItems, tasks, settings };
 }

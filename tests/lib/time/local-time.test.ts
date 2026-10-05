@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { toDateTimeInputValue, toLocal } from "@/lib/local-time";
+import { toDateTimeInputValue, toLocal } from "@/lib/time/local-time";
 
 describe("local time", { tags: ["unit"] }, () => {
   it("converts exact times to local dates and minutes across a DST change", () => {

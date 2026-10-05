@@ -2,62 +2,13 @@
 
 import { Dialog } from "@base-ui/react/dialog";
 import { Plus, X } from "lucide-react";
-import { createContext, use, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useMediaQuery } from "@/hooks/use-media-query";
-import type { Item } from "@/lib/items";
-import { parseOccurrenceId, seriesOf } from "@/lib/recurrence";
-import type { TimeZone } from "@/lib/time-zone";
 import { ItemForm } from "./item-form";
+import { type PanelMode, useItemPanel } from "./item-panel-state";
 
 // Tailwind's `md` breakpoint, where `ScheduleView` switches to columns.
 const DESKTOP_QUERY = "(min-width: 768px)";
-
-/** In edit mode, `occurrenceId` is set when an occurrence was opened, so it can be skipped. */
-type PanelMode = { kind: "closed" } | { kind: "add" } | { kind: "edit"; item: Item; occurrenceId?: string };
-
-interface PanelContextValue {
-  mode: PanelMode;
-  timeZone: TimeZone;
-  openAdd: () => void;
-  /** Opens the stored item behind `item`: for an occurrence, its series, offering to skip that occurrence. */
-  openEdit: (item: Item) => void;
-  close: () => void;
-}
-
-const PanelContext = createContext<PanelContextValue | null>(null);
-
-export function useItemPanel() {
-  const context = use(PanelContext);
-  if (!context) throw new Error("useItemPanel must be used inside ItemPanelProvider");
-  return context;
-}
-
-export function ItemPanelProvider({
-  items,
-  timeZone,
-  children,
-}: {
-  /** Stored items, to find an occurrence's series. */
-  items: Item[];
-  timeZone: TimeZone;
-  children: React.ReactNode;
-}) {
-  const [mode, setMode] = useState<PanelMode>({ kind: "closed" });
-  const value: PanelContextValue = {
-    mode,
-    timeZone,
-    openAdd: () => setMode({ kind: "add" }),
-    openEdit: (item) =>
-      setMode({
-        kind: "edit",
-        item: seriesOf(items, item.id) ?? item,
-        occurrenceId: parseOccurrenceId(item.id).date ? item.id : undefined,
-      }),
-    close: () => setMode({ kind: "closed" }),
-  };
-  return <PanelContext value={value}>{children}</PanelContext>;
-}
 
 export function AddItemButton() {
   const { mode, openAdd } = useItemPanel();
@@ -71,7 +22,7 @@ export function AddItemButton() {
 
 function PanelContent({ mode }: { mode: Exclude<PanelMode, { kind: "closed" }> }) {
   const { timeZone, close } = useItemPanel();
-  const editing = mode.kind === "edit" ? mode.item : undefined;
+  const editing = mode.kind === "edit" ? mode : undefined;
 
   return (
     <>
@@ -88,13 +39,7 @@ function PanelContent({ mode }: { mode: Exclude<PanelMode, { kind: "closed" }> }
           <X />
         </Button>
       </div>
-      <ItemForm
-        key={editing?.id ?? "new"}
-        item={editing}
-        occurrenceId={mode.kind === "edit" ? mode.occurrenceId : undefined}
-        timeZone={timeZone}
-        onDone={close}
-      />
+      <ItemForm key={editing?.item.id ?? "new"} target={editing} timeZone={timeZone} onDone={close} />
     </>
   );
 }

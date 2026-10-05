@@ -1,6 +1,6 @@
 import fc from "fast-check";
 import { expect } from "vitest";
-import type { Interval } from "@/server/scheduler/intervals";
+import type { Interval } from "@/lib/time/interval";
 
 /** Midnight UTC; generated times are whole minutes in [ORIGIN, ORIGIN + SPAN_MIN). */
 export const ORIGIN = Date.UTC(2026, 9, 5);
@@ -25,11 +25,11 @@ export function intervalArb(maxLengthMin = 6 * 60): fc.Arbitrary<Interval> {
 
 export const intervalsArb = fc.array(intervalArb(), { maxLength: 12 });
 
-export function covers(intervals: Interval[], minute: number): boolean {
+export function covers(intervals: readonly Interval[], minute: number): boolean {
   return intervals.some((i) => minuteOf(i.start) <= minute && minute < minuteOf(i.end));
 }
 
-export function expectSortedWithGaps(intervals: Interval[]) {
+export function expectSortedWithGaps(intervals: readonly Interval[]) {
   for (const [i, interval] of intervals.entries()) {
     expect(interval.start < interval.end).toBe(true);
     if (i > 0) expect(intervals[i - 1].end < interval.start).toBe(true);

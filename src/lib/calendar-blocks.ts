@@ -1,19 +1,16 @@
-import type { FixedItem, FlexibleItem, Item } from "./items";
-import { toLocal } from "./local-time";
+import type { FixedItem, Item } from "./items";
 import type { Placement } from "./placements";
-import { seriesOf } from "./recurrence";
-import type { TimeZone } from "./time-zone";
+import { toLocal } from "./time/local-time";
+import type { TimeZone } from "./time/time-zone";
 
 const MINUTES_PER_DAY = 24 * 60;
 
-export interface CalendarItems {
-  /** Stored items, one-offs and series, under their own ids. */
-  items: Item[];
-  /** One-off fixed items and fixed occurrences. */
-  fixedItems: FixedItem[];
-  /** One-off tasks and task occurrences. */
-  flexibleItems: FlexibleItem[];
-  placements: Placement[];
+/** What opens in the edit form, and which occurrence it was opened from. */
+export interface EditTarget {
+  /** The stored item: a series at its next occurrence (as saved once it has ended), under the series' id. */
+  item: Item;
+  /** The occurrence's local date (`YYYY-MM-DD`), or `null` for a one-off item. */
+  occurrenceDate: string | null;
 }
 
 export type BlockStyle = "fixed" | "fixed-optional" | "scheduled";
@@ -21,7 +18,7 @@ export type BlockStyle = "fixed" | "fixed-optional" | "scheduled";
 export interface CalendarBlock {
   /** Unique among the blocks. */
   key: string;
-  item: Item;
+  title: string;
   start: Date;
   end: Date;
   style: BlockStyle;
@@ -31,46 +28,50 @@ export interface CalendarBlock {
   date: string;
   startMinute: number;
   endMinute: number;
+  target: EditTarget;
 }
 
 /**
- * Positions fixed items and placements on their local day. A placement whose task isn't in `flexibleItems`, such as
- * one for an occurrence its series no longer has, is shown under its stored item in `items`, or skipped if that's
- * gone too. A block running past midnight is cut off at the end of the day it starts on.
+ * Positions fixed items and placements on their local day, each with the edit target `targetFor` finds for its item
+ * or occurrence id; a placement without one, whose item is gone, is skipped. A block running past midnight is cut
+ * off at the end of the day it starts on.
  */
 export function toCalendarBlocks(
-  { items, fixedItems, flexibleItems, placements }: CalendarItems,
+  fixedItems: FixedItem[],
+  placements: Placement[],
   timeZone: TimeZone,
+  targetFor: (id: string) => EditTarget | undefined,
 ): CalendarBlock[] {
-  const tasks = new Map(flexibleItems.map((item) => [item.id, item]));
-
   const unpositioned = [
-    ...fixedItems.map((item) => ({
-      key: item.id,
-      item,
-      start: item.start,
-      end: item.end,
-      style: item.priority === "mandatory" ? ("fixed" as const) : ("fixed-optional" as const),
-      faded: false,
+    ...fixedItems.map((item) => ({ key: item.id, id: item.id, start: item.start, end: item.end })),
+    ...placements.map((placement) => ({
+      key: `${placement.taskId}@${placement.start.toISOString()}`,
+      id: placement.taskId,
+      start: placement.start,
+      end: placement.end,
     })),
-    ...placements.flatMap((placement) => {
-      const task = tasks.get(placement.itemId) ?? seriesOf(items, placement.itemId);
-      if (!task) return [];
-      return {
-        key: `${placement.itemId}@${placement.start.toISOString()}`,
-        item: task,
-        start: placement.start,
-        end: placement.end,
-        style: "scheduled" as const,
-        faded: task.priority === "low",
-      };
-    }),
   ];
 
-  return unpositioned.map((block) => {
+  return unpositioned.flatMap(({ id, ...block }) => {
+    const target = targetFor(id);
+    if (!target) return [];
+    const { item } = target;
     const start = toLocal(block.start, timeZone);
     const end = toLocal(block.end, timeZone);
-    const endMinute = end.date === start.date ? end.minuteOfDay : MINUTES_PER_DAY;
-    return { ...block, date: start.date, startMinute: start.minuteOfDay, endMinute };
+    return {
+      ...block,
+      title: item.title,
+      style: blockStyle(item),
+      faded: item.timing === "flexible" && item.priority === "low",
+      date: start.date,
+      startMinute: start.minuteOfDay,
+      endMinute: end.date === start.date ? end.minuteOfDay : MINUTES_PER_DAY,
+      target,
+    };
   });
+}
+
+function blockStyle(item: Item): BlockStyle {
+  if (item.timing === "flexible") return "scheduled";
+  return item.priority === "mandatory" ? "fixed" : "fixed-optional";
 }

@@ -1,7 +1,14 @@
 import { describe, expect } from "vitest";
-import type { FixedItem, FlexibleItem, NewItem } from "@/lib/items";
+import type { FixedItem, Task, NewItem } from "@/lib/items";
 import type { OccurrenceOverride } from "@/lib/recurrence";
-import { deleteItem, insertItem, loadItems, skipOccurrence, updateItem } from "@/server/db/items-repository";
+import {
+  deleteItem,
+  deleteOverrides,
+  insertItem,
+  loadItems,
+  skipOccurrence,
+  updateItem,
+} from "@/server/db/items-repository";
 import { insertPlacements, loadPlacements } from "@/server/db/placements-repository";
 import { fixedItemDetails, flexibleItemDetails, items, occurrenceOverrides } from "@/server/db/schema";
 import { dbTest as it } from "../../support/database";
@@ -18,7 +25,7 @@ const lecture: Omit<FixedItem, "id" | "overrides"> = {
   bufferAfterMin: 10,
 };
 
-const essay: Omit<FlexibleItem, "id" | "overrides"> = {
+const essay: Omit<Task, "id" | "overrides"> = {
   title: "Essay draft",
   priority: "high",
   timing: "flexible",
@@ -34,7 +41,7 @@ const essay: Omit<FlexibleItem, "id" | "overrides"> = {
 const stored = (id: string, item: NewItem, overrides: OccurrenceOverride[] = []) => ({ id, overrides, ...item });
 
 describe("items repository", { tags: ["integration", "critical"] }, () => {
-  it("reads back fixed and flexible items exactly as they were inserted", async ({ tx }) => {
+  it("reads back fixed items and tasks exactly as they were inserted", async ({ tx }) => {
     const lectureId = await insertItem(tx, lecture);
     const essayId = await insertItem(tx, essay);
 
@@ -52,25 +59,6 @@ describe("items repository", { tags: ["integration", "critical"] }, () => {
   });
 
   it("updates an item in place, including switching between fixed and flexible", async ({ tx }) => {
-    const essayId = await insertItem(tx, essay);
-    const window = { start: essay.earliestStart, end: essay.deadline };
-    const now = new Date("2026-10-07T12:00Z");
-    const placed = (start: string, end: string) => ({
-      itemId: essayId,
-      start: new Date(start),
-      end: new Date(end),
-      source: "auto" as const,
-      pinned: false,
-    });
-    const started = placed("2026-10-07T11:00Z", "2026-10-07T13:00Z");
-    const pinned = { ...placed("2026-10-08T14:00Z", "2026-10-08T15:00Z"), pinned: true };
-    await insertPlacements(tx, [started, pinned, placed("2026-10-08T16:00Z", "2026-10-08T17:00Z")]);
-    expect(await updateItem(tx, essayId, { ...essay, durationMin: 240 }, now)).toBe(true);
-    expect(await loadPlacements(tx, window)).toEqual([started, pinned]); // the rest is placed again
-    expect(await updateItem(tx, essayId, lecture, now)).toBe(true);
-    expect(await loadPlacements(tx, window)).toEqual([]); // fixed items have no placements
-    await deleteItem(tx, essayId);
-
     const id = await insertItem(tx, lecture);
 
     const moved = {
@@ -79,26 +67,36 @@ describe("items repository", { tags: ["integration", "critical"] }, () => {
       start: new Date("2026-10-06T15:00:00Z"),
       end: new Date("2026-10-06T16:15:00Z"),
     };
-    expect(await updateItem(tx, id, moved, now)).toBe(true);
+    expect(await updateItem(tx, id, moved)).toBe(true);
     expect(await loadItems(tx)).toEqual([stored(id, moved)]);
 
-    expect(await updateItem(tx, id, essay, now)).toBe(true);
+    expect(await updateItem(tx, id, essay)).toBe(true);
     expect(await loadItems(tx)).toEqual([stored(id, essay)]);
     expect(await tx.$count(fixedItemDetails)).toBe(0);
 
-    expect(await updateItem(tx, "00000000-0000-4000-8000-000000000000", essay, now)).toBe(false);
+    // A task with placements can't become fixed: they must be deleted first.
+    const slot = {
+      taskId: id,
+      start: essay.earliestStart,
+      end: essay.deadline,
+      source: "auto" as const,
+      pinned: false,
+    };
+    await insertPlacements(tx, [slot]);
+    await expect(tx.transaction((inner) => updateItem(inner, id, lecture))).rejects.toThrow();
+    expect(await loadPlacements(tx, { start: essay.earliestStart, end: essay.deadline })).toEqual([slot]);
+
+    expect(await updateItem(tx, "00000000-0000-4000-8000-000000000000", essay)).toBe(false);
   });
 
-  it("keeps occurrence overrides, one per date and sorted by it, only while an item recurs", async ({ tx }) => {
+  it("keeps occurrence overrides, one per date and sorted by it, until they're deleted", async ({ tx }) => {
     const id = await insertItem(tx, lecture);
     const later = { date: "2026-10-19", skipped: true };
     const earlier = { date: "2026-10-07", skipped: true };
     const override = ({ date, skipped }: OccurrenceOverride) => ({ itemId: id, occurrenceDate: date, skipped });
     await tx.insert(occurrenceOverrides).values([override(later), override(earlier)]);
-    const now = new Date("2026-10-05T12:00Z");
-
     const everyOtherWeek = { ...lecture, recurrence: { ...lecture.recurrence!, interval: 2 } };
-    expect(await updateItem(tx, id, everyOtherWeek, now)).toBe(true);
+    expect(await updateItem(tx, id, everyOtherWeek)).toBe(true);
     expect(await loadItems(tx)).toEqual([stored(id, everyOtherWeek, [earlier, later])]);
     await expect(
       tx.transaction((inner) => inner.insert(occurrenceOverrides).values(override({ ...earlier, skipped: false }))),
@@ -115,11 +113,9 @@ describe("items repository", { tags: ["integration", "critical"] }, () => {
       { date: "2026-11-02", skipped: true },
     ]);
 
-    const once = { ...lecture, recurrence: null };
-    expect(await updateItem(tx, id, once, now)).toBe(true);
-    expect(await loadItems(tx)).toEqual([stored(id, once)]);
+    await deleteOverrides(tx, id);
+    expect(await loadItems(tx)).toEqual([stored(id, everyOtherWeek)]);
 
-    await updateItem(tx, id, lecture, now);
     await tx.insert(occurrenceOverrides).values(override(earlier));
     await deleteItem(tx, id);
     expect(await tx.$count(occurrenceOverrides)).toBe(0);

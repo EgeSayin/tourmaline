@@ -1,5 +1,5 @@
 import { describe, expect } from "vitest";
-import type { TimeZone } from "@/lib/time-zone";
+import type { TimeZone } from "@/lib/time/time-zone";
 import { settings } from "@/server/db/schema";
 import { loadSettings } from "@/server/db/settings-repository";
 import { dbTest as it } from "../../support/database";

@@ -1,7 +1,7 @@
 import "server-only";
-import type { TimeZone } from "@/lib/time-zone";
-import type { Interval } from "@/server/scheduler/intervals";
-import { toDate } from "@/server/temporal";
+import type { TimeZone } from "@/lib/time/time-zone";
+import type { Interval } from "@/lib/time/interval";
+import { localDate, toDate } from "@/server/time/temporal";
 
 /** Consecutive local days. */
 export interface Days {
@@ -11,9 +11,9 @@ export interface Days {
   range: Interval;
 }
 
-/** The Monday-to-Sunday week, in local time, that contains `instant`. */
-export function weekContaining(instant: Temporal.Instant, timeZone: TimeZone): Days {
-  return weekOf(instant.toZonedDateTimeISO(timeZone).toPlainDate(), timeZone);
+/** The Monday-to-Sunday week, in local time, that contains `time`. */
+export function weekContaining(time: Date, timeZone: TimeZone): Days {
+  return weekOf(localDate(time, timeZone), timeZone);
 }
 
 /** Days shown at once on phones. */

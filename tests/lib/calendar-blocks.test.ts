@@ -1,42 +1,40 @@
 import { describe, expect, it } from "vitest";
-import { toCalendarBlocks } from "@/lib/calendar-blocks";
-import { fixed, flexible } from "../support/items";
+import { type EditTarget, toCalendarBlocks } from "@/lib/calendar-blocks";
+import type { Item } from "@/lib/items";
+import type { Placement } from "@/lib/placements";
 import { utc } from "../support/intervals";
+import { fixed, flexible } from "../support/items";
 
 const tz = "America/New_York";
 
 describe("toCalendarBlocks", { tags: ["unit"] }, () => {
-  it("places blocks on their local day with a style per kind, cutting off blocks that pass midnight, each with a unique key, and falls back to a placement's series", () => {
+  it("places blocks on their local day with a style per kind and their edit target, skipping items that are gone", () => {
     const lecture = fixed("Lecture", utc("2026-10-05T15:00", "2026-10-05T16:15")); // Mon 11:00–12:15 EDT
     const party = { ...fixed("Party", utc("2026-10-06T02:30", "2026-10-06T05:00")), priority: "normal" as const }; // Mon 22:30–01:00
     const reading = flexible("Reading", 60, utc("2026-10-05T04:00", "2026-10-09T04:00"), "low");
-    const placed = utc("2026-10-05T17:00", "2026-10-05T18:00"); // Mon 13:00–14:00
-    const placedAgain = utc("2026-10-05T20:00", "2026-10-05T20:30"); // Mon 16:00–16:30
-    const placement = (times: typeof placed) => ({
-      itemId: "Reading",
+    const placement = (taskId: string, times: { start: Date; end: Date }): Placement => ({
+      taskId,
       ...times,
-      source: "auto" as const,
+      source: "auto",
       pinned: false,
     });
+    const placed = placement("Reading@2026-10-05", utc("2026-10-05T17:00", "2026-10-05T18:00")); // Mon 13:00–14:00
+    const placedAgain = placement("Reading@2026-10-05", utc("2026-10-05T20:00", "2026-10-05T20:30"));
+    const deleted = placement("Deleted", utc("2026-10-05T21:00", "2026-10-05T22:00"));
 
-    const deleted = { ...placement(placed), itemId: "Deleted" }; // its task is gone, so it's skipped
-    // The gym series no longer occurs on Tuesday, so that placement is shown under the series.
-    const gym = { ...flexible("Gym", 60, utc("2026-10-05T14:00", "2026-10-06T14:00")), priority: "high" as const };
-    const formerGym = { ...placement(utc("2026-10-06T15:00", "2026-10-06T16:00")), itemId: "Gym@2026-10-06" };
-    const blocks = toCalendarBlocks(
-      {
-        items: [lecture, party, gym],
-        fixedItems: [lecture, party],
-        flexibleItems: [reading],
-        placements: [placement(placed), placement(placedAgain), deleted, formerGym],
-      },
-      tz,
-    );
+    const items = new Map<string, Item>([lecture, party, reading].map((item) => [item.id, item]));
+    const targetFor = (id: string): EditTarget | undefined => {
+      const [itemId, date = null] = id.split("@");
+      const item = items.get(itemId);
+      return item && { item, occurrenceDate: date };
+    };
+
+    const blocks = toCalendarBlocks([lecture, party], [placed, placedAgain, deleted], tz, targetFor);
     expect(new Set(blocks.map((block) => block.key)).size).toBe(blocks.length);
     expect(blocks).toEqual([
       {
         key: expect.any(String),
-        item: lecture,
+        title: "Lecture",
         start: lecture.start,
         end: lecture.end,
         style: "fixed",
@@ -44,49 +42,37 @@ describe("toCalendarBlocks", { tags: ["unit"] }, () => {
         date: "2026-10-05",
         startMinute: 11 * 60,
         endMinute: 12 * 60 + 15,
+        target: { item: lecture, occurrenceDate: null },
       },
       {
         key: expect.any(String),
-        item: party,
+        title: "Party",
         start: party.start,
         end: party.end,
         style: "fixed-optional",
         faded: false,
         date: "2026-10-05",
         startMinute: 22 * 60 + 30,
-        endMinute: 24 * 60,
+        endMinute: 24 * 60, // cut off at midnight
+        target: { item: party, occurrenceDate: null },
       },
-      {
+      ...(
+        [
+          [placed, 13 * 60, 14 * 60],
+          [placedAgain, 16 * 60, 16 * 60 + 30],
+        ] as const
+      ).map(([{ start, end }, startMinute, endMinute]) => ({
         key: expect.any(String),
-        item: reading,
-        ...placed,
+        title: "Reading",
+        start,
+        end,
         style: "scheduled",
-        faded: true,
+        faded: true, // low priority
         date: "2026-10-05",
-        startMinute: 13 * 60,
-        endMinute: 14 * 60,
-      },
-      {
-        key: expect.any(String),
-        item: reading,
-        ...placedAgain,
-        style: "scheduled",
-        faded: true,
-        date: "2026-10-05",
-        startMinute: 16 * 60,
-        endMinute: 16 * 60 + 30,
-      },
-      {
-        key: expect.any(String),
-        item: gym,
-        start: formerGym.start,
-        end: formerGym.end,
-        style: "scheduled",
-        faded: false,
-        date: "2026-10-06",
-        startMinute: 11 * 60,
-        endMinute: 12 * 60,
-      },
+        startMinute,
+        endMinute,
+        target: { item: reading, occurrenceDate: "2026-10-05" },
+      })),
     ]);
   });
 });

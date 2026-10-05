@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { TIME_ZONES } from "@/lib/time-zone";
-import { timeZoneOptions } from "@/server/time-zone-options";
+import { TIME_ZONES } from "@/lib/time/time-zone";
+import { timeZoneOptions } from "@/server/time/time-zone-options";
 
 function offsetMinutes(offset: string): number {
   const [hours, minutes] = offset.slice(1).split(":").map(Number);
@@ -9,8 +9,8 @@ function offsetMinutes(offset: string): number {
 
 describe("timeZoneOptions", { tags: ["unit", "critical"] }, () => {
   it("lists each zone once, sorted west to east by its offset at the given instant", () => {
-    const january = timeZoneOptions(Temporal.Instant.from("2026-01-15T12:00Z"));
-    const july = timeZoneOptions(Temporal.Instant.from("2026-07-15T12:00Z"));
+    const january = timeZoneOptions(new Date("2026-01-15T12:00Z"));
+    const july = timeZoneOptions(new Date("2026-07-15T12:00Z"));
 
     const values = january.map((option) => option.value);
     expect(new Set(values).size).toBe(values.length);

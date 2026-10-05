@@ -1,4 +1,4 @@
-import type { TimeZone } from "./time-zone";
+import type { TimeZone } from "@/lib/time/time-zone";
 
 export interface LocalDateTime {
   /** `YYYY-MM-DD` */

@@ -1,14 +1,54 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
-import { minutesBetween } from "@/lib/duration";
+import { SLOT_MIN } from "@/lib/placements";
 import type { SchedulerSettings } from "@/lib/settings";
+import { minutesBetween } from "@/lib/time/duration";
+import { type Interval, mergeIntervals, subtractIntervals } from "@/lib/time/interval";
 import { freeTimeMap } from "@/server/scheduler/free-time";
-import { type Interval, subtractIntervals } from "@/server/scheduler/intervals";
-import { placeTasks } from "@/server/scheduler/schedule";
-import { findEarliestSlot } from "@/server/scheduler/slots";
-import { intervalArb, SPAN_MIN } from "../../support/intervals";
+import { findEarliestSlot, placeTasks } from "@/server/scheduler/placement";
+import { at, covers, intervalArb, intervalsArb, iv, SPAN_MIN } from "../../support/intervals";
 import { fixed, fixedItemArb, flexible, flexibleItemsArb } from "../../support/items";
 import { utcSettingsArb } from "../../support/settings";
+
+/** Earliest minute on the `SLOT_MIN` grid starting `durationMin` consecutive minutes inside both `free` and `window`. */
+function earliestFittingMinute(free: readonly Interval[], window: Interval, durationMin: number): number | null {
+  const run = new Array<number>(SPAN_MIN + 1).fill(0);
+  for (let minute = SPAN_MIN - 1; minute >= 0; minute--) {
+    run[minute] = covers(free, minute) && covers([window], minute) ? run[minute + 1] + 1 : 0;
+  }
+  const start = run.findIndex((length, minute) => minute % SLOT_MIN === 0 && length >= durationMin);
+  return start === -1 ? null : start;
+}
+
+describe("findEarliestSlot", { tags: ["unit", "critical"] }, () => {
+  it("returns the earliest free block that fits the duration inside the window", () => {
+    const free = mergeIntervals([iv("10:00", "10:45"), iv("12:30", "18:00"), iv("19:00", "22:30")]);
+    const day = iv("00:00", "23:59");
+
+    expect(findEarliestSlot(free, 30, day)).toEqual(iv("10:00", "10:30"));
+    expect(findEarliestSlot(free, 60, day)).toEqual(iv("12:30", "13:30")); // first slot too short
+    expect(findEarliestSlot(free, 45, iv("00:00", "10:45"))).toEqual(iv("10:00", "10:45")); // ends exactly at deadline
+    expect(findEarliestSlot(free, 60, iv("13:00", "23:59"))).toEqual(iv("13:00", "14:00")); // starts mid-slot
+    expect(findEarliestSlot(free, 60, iv("00:00", "13:15"))).toBeNull(); // deadline cuts the slot short
+    expect(findEarliestSlot(free, 6 * 60, day)).toBeNull(); // longer than any free block
+    expect(findEarliestSlot(mergeIntervals([iv("10:03", "10:40")]), 30, day)).toEqual(iv("10:05", "10:35")); // rounded up to the grid
+    expect(findEarliestSlot(mergeIntervals([iv("10:03", "10:29")]), 25, day)).toBeNull(); // fits only off the grid
+  });
+
+  it("returns a slot at the earliest grid minute that fits, or null when none does", { tags: ["property"] }, () => {
+    const freeArb = intervalsArb.map(mergeIntervals);
+    const durationArb = fc.integer({ min: 1, max: 8 * 60 });
+
+    fc.assert(
+      fc.property(freeArb, intervalArb(SPAN_MIN), durationArb, (free, window, durationMin) => {
+        const start = earliestFittingMinute(free, window, durationMin);
+        const expected = start === null ? null : { start: at(start), end: at(start + durationMin) };
+
+        expect(findEarliestSlot(free, durationMin, window)).toEqual(expected);
+      }),
+    );
+  });
+});
 
 function utc(start: string, end: string): Interval {
   return { start: new Date(`${start}Z`), end: new Date(`${end}Z`) };
@@ -37,9 +77,9 @@ describe("placeTasks", { tags: ["unit", "critical"] }, () => {
     const result = placeTasks(tasks, freeTimeMap(range, fixedItems, settings));
 
     expect(result.placements).toEqual([
-      { itemId: "Lunch", ...utc("2026-10-05T16:30", "2026-10-05T17:15"), source: "auto", pinned: false }, // 12:30
-      { itemId: "Problem set", ...utc("2026-10-05T17:15", "2026-10-05T20:15"), source: "auto", pinned: false }, // 13:15
-      { itemId: "Essay", ...utc("2026-10-05T20:15", "2026-10-05T21:45"), source: "auto", pinned: false }, // 16:15
+      { taskId: "Lunch", ...utc("2026-10-05T16:30", "2026-10-05T17:15"), source: "auto", pinned: false }, // 12:30
+      { taskId: "Problem set", ...utc("2026-10-05T17:15", "2026-10-05T20:15"), source: "auto", pinned: false }, // 13:15
+      { taskId: "Essay", ...utc("2026-10-05T20:15", "2026-10-05T21:45"), source: "auto", pinned: false }, // 16:15
     ]);
     // Most urgent, but after lunch only 4h45m is free before 18:00.
     expect(result.unplaced.map((task) => task.id)).toEqual(["Lab report"]);
@@ -62,11 +102,11 @@ describe("placeTasks", { tags: ["unit", "critical"] }, () => {
             const { placements, unplaced } = placeTasks(tasks, free);
             const tasksById = new Map(tasks.map((task) => [task.id, task]));
 
-            const outcomeIds = [...placements.map((p) => p.itemId), ...unplaced.map((task) => task.id)];
+            const outcomeIds = [...placements.map((p) => p.taskId), ...unplaced.map((task) => task.id)];
             expect(outcomeIds.toSorted()).toEqual([...tasksById.keys()].toSorted());
 
             for (const placement of placements) {
-              const task = tasksById.get(placement.itemId)!;
+              const task = tasksById.get(placement.taskId)!;
               expect(minutesBetween(placement.start, placement.end)).toBe(task.durationMin);
               expect(placement.start >= task.earliestStart && placement.end <= task.deadline).toBe(true);
               expect(subtractIntervals([placement], free)).toEqual([]);

@@ -1,26 +1,22 @@
 import { describe, expect } from "vitest";
-import type { FixedItem, NewItem } from "@/lib/items";
+import type { NewItem } from "@/lib/items";
 import type { Recurrence } from "@/lib/recurrence";
 import { insertItem, loadItem, loadItems } from "@/server/db/items-repository";
+import { insertPlacements, loadPlacements } from "@/server/db/placements-repository";
 import { occurrenceOverrides } from "@/server/db/schema";
-import { editItem, removeItem } from "@/server/items/edit-item";
+import { editItem, removeItem, skipOccurrence } from "@/server/items/item-commands";
 import { dbTest as it } from "../../support/database";
 import { utc } from "../../support/intervals";
+import { fixed, flexible, unsaved } from "../../support/items";
 
 const tz = "America/New_York";
 const now = new Date("2026-10-07T16:00Z");
 
 // Mondays 11:00–12:15 EDT from Sep 7, 2026.
-const lecture: Omit<FixedItem, "id" | "overrides"> = {
-  title: "Lecture",
-  priority: "mandatory",
-  timing: "fixed",
+const lecture = unsaved({
+  ...fixed("Lecture", utc("2026-09-07T15:00", "2026-09-07T16:15")),
   recurrence: { frequency: "weekly", interval: 1, weekdays: [1], until: null } satisfies Recurrence,
-  ...utc("2026-09-07T15:00", "2026-09-07T16:15"),
-  location: null,
-  bufferBeforeMin: 0,
-  bufferAfterMin: 0,
-};
+});
 const movedTo = (start: string, end: string, changes: Partial<NewItem> = {}): NewItem =>
   ({ ...lecture, ...utc(start, end), ...changes }) as NewItem;
 
@@ -113,5 +109,48 @@ describe("removeItem", { tags: ["integration", "critical"] }, () => {
     }
 
     expect(await removeItem(tx, onceId, now, tz)).toBe(false);
+  });
+});
+
+describe("editing in place", { tags: ["integration", "critical"] }, () => {
+  it("keeps a task's started and pinned placements, drops a fixed item's, and drops overrides once it stops recurring", async ({
+    tx,
+  }) => {
+    const essay = unsaved(flexible("Essay", 240, utc("2026-10-05T04:00", "2026-10-12T04:00")));
+    const essayId = await insertItem(tx, essay);
+    const placed = (start: string, end: string, pinned = false) => ({
+      taskId: essayId,
+      ...utc(start, end),
+      source: "auto" as const,
+      pinned,
+    });
+    const started = placed("2026-10-07T15:00", "2026-10-07T17:00");
+    const pinned = placed("2026-10-08T14:00", "2026-10-08T15:00", true);
+    await insertPlacements(tx, [started, pinned, placed("2026-10-08T16:00", "2026-10-08T17:00")]);
+    const week = utc("2026-10-05T04:00", "2026-10-12T04:00");
+
+    await editItem(tx, essayId, { ...essay, durationMin: 300 }, now, tz);
+    expect(await loadPlacements(tx, week)).toEqual([started, pinned]); // the rest is placed again
+    await editItem(tx, essayId, movedTo("2026-10-08T15:00", "2026-10-08T16:00", { recurrence: null }), now, tz);
+    expect(await loadPlacements(tx, week)).toEqual([]); // fixed items have none
+
+    // A series that hasn't occurred yet, edited to happen once.
+    const laterId = await insertItem(tx, movedTo("2026-10-12T15:00", "2026-10-12T16:15"));
+    await tx.insert(occurrenceOverrides).values({ itemId: laterId, occurrenceDate: "2026-10-19", skipped: true });
+    await editItem(tx, laterId, movedTo("2026-10-12T15:00", "2026-10-12T16:15", { recurrence: null }), now, tz);
+    expect(await loadItem(tx, laterId)).toMatchObject({ recurrence: null, overrides: [] });
+  });
+});
+
+describe("skipOccurrence", { tags: ["integration", "critical"] }, () => {
+  it("skips an occurrence of a series, and refuses anything else", async ({ tx }) => {
+    const seriesId = await insertItem(tx, lecture);
+    expect(await skipOccurrence(tx, seriesId, "2026-09-14")).toBe(true);
+    expect(await loadItem(tx, seriesId)).toMatchObject({ overrides: [{ date: "2026-09-14", skipped: true }] });
+
+    const onceId = await insertItem(tx, { ...lecture, recurrence: null });
+    expect(await skipOccurrence(tx, onceId, "2026-09-14")).toBe(false);
+    expect(await skipOccurrence(tx, "00000000-0000-4000-8000-000000000000", "2026-09-14")).toBe(false);
+    expect(await loadItem(tx, onceId)).toMatchObject({ overrides: [] });
   });
 });

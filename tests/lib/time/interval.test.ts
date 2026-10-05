@@ -1,6 +1,6 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
-import { mergeIntervals, subtractIntervals } from "@/server/scheduler/intervals";
+import { mergeIntervals, subtractIntervals } from "@/lib/time/interval";
 import { covers, expectSortedWithGaps, intervalsArb, iv, SPAN_MIN } from "../../support/intervals";
 
 describe("mergeIntervals", { tags: ["unit", "critical"] }, () => {

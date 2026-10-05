@@ -2,7 +2,7 @@ import "server-only";
 import { and, asc, eq, gt, gte, lt } from "drizzle-orm";
 import type { Placement } from "@/lib/placements";
 import { occurrenceId, parseOccurrenceId } from "@/lib/recurrence";
-import type { Interval } from "@/server/scheduler/intervals";
+import type { Interval } from "@/lib/time/interval";
 import type { Database, Transaction } from "./connection";
 import { placements } from "./schema";
 
@@ -15,7 +15,7 @@ export async function loadPlacements(executor: Database | Transaction, range: In
     .orderBy(asc(placements.startAt));
 
   return rows.map((row) => ({
-    itemId: row.occurrenceDate ? occurrenceId(row.itemId, row.occurrenceDate) : row.itemId,
+    taskId: row.occurrenceDate ? occurrenceId(row.itemId, row.occurrenceDate) : row.itemId,
     start: row.startAt,
     end: row.endAt,
     source: row.source,
@@ -27,7 +27,7 @@ export async function insertPlacements(executor: Database | Transaction, toInser
   if (toInsert.length === 0) return;
   await executor.insert(placements).values(
     toInsert.map((placement) => {
-      const { itemId, date } = parseOccurrenceId(placement.itemId);
+      const { itemId, date } = parseOccurrenceId(placement.taskId);
       return {
         itemId,
         occurrenceDate: date,
@@ -40,19 +40,20 @@ export async function insertPlacements(executor: Database | Transaction, toInser
   );
 }
 
+/** Deletes the item's placements; with `from`, only the pending ones (unpinned, starting then or later). */
+export async function deletePlacements(tx: Transaction, itemId: string, from?: Date): Promise<void> {
+  const pending = from && and(eq(placements.pinned, false), gte(placements.startAt, from));
+  await tx.delete(placements).where(and(eq(placements.itemId, itemId), pending));
+}
+
 /**
- * Replaces the pending placements (unpinned, starting in `horizon`) with those among `next`.
+ * Replaces the pending placements (unpinned, starting at `from` or later) with those among `next`.
  * Started and pinned placements are left untouched.
  */
-export async function replacePendingPlacements(tx: Transaction, horizon: Interval, next: Placement[]): Promise<void> {
-  const isPending = (start: Date, pinned: boolean) => !pinned && start >= horizon.start && start < horizon.end;
-  await tx
-    .delete(placements)
-    .where(
-      and(eq(placements.pinned, false), gte(placements.startAt, horizon.start), lt(placements.startAt, horizon.end)),
-    );
+export async function replacePendingPlacements(tx: Transaction, from: Date, next: Placement[]): Promise<void> {
+  await tx.delete(placements).where(and(eq(placements.pinned, false), gte(placements.startAt, from)));
   await insertPlacements(
     tx,
-    next.filter((placement) => isPending(placement.start, placement.pinned)),
+    next.filter((placement) => !placement.pinned && placement.start >= from),
   );
 }

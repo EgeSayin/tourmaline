@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { dayNavigation, daysFrom, parseDateParam, weekContaining, weekNavigation, weekOf } from "@/server/days";
+import { dayNavigation, daysFrom, parseDateParam, weekContaining, weekNavigation, weekOf } from "@/server/time/days";
 
-const at = (iso: string) => Temporal.Instant.from(iso);
+const at = (iso: string) => new Date(iso);
 
 describe("weekContaining and weekOf", { tags: ["unit", "critical"] }, () => {
   it("returns the local Monday-to-Monday week, including at its edges and across DST", () => {

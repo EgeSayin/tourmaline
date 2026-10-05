@@ -2,7 +2,7 @@ import "server-only";
 import { and, eq, gte, type SQL } from "drizzle-orm";
 import type { Item, NewItem } from "@/lib/items";
 import type { Database, Transaction } from "./connection";
-import { fixedItemDetails, flexibleItemDetails, items, occurrenceOverrides, placements } from "./schema";
+import { fixedItemDetails, flexibleItemDetails, items, occurrenceOverrides } from "./schema";
 
 /** Inserts the item and its details row; requiring a transaction keeps the two from being written separately. */
 export async function insertItem(tx: Transaction, item: NewItem): Promise<string> {
@@ -16,16 +16,10 @@ export async function insertItem(tx: Transaction, item: NewItem): Promise<string
 }
 
 /**
- * Replaces the item's fields and details, including switching between fixed and flexible. Occurrence overrides
- * are kept while the item still recurs.
- * A flexible task keeps its started and pinned placements, so time already spent on it still counts, and
- * loses the rest to be placed again. An item that becomes fixed loses all of them.
- * Returns `false` if no item has this `id`.
+ * Replaces the item's fields and details, including switching between fixed and flexible. Its placements and
+ * overrides are left as they are; an item with placements can't become fixed. Returns `false` if no item has `id`.
  */
-export async function updateItem(tx: Transaction, id: string, item: NewItem, now: Date): Promise<boolean> {
-  // Rows referencing the item go first: their composite foreign keys block changing `timing`.
-  const pending = and(eq(placements.pinned, false), gte(placements.startAt, now));
-  await tx.delete(placements).where(and(eq(placements.itemId, id), item.timing === "fixed" ? undefined : pending));
+export async function updateItem(tx: Transaction, id: string, item: NewItem): Promise<boolean> {
   await tx.delete(fixedItemDetails).where(eq(fixedItemDetails.itemId, id));
   await tx.delete(flexibleItemDetails).where(eq(flexibleItemDetails.itemId, id));
 
@@ -41,7 +35,6 @@ export async function updateItem(tx: Transaction, id: string, item: NewItem, now
     .returning({ id: items.id });
   if (updated.length === 0) return false;
 
-  if (!item.recurrence) await tx.delete(occurrenceOverrides).where(eq(occurrenceOverrides.itemId, id));
   await insertDetails(tx, id, item);
   return true;
 }
@@ -96,6 +89,10 @@ export async function skipOccurrence(executor: Database | Transaction, itemId: s
       target: [occurrenceOverrides.itemId, occurrenceOverrides.occurrenceDate],
       set: { skipped: true },
     });
+}
+
+export async function deleteOverrides(tx: Transaction, itemId: string): Promise<void> {
+  await tx.delete(occurrenceOverrides).where(eq(occurrenceOverrides.itemId, itemId));
 }
 
 /** Moves `fromId`'s occurrence overrides dated `fromDate` or later to `toId`. */

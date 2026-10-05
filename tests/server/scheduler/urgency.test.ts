@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Priority } from "@/lib/items";
-import type { Interval } from "@/server/scheduler/intervals";
+import type { Interval } from "@/lib/time/interval";
 import { orderByUrgency, pressure } from "@/server/scheduler/urgency";
 import { flexible } from "../../support/items";
 

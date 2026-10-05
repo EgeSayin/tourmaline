@@ -1,4 +1,4 @@
-import { formatLocalDateRange } from "@/lib/format";
+import { formatLocalDateRange } from "@/lib/time/format";
 import type { Calendar } from "@/server/calendar";
 import { DateNavigator } from "./date-navigator";
 

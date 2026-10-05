@@ -1,8 +1,8 @@
 import { expect, test } from "@playwright/test";
+import { WEEKDAY_NAMES } from "@/lib/time/format";
 import { earlySlot, isPhone, itemPanel, localDate, localDateTime, openAddItemForm, TIME_ZONE } from "./helpers";
 
-const WEEKDAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-const weekdayLabel = (days: number) => WEEKDAY_LABELS[localDate(days).dayOfWeek - 1];
+const weekdayLabel = (days: number) => WEEKDAY_NAMES[localDate(days).dayOfWeek - 1];
 /** As queue entries show a date, e.g. "Wed, Oct 7". */
 const dateLabel = (days: number) =>
   localDate(days).toLocaleString("en-US", { weekday: "short", month: "short", day: "numeric" });

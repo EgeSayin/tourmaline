@@ -1,10 +1,24 @@
 import "server-only";
-import type { Item, NewItem } from "@/lib/items";
+import { isFixed, type Item, itemSpan, type NewItem } from "@/lib/items";
 import { parseOccurrenceId } from "@/lib/recurrence";
-import type { TimeZone } from "@/lib/time-zone";
+import type { TimeZone } from "@/lib/time/time-zone";
 import type { Transaction } from "@/server/db/connection";
-import { deleteItem, insertItem, loadItem, moveOverrides, updateItem } from "@/server/db/items-repository";
+import {
+  deleteItem,
+  deleteOverrides,
+  insertItem,
+  loadItem,
+  moveOverrides,
+  skipOccurrence as saveSkip,
+  updateItem,
+} from "@/server/db/items-repository";
+import { deletePlacements } from "@/server/db/placements-repository";
 import { firstOccurrence } from "@/server/recurrence";
+import { localDate } from "@/server/time/temporal";
+
+export function createItem(tx: Transaction, item: NewItem): Promise<string> {
+  return insertItem(tx, item);
+}
 
 /**
  * Saves `item` over the stored item `id`, from `item`'s first local date on. A series that already occurred before
@@ -22,10 +36,9 @@ export async function editItem(
   const existing = await loadItem(tx, id);
   if (!existing) return undefined;
 
-  const start = item.timing === "fixed" ? item.start : item.earliestStart;
-  const from = Temporal.Instant.fromEpochMilliseconds(start.getTime()).toZonedDateTimeISO(timeZone).toPlainDate();
+  const from = localDate(itemSpan(item).start, timeZone);
   if (!(await endSeriesBefore(tx, existing, from, now, timeZone))) {
-    await updateItem(tx, id, item, now);
+    await saveInPlace(tx, id, item, now);
     return id;
   }
 
@@ -42,9 +55,27 @@ export async function removeItem(tx: Transaction, id: string, now: Date, timeZon
   const existing = await loadItem(tx, id);
   if (!existing) return false;
 
-  const today = Temporal.Instant.fromEpochMilliseconds(now.getTime()).toZonedDateTimeISO(timeZone).toPlainDate();
-  if (!(await endSeriesBefore(tx, existing, today, now, timeZone))) await deleteItem(tx, id);
+  if (!(await endSeriesBefore(tx, existing, localDate(now, timeZone), now, timeZone))) await deleteItem(tx, id);
   return true;
+}
+
+/** Skips the occurrence of series `itemId` on local date `date`. Returns `false` if no series has `itemId`. */
+export async function skipOccurrence(tx: Transaction, itemId: string, date: string): Promise<boolean> {
+  const item = await loadItem(tx, itemId);
+  if (!item?.recurrence) return false;
+
+  await saveSkip(tx, itemId, date);
+  return true;
+}
+
+/**
+ * Replaces the stored item `id` with `item`. A task keeps its started and pinned placements, so time already spent
+ * on it still counts, and the rest are placed again; a fixed item has none. Overrides stay only while it recurs.
+ */
+async function saveInPlace(tx: Transaction, id: string, item: NewItem, now: Date): Promise<void> {
+  await deletePlacements(tx, id, isFixed(item) ? undefined : now);
+  if (!item.recurrence) await deleteOverrides(tx, id);
+  await updateItem(tx, id, item);
 }
 
 /**
@@ -64,7 +95,7 @@ async function endSeriesBefore(
 
   const dayBefore = date.subtract({ days: 1 }).toString();
   const { until } = item.recurrence;
-  await updateItem(
+  await saveInPlace(
     tx,
     item.id,
     { ...item, recurrence: { ...item.recurrence, until: until && until < dayBefore ? until : dayBefore } },

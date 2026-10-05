@@ -2,7 +2,8 @@
 
 import { CalendarDays, Hourglass } from "lucide-react";
 import { useState } from "react";
-import { AddItemButton, ItemPanel, useItemPanel } from "@/components/items/item-panel";
+import { AddItemButton, ItemPanel } from "@/components/items/item-panel";
+import { useItemPanel } from "@/components/items/item-panel-state";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { ScheduleLegend } from "./schedule-legend";
 

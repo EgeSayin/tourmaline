@@ -1,13 +1,13 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
-import { minutesBetween } from "@/lib/duration";
-import type { FlexibleItem } from "@/lib/items";
+import { minutesBetween } from "@/lib/time/duration";
+import type { Task } from "@/lib/items";
 import type { Placement } from "@/lib/placements";
 import type { SchedulerSettings } from "@/lib/settings";
 import { freeTimeMap } from "@/server/scheduler/free-time";
-import { subtractIntervals } from "@/server/scheduler/intervals";
+import { subtractIntervals } from "@/lib/time/interval";
 import { replan } from "@/server/scheduler/replan";
-import { findEarliestSlot } from "@/server/scheduler/slots";
+import { findEarliestSlot } from "@/server/scheduler/placement";
 import { intervalArb, SPAN_MIN, utc } from "../../support/intervals";
 import { fixed, fixedItemArb, flexible, flexibleItemsArb } from "../../support/items";
 import { utcSettingsArb } from "../../support/settings";
@@ -22,21 +22,21 @@ const scenarioArb = fc
   .map(([horizon, settings, fixedItems, tasks]) => ({ horizon, settings, fixedItems, tasks }));
 
 /** Saved placements from an earlier run: random times, some pinned, marked `manual` to tell them from new ones. */
-function existingArb(tasks: FlexibleItem[]): fc.Arbitrary<Placement[]> {
+function existingArb(tasks: Task[]): fc.Arbitrary<Placement[]> {
   if (tasks.length === 0) return fc.constant([]);
   return fc.array(
     fc
       .tuple(fc.integer({ min: 0, max: tasks.length - 1 }), intervalArb(120), fc.boolean())
-      .map(([i, times, pinned]): Placement => ({ itemId: tasks[i].id, ...times, source: "manual", pinned })),
+      .map(([i, times, pinned]): Placement => ({ taskId: tasks[i].id, ...times, source: "manual", pinned })),
     { maxLength: 6 },
   );
 }
 
 const samePlacement = (a: Placement, b: Placement) =>
-  a.itemId === b.itemId && a.start.getTime() === b.start.getTime() && a.end.getTime() === b.end.getTime();
+  a.taskId === b.taskId && a.start.getTime() === b.start.getTime() && a.end.getTime() === b.end.getTime();
 
-const minutesFor = (placements: Placement[], itemId: string) =>
-  placements.filter((p) => p.itemId === itemId).reduce((sum, p) => sum + minutesBetween(p.start, p.end), 0);
+const minutesFor = (placements: Placement[], taskId: string) =>
+  placements.filter((p) => p.taskId === taskId).reduce((sum, p) => sum + minutesBetween(p.start, p.end), 0);
 
 describe("replan", { tags: ["unit", "critical"] }, () => {
   it("keeps started, pinned, and still-valid placements and places the remaining time from now", () => {
@@ -50,8 +50,8 @@ describe("replan", { tags: ["unit", "critical"] }, () => {
       flexible("Homework", 90, window),
       flexible("Call prep", 60, window),
     ];
-    const placement = (itemId: string, times: { start: Date; end: Date }, pinned = false): Placement => ({
-      itemId,
+    const placement = (taskId: string, times: { start: Date; end: Date }, pinned = false): Placement => ({
+      taskId,
       ...times,
       source: "auto",
       pinned,
@@ -65,7 +65,7 @@ describe("replan", { tags: ["unit", "critical"] }, () => {
     const result = replan({
       horizon,
       fixedItems: [lecture],
-      flexibleItems: tasks,
+      tasks,
       existing: [futureHomework, pinnedReading, inProgress, pastEssay],
       settings,
     });
@@ -87,7 +87,7 @@ describe("replan", { tags: ["unit", "critical"] }, () => {
     const reading = flexible("Reading", 60, day);
     const examPrep = flexible("Exam prep", 180, utc("2026-10-05T00:00", "2026-10-05T14:00"));
     const existingReading: Placement = {
-      itemId: "Reading",
+      taskId: "Reading",
       ...utc("2026-10-05T11:00", "2026-10-05T12:00"),
       source: "auto",
       pinned: false,
@@ -96,14 +96,14 @@ describe("replan", { tags: ["unit", "critical"] }, () => {
     const result = replan({
       horizon: utc("2026-10-05T08:00", "2026-10-06T00:00"),
       fixedItems: [],
-      flexibleItems: [reading, examPrep],
+      tasks: [reading, examPrep],
       existing: [existingReading],
       settings,
     });
 
     expect(result.placements).toEqual([
-      { itemId: "Exam prep", ...utc("2026-10-05T10:00", "2026-10-05T13:00"), source: "auto", pinned: false },
-      { itemId: "Reading", ...utc("2026-10-05T13:00", "2026-10-05T14:00"), source: "auto", pinned: false },
+      { taskId: "Exam prep", ...utc("2026-10-05T10:00", "2026-10-05T13:00"), source: "auto", pinned: false },
+      { taskId: "Reading", ...utc("2026-10-05T13:00", "2026-10-05T14:00"), source: "auto", pinned: false },
     ]);
     expect(result.unplaced).toEqual([]);
   });
@@ -116,7 +116,7 @@ describe("replan", { tags: ["unit", "critical"] }, () => {
 
       fc.assert(
         fc.property(caseArb, ([{ horizon, settings, fixedItems, tasks }, existing]) => {
-          const result = replan({ horizon, fixedItems, flexibleItems: tasks, existing, settings });
+          const result = replan({ horizon, fixedItems, tasks, existing, settings });
           const kept = existing.filter((p) => p.pinned || p.start < horizon.start);
           const others = result.placements.filter((p) => !kept.some((k) => samePlacement(k, p)));
 
@@ -128,7 +128,7 @@ describe("replan", { tags: ["unit", "critical"] }, () => {
           const free = freeTimeMap(horizon, fixedItems, settings);
           const byStart = [...others].sort((a, b) => a.start.getTime() - b.start.getTime());
           for (const [i, placement] of byStart.entries()) {
-            const task = tasks.find((t) => t.id === placement.itemId)!;
+            const task = tasks.find((t) => t.id === placement.taskId)!;
             expect(placement.start >= task.earliestStart && placement.end <= task.deadline).toBe(true);
             expect(subtractIntervals([placement], subtractIntervals(free, kept))).toEqual([]);
             if (i > 0) expect(byStart[i - 1].end <= placement.start).toBe(true);
@@ -161,7 +161,7 @@ describe("replan", { tags: ["unit", "critical"] }, () => {
   it("changes nothing when an unchanged plan is planned again", { tags: ["property"] }, () => {
     fc.assert(
       fc.property(scenarioArb, ({ horizon, settings, fixedItems, tasks }) => {
-        const input = { horizon, fixedItems, flexibleItems: tasks, settings };
+        const input = { horizon, fixedItems, tasks, settings };
         const first = replan({ ...input, existing: [] });
 
         expect(replan({ ...input, existing: first.placements })).toEqual(first);
@@ -177,7 +177,7 @@ describe("replan", { tags: ["unit", "critical"] }, () => {
     fc.assert(
       fc.property(scenarioArb, newTaskArb, ({ horizon, settings, fixedItems, tasks }, newTask) => {
         const input = { horizon, fixedItems, settings };
-        const before = replan({ ...input, flexibleItems: tasks, existing: [] });
+        const before = replan({ ...input, tasks, existing: [] });
 
         const free = freeTimeMap(horizon, fixedItems, settings);
         const gaps = subtractIntervals(free, before.placements);
@@ -187,7 +187,7 @@ describe("replan", { tags: ["unit", "critical"] }, () => {
         };
         fc.pre(before.unplaced.length === 0 && findEarliestSlot(gaps, newTask.durationMin, window) !== null);
 
-        const after = replan({ ...input, flexibleItems: [...tasks, newTask], existing: before.placements });
+        const after = replan({ ...input, tasks: [...tasks, newTask], existing: before.placements });
 
         for (const placement of before.placements) expect(after.placements).toContainEqual(placement);
         expect(after.unplaced).toEqual([]);

@@ -1,6 +1,6 @@
 import "server-only";
 import type { SchedulerSettings } from "@/lib/settings";
-import { isTimeZone } from "@/lib/time-zone";
+import { isTimeZone } from "@/lib/time/time-zone";
 import type { Database, Transaction } from "./connection";
 
 /** The saved settings, or `null` if none exist yet. Throws if the stored time zone isn't supported. */

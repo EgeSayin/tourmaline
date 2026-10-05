@@ -1,17 +1,17 @@
 import "server-only";
-import { minutesBetween } from "@/lib/duration";
-import type { FixedItem, FlexibleItem } from "@/lib/items";
+import { minutesBetween } from "@/lib/time/duration";
+import type { FixedItem, Task } from "@/lib/items";
 import type { Placement } from "@/lib/placements";
 import type { SchedulerSettings } from "@/lib/settings";
 import { freeTimeMap } from "./free-time";
-import { type Interval, subtractIntervals } from "./intervals";
-import { placeTasks } from "./schedule";
+import { type Interval, type IntervalSet, mergeIntervals, subtractIntervals } from "@/lib/time/interval";
+import { placeTasks } from "./placement";
 
 export interface ReplanInput {
   /** Starts now: earlier placements are done, and new ones go inside it. */
   horizon: Interval;
   fixedItems: FixedItem[];
-  flexibleItems: FlexibleItem[];
+  tasks: Task[];
   /** Placements saved from earlier runs. */
   existing: Placement[];
   settings: SchedulerSettings;
@@ -21,7 +21,7 @@ export interface ReplanResult {
   /** Kept and newly placed, sorted by start. */
   placements: Placement[];
   /** Tasks whose remaining time didn't fit; `durationMin` is the remaining time. */
-  unplaced: FlexibleItem[];
+  unplaced: Task[];
 }
 
 /**
@@ -30,37 +30,37 @@ export interface ReplanResult {
  * in the free time from `now` on. Only if some task then doesn't fit are the unpinned future placements
  * dropped and everything re-placed.
  */
-export function replan({ horizon, fixedItems, flexibleItems, existing, settings }: ReplanInput): ReplanResult {
+export function replan({ horizon, fixedItems, tasks, existing, settings }: ReplanInput): ReplanResult {
   const now = horizon.start;
   const kept = existing.filter((placement) => placement.pinned || placement.start < now);
   const movable = existing.filter((placement) => !placement.pinned && placement.start >= now);
 
-  const freeFromNow = now < horizon.end ? freeTimeMap(horizon, fixedItems, settings) : [];
+  const freeFromNow = now < horizon.end ? freeTimeMap(horizon, fixedItems, settings) : mergeIntervals([]);
   const free = subtractIntervals(freeFromNow, kept);
-  const tasks = flexibleItems.map((task) => ({
+  const startingNow = tasks.map((task) => ({
     ...task,
     earliestStart: task.earliestStart > now ? task.earliestStart : now,
   }));
 
-  const stable = fillAround(tasks, kept, movable, free);
-  return stable.unplaced.length === 0 ? stable : fillAround(tasks, kept, [], free);
+  const stable = fillAround(startingNow, kept, movable, free);
+  return stable.unplaced.length === 0 ? stable : fillAround(startingNow, kept, [], free);
 }
 
 /** Keeps `kept`, keeps each of `preferred` that still fits, then places every task's remaining time. */
-function fillAround(tasks: FlexibleItem[], kept: Placement[], preferred: Placement[], free: Interval[]): ReplanResult {
+function fillAround(tasks: Task[], kept: Placement[], preferred: Placement[], free: IntervalSet): ReplanResult {
   const tasksById = new Map(tasks.map((task) => [task.id, task]));
   const placedMinutes = new Map<string, number>();
   const addMinutes = (placement: Placement) =>
     placedMinutes.set(
-      placement.itemId,
-      (placedMinutes.get(placement.itemId) ?? 0) + minutesBetween(placement.start, placement.end),
+      placement.taskId,
+      (placedMinutes.get(placement.taskId) ?? 0) + minutesBetween(placement.start, placement.end),
     );
   kept.forEach(addMinutes);
 
   let open = free;
   const preserved: Placement[] = [];
   for (const placement of [...preferred].sort((a, b) => a.start.getTime() - b.start.getTime())) {
-    const task = tasksById.get(placement.itemId);
+    const task = tasksById.get(placement.taskId);
     if (!task) continue;
     const remaining = task.durationMin - (placedMinutes.get(task.id) ?? 0);
     const fits =

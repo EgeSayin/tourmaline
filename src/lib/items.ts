@@ -1,5 +1,6 @@
 import type { OccurrenceOverride, Recurrence } from "./recurrence";
-import type { DailyWindow } from "./time-of-day";
+import type { Interval } from "./time/interval";
+import type { DailyWindow } from "@/lib/time/time-of-day";
 
 /** Most to least important. */
 export const PRIORITIES = ["mandatory", "high", "normal", "low"] as const;
@@ -29,7 +30,7 @@ export interface FixedItem extends BaseItem {
   bufferAfterMin: number;
 }
 
-export interface FlexibleItem extends BaseItem {
+export interface Task extends BaseItem {
   timing: "flexible";
   durationMin: number;
   earliestStart: Date;
@@ -42,7 +43,27 @@ export interface FlexibleItem extends BaseItem {
   spread: SpreadStrategy;
 }
 
-export type Item = FixedItem | FlexibleItem;
+export type Item = FixedItem | Task;
 
 /** An item as created or edited: the database assigns its `id`, and occurrences are overridden separately. */
-export type NewItem = Omit<FixedItem, "id" | "overrides"> | Omit<FlexibleItem, "id" | "overrides">;
+export type NewItem = Omit<FixedItem, "id" | "overrides"> | NewTask;
+
+export type NewTask = Omit<Task, "id" | "overrides">;
+
+export const isFixed = <T extends NewItem>(item: T): item is Extract<T, { timing: "fixed" }> => item.timing === "fixed";
+export const isTask = <T extends NewItem>(item: T): item is Extract<T, { timing: "flexible" }> =>
+  item.timing === "flexible";
+
+/** When the item can happen: a fixed item's start to end, or a task's earliest start to deadline. */
+export function itemSpan(item: NewItem): Interval {
+  return item.timing === "fixed"
+    ? { start: item.start, end: item.end }
+    : { start: item.earliestStart, end: item.deadline };
+}
+
+/** `item` moved to happen within `span`, as `itemSpan` reads it. */
+export function withSpan<T extends NewItem>(item: T, span: Interval): T {
+  return item.timing === "fixed"
+    ? { ...item, start: span.start, end: span.end }
+    : { ...item, earliestStart: span.start, deadline: span.end };
+}

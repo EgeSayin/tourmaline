@@ -4,31 +4,31 @@ import { startTransition, useActionState, useState } from "react";
 import { FormInput, FormSelect, FormStateProvider } from "@/components/forms/form-fields";
 import { Button } from "@/components/ui/button";
 import { FieldGroup } from "@/components/ui/field";
+import type { EditTarget } from "@/lib/calendar-blocks";
 import { itemToFormValues, type Repeat } from "@/lib/item-form";
 import { type Item, PRIORITIES } from "@/lib/items";
-import type { TimeZone } from "@/lib/time-zone";
+import type { TimeZone } from "@/lib/time/time-zone";
 import { createItemAction, type ItemFormState, updateItemAction } from "@/server/items/actions";
 import { DeleteItemButton } from "./delete-item-button";
 import { FixedItemFields } from "./fixed-item-fields";
-import { FlexibleItemFields } from "./flexible-item-fields";
+import { TaskFields } from "./task-fields";
 import { RepeatFields } from "./repeat-fields";
 import { SkipOccurrenceButton } from "./skip-occurrence-button";
 import { TimingSwitch } from "./timing-switch";
 
 const PRIORITY_OPTIONS = PRIORITIES.map((value) => ({ value, label: value.charAt(0).toUpperCase() + value.slice(1) }));
 
-/** Adds a new item, or edits `item` when given, offering to skip its occurrence `occurrenceId` if given. */
+/** Adds a new item, or edits the target's item when given, offering to skip the occurrence it was opened from. */
 export function ItemForm({
-  item,
-  occurrenceId,
+  target,
   timeZone,
   onDone,
 }: {
-  item?: Item;
-  occurrenceId?: string;
+  target?: EditTarget;
   timeZone: TimeZone;
   onDone: () => void;
 }) {
+  const item = target?.item;
   const [timing, setTiming] = useState<Item["timing"]>(item?.timing ?? "flexible");
   const save = item ? updateItemAction.bind(null, item.id) : createItemAction;
   const [state, formAction, pending] = useActionState(
@@ -70,7 +70,7 @@ export function ItemForm({
             options={PRIORITY_OPTIONS}
             defaultValue={timing === "fixed" ? "mandatory" : "normal"}
           />
-          {timing === "fixed" ? <FixedItemFields /> : <FlexibleItemFields repeating={repeat !== "none"} />}
+          {timing === "fixed" ? <FixedItemFields /> : <TaskFields repeating={repeat !== "none"} />}
           <RepeatFields repeat={repeat} onRepeatChange={setRepeat} />
         </FieldGroup>
       </FormStateProvider>
@@ -88,7 +88,9 @@ export function ItemForm({
         <Button type="submit" disabled={pending} className="flex-1">
           {pending ? "Saving…" : item ? "Save changes" : "Add item"}
         </Button>
-        {occurrenceId && <SkipOccurrenceButton occurrenceId={occurrenceId} onSkipped={onDone} />}
+        {item && target.occurrenceDate && (
+          <SkipOccurrenceButton itemId={item.id} date={target.occurrenceDate} onSkipped={onDone} />
+        )}
         {item && <DeleteItemButton id={item.id} onDeleted={onDone} />}
       </div>
     </form>

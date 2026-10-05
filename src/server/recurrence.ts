@@ -1,10 +1,10 @@
 import "server-only";
-import { addMinutes, minutesBetween } from "@/lib/duration";
-import type { Item, NewItem } from "@/lib/items";
+import { addMinutes, minutesBetween } from "@/lib/time/duration";
+import { isFixed, type Item, itemSpan, type NewItem, type NewTask, withSpan } from "@/lib/items";
 import { occurrenceId, type Recurrence } from "@/lib/recurrence";
-import type { TimeZone } from "@/lib/time-zone";
-import type { Interval } from "@/server/scheduler/intervals";
-import { toDate } from "@/server/temporal";
+import type { TimeZone } from "@/lib/time/time-zone";
+import type { Interval } from "@/lib/time/interval";
+import { localDate, toDate, zoned } from "@/server/time/temporal";
 
 const MINUTES_PER_DAY = 24 * 60;
 
@@ -49,51 +49,53 @@ export function occurrenceDates(
  * moves their end instead of inverting them. A recurring task's window runs from its earliest
  * start to the same time on the date the rule next occurs, even past `until` or a skipped date.
  */
-export function expandOccurrences(item: Item, range: Interval, timeZone: TimeZone): Item[] {
+export function expandOccurrences<T extends Item>(item: T, range: Interval, timeZone: TimeZone): T[] {
   if (!item.recurrence) return [item];
 
-  const zoned = (date: Date) => Temporal.Instant.fromEpochMilliseconds(date.getTime()).toZonedDateTimeISO(timeZone);
-  const firstStart = zoned(item.timing === "fixed" ? item.start : item.earliestStart);
+  const firstStart = zoned(itemSpan(item).start, timeZone);
   const first = firstStart.toPlainDate();
   const startOn = (date: Temporal.PlainDate) => toDate(firstStart.add({ days: first.until(date).days }));
 
-  const lengthMin = item.timing === "fixed" ? minutesBetween(item.start, item.end) : 0;
+  const lengthMin = isFixed(item) ? minutesBetween(item.start, item.end) : 0;
   const periodDays = daysPerPeriod(item.recurrence);
   // Plus a day: around a clock change, an occurrence under a day long can end two local dates after it starts.
-  const spanDays = item.timing === "fixed" ? Math.ceil(lengthMin / MINUTES_PER_DAY) + 1 : periodDays;
+  const spanDays = isFixed(item) ? Math.ceil(lengthMin / MINUTES_PER_DAY) + 1 : periodDays;
   const dates = occurrenceDates(
     { ...item.recurrence, until: null },
     first,
-    zoned(range.start).toPlainDate().subtract({ days: spanDays }),
-    zoned(range.end)
-      .toPlainDate()
-      .add({ days: 1 + periodDays }),
+    localDate(range.start, timeZone).subtract({ days: spanDays }),
+    localDate(range.end, timeZone).add({ days: 1 + periodDays }),
   );
 
   // The last date only bounds the window before it: dates run a full period past `range`, so it starts after it.
   const { until } = item.recurrence;
   const skipped = new Set(item.overrides.filter((override) => override.skipped).map((override) => override.date));
-  const occurrences: Item[] = [];
+  const occurrences: T[] = [];
   for (const [i, date] of dates.slice(0, -1).entries()) {
     const day = date.toString();
     if ((until && day > until) || skipped.has(day)) continue;
 
     const start = startOn(date);
-    const end = item.timing === "fixed" ? addMinutes(start, lengthMin) : startOn(dates[i + 1]);
+    const end = isFixed(item) ? addMinutes(start, lengthMin) : startOn(dates[i + 1]);
     if (start >= range.end || end <= range.start) continue;
 
-    const id = occurrenceId(item.id, day);
-    occurrences.push(
-      item.timing === "fixed" ? { ...item, id, start, end } : { ...item, id, earliestStart: start, deadline: end },
-    );
+    occurrences.push({ ...withSpan(item, { start, end }), id: occurrenceId(item.id, day) });
   }
   return occurrences;
 }
 
 /** The first occurrence of a recurring `item`, or `undefined` if it ends before occurring. */
 export function firstOccurrence(item: NewItem, timeZone: TimeZone): Item | undefined {
-  const start = item.timing === "fixed" ? item.start : item.earliestStart;
-  return nextOccurrence({ ...item, id: "", overrides: [] }, start, timeZone);
+  return nextOccurrence({ ...item, id: "", overrides: [] }, itemSpan(item).start, timeZone);
+}
+
+/**
+ * Recurring `task` with the deadline it's stored with: its first occurrence's, where the rule next occurs.
+ * `undefined` if the series ends before it first occurs.
+ */
+export function withFirstDeadline<T extends NewTask>(task: Omit<T, "deadline">, timeZone: TimeZone): T | undefined {
+  const first = firstOccurrence({ ...task, deadline: task.earliestStart } as T, timeZone);
+  return first && ({ ...task, deadline: itemSpan(first).end } as T);
 }
 
 /** The first occurrence of a recurring `item` that ends after `from`, or `undefined` if none does. */

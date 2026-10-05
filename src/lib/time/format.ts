@@ -1,13 +1,16 @@
-import type { TimeZone } from "./time-zone";
+import type { TimeZone } from "@/lib/time/time-zone";
 
 export function formatTimeRange(start: Date, end: Date, timeZone: TimeZone): string {
   const time = new Intl.DateTimeFormat("en-US", { timeZone, hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
   return `${time.format(start)}–${time.format(end)}`;
 }
 
+/** Short weekday names in ISO order, Monday first. */
+export const WEEKDAY_NAMES = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] as const;
+
 /** Formats a `YYYY-MM-DD` local date as its weekday, e.g. "Mon". */
 export function formatLocalWeekday(date: string): string {
-  return new Intl.DateTimeFormat("en-US", { timeZone: "UTC", weekday: "short" }).format(new Date(`${date}T12:00:00Z`));
+  return WEEKDAY_NAMES[(new Date(`${date}T12:00:00Z`).getUTCDay() + 6) % 7];
 }
 
 /** Formats a `YYYY-MM-DD` local date with its weekday, e.g. "Wed, Oct 7". */

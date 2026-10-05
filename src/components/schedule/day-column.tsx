@@ -1,5 +1,5 @@
 import type { CalendarBlock } from "@/lib/calendar-blocks";
-import type { TimeZone } from "@/lib/time-zone";
+import type { TimeZone } from "@/lib/time/time-zone";
 import { ScheduleBlock } from "./schedule-block";
 import type { TimeScale } from "./time-scale";
 
