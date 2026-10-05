@@ -90,7 +90,7 @@ export function expandOccurrences(item: Item, range: Interval, timeZone: TimeZon
   return occurrences;
 }
 
-/** The first occurrence of a recurring `item`, ignoring overrides, or `undefined` if it ends before occurring. */
+/** The first occurrence of a recurring `item`, or `undefined` if it ends before occurring. */
 export function firstOccurrence(item: NewItem, timeZone: TimeZone): Item | undefined {
   if (!item.recurrence) return undefined;
   const start = item.timing === "fixed" ? item.start : item.earliestStart;

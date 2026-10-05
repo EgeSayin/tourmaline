@@ -89,7 +89,7 @@ describe("items repository", { tags: ["integration", "critical"] }, () => {
     expect(await updateItem(tx, "00000000-0000-4000-8000-000000000000", essay, now)).toBe(false);
   });
 
-  it("keeps occurrence overrides, sorted by date, only while an item recurs", async ({ tx }) => {
+  it("keeps occurrence overrides, one per date and sorted by it, only while an item recurs", async ({ tx }) => {
     const id = await insertItem(tx, lecture);
     const later = { date: "2026-10-19", skipped: true };
     const earlier = { date: "2026-10-07", skipped: true };
@@ -100,6 +100,9 @@ describe("items repository", { tags: ["integration", "critical"] }, () => {
     const everyOtherWeek = { ...lecture, recurrence: { ...lecture.recurrence!, interval: 2 } };
     expect(await updateItem(tx, id, everyOtherWeek, now)).toBe(true);
     expect(await loadItems(tx)).toEqual([stored(id, everyOtherWeek, [earlier, later])]);
+    await expect(
+      tx.transaction((inner) => inner.insert(occurrenceOverrides).values(override({ ...earlier, skipped: false }))),
+    ).rejects.toThrow(); // one per occurrence date
 
     const once = { ...lecture, recurrence: null };
     expect(await updateItem(tx, id, once, now)).toBe(true);

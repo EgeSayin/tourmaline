@@ -14,7 +14,7 @@ interface BaseItem {
   id: string;
   title: string;
   priority: Priority;
-  /** `null` for a one-off item. The item's own times are those of the first occurrence. */
+  /** `null` for a one-off item. The item's own start sets each occurrence's local time and the series' first date. */
   recurrence: Recurrence | null;
   /** At most one per occurrence date, sorted by date; empty for a one-off item. */
   overrides: OccurrenceOverride[];
