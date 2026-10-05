@@ -5,6 +5,7 @@ import { insertPlacements, loadPlacements } from "@/server/db/placements-reposit
 import { placements, settings } from "@/server/db/schema";
 import { loadCalendar } from "@/server/calendar";
 import type { Placement } from "@/lib/placements";
+import type { Recurrence } from "@/lib/recurrence";
 import { dbTest as it } from "../support/database";
 import { fixed, flexible } from "../support/items";
 import { utc } from "../support/intervals";
@@ -115,5 +116,45 @@ describe("loadCalendar", { tags: ["integration", "critical"] }, () => {
       auto(essayId, utc("2026-10-07T16:00", "2026-10-07T16:30")),
       projectPlacement,
     ]);
+  });
+
+  it("plans and shows recurring items without letting them extend the plan", async ({ tx }) => {
+    await saveSettings(tx);
+    const daily: Recurrence = { frequency: "daily", interval: 1, until: null };
+    // The plan runs to the essay's deadline, Fri 10:30.
+    await insertItem(tx, flexible("Essay", 60, utc("2026-10-05T04:00", "2026-10-09T14:30")));
+    const standupId = await insertItem(tx, {
+      ...fixed("Standup", utc("2026-10-05T17:00", "2026-10-05T17:30")), // 13:00–13:30
+      recurrence: daily,
+    });
+    // Starts next week; its first occurrence doesn't extend the plan either.
+    await insertItem(tx, {
+      ...fixed("Seminar", utc("2026-10-12T14:00", "2026-10-12T15:00")),
+      recurrence: { frequency: "weekly", interval: 1, weekdays: [1], until: null },
+    });
+    const gymId = await insertItem(tx, {
+      ...flexible("Gym", 60, utc("2026-10-05T14:00", "2026-10-06T14:00")), // 10:00 to 10:00 the next day
+      recurrence: daily,
+    });
+
+    const schedule = await loadCalendar(tx, wednesdayNoon);
+    const weekDates = schedule!.weekDates;
+
+    // Shown for the whole week, past the plan.
+    expect(schedule?.fixedItems.map((item) => item.id)).toEqual(weekDates.map((date) => `${standupId}@${date}`));
+    expect(schedule?.flexibleItems.map((item) => item.title)).toEqual(["Essay", ...weekDates.map(() => "Gym")]);
+
+    // Planned only while their window overlaps the plan; Friday's runs to Saturday 10:00, so it gets room after 10:30.
+    const gymPlacements = schedule!.placements.filter((p) => p.itemId.startsWith(gymId));
+    expect(gymPlacements.map((p) => p.itemId)).toEqual(
+      ["2026-10-07", "2026-10-08", "2026-10-09"].map((date) => `${gymId}@${date}`),
+    );
+    expect(gymPlacements.at(-1)!.end > new Date("2026-10-09T14:30Z")).toBe(true);
+    expect(schedule?.queue).toEqual([]);
+
+    const standups = schedule!.fixedItems;
+    for (const p of schedule!.placements) {
+      expect(standups.some((s) => p.start < s.end && p.end > s.start)).toBe(false);
+    }
   });
 });
