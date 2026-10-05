@@ -1,9 +1,9 @@
 import "server-only";
-import type { NewItem } from "@/lib/items";
+import type { Item, NewItem } from "@/lib/items";
 import { parseOccurrenceId } from "@/lib/recurrence";
 import type { TimeZone } from "@/lib/time-zone";
 import type { Transaction } from "@/server/db/connection";
-import { insertItem, loadItem, moveOverrides, updateItem } from "@/server/db/items-repository";
+import { deleteItem, insertItem, loadItem, moveOverrides, updateItem } from "@/server/db/items-repository";
 import { firstOccurrence } from "@/server/recurrence";
 
 /**
@@ -24,19 +24,51 @@ export async function editItem(
 
   const start = item.timing === "fixed" ? item.start : item.earliestStart;
   const from = Temporal.Instant.fromEpochMilliseconds(start.getTime()).toZonedDateTimeISO(timeZone).toPlainDate();
-  const first = firstOccurrence(existing, timeZone);
-  const firstDate = first && parseOccurrenceId(first.id).date;
-  if (!existing.recurrence || !firstDate || firstDate >= from.toString()) {
+  if (!(await endSeriesBefore(tx, existing, from, now, timeZone))) {
     await updateItem(tx, id, item, now);
     return id;
   }
 
-  const dayBefore = from.subtract({ days: 1 }).toString();
-  const { until } = existing.recurrence;
-  const recurrence = { ...existing.recurrence, until: until && until < dayBefore ? until : dayBefore };
-  await updateItem(tx, id, { ...existing, recurrence }, now);
-
   const newId = await insertItem(tx, item);
   if (item.recurrence) await moveOverrides(tx, id, newId, from.toString());
   return newId;
+}
+
+/**
+ * Removes the stored item `id` from today on: a series that already occurred before today ends yesterday and keeps
+ * its past; anything else is deleted. Returns `false` if no item has `id`.
+ */
+export async function removeItem(tx: Transaction, id: string, now: Date, timeZone: TimeZone): Promise<boolean> {
+  const existing = await loadItem(tx, id);
+  if (!existing) return false;
+
+  const today = Temporal.Instant.fromEpochMilliseconds(now.getTime()).toZonedDateTimeISO(timeZone).toPlainDate();
+  if (!(await endSeriesBefore(tx, existing, today, now, timeZone))) await deleteItem(tx, id);
+  return true;
+}
+
+/**
+ * If `item` is a series that occurred before `date`, ends it the day before (unless it already ends earlier) and
+ * returns `true`.
+ */
+async function endSeriesBefore(
+  tx: Transaction,
+  item: Item,
+  date: Temporal.PlainDate,
+  now: Date,
+  timeZone: TimeZone,
+): Promise<boolean> {
+  const first = firstOccurrence(item, timeZone);
+  const firstDate = first && parseOccurrenceId(first.id).date;
+  if (!item.recurrence || !firstDate || firstDate >= date.toString()) return false;
+
+  const dayBefore = date.subtract({ days: 1 }).toString();
+  const { until } = item.recurrence;
+  await updateItem(
+    tx,
+    item.id,
+    { ...item, recurrence: { ...item.recurrence, until: until && until < dayBefore ? until : dayBefore } },
+    now,
+  );
+  return true;
 }

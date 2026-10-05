@@ -3,7 +3,7 @@ import type { FixedItem, NewItem } from "@/lib/items";
 import type { Recurrence } from "@/lib/recurrence";
 import { insertItem, loadItem, loadItems } from "@/server/db/items-repository";
 import { occurrenceOverrides } from "@/server/db/schema";
-import { editItem } from "@/server/items/edit-item";
+import { editItem, removeItem } from "@/server/items/edit-item";
 import { dbTest as it } from "../../support/database";
 import { utc } from "../../support/intervals";
 
@@ -84,5 +84,34 @@ describe("editItem", { tags: ["integration", "critical"] }, () => {
     expect(await editItem(tx, onceId, moved, now, tz)).toBe(onceId);
 
     expect(await editItem(tx, "00000000-0000-4000-8000-000000000000", lecture, now, tz)).toBeUndefined();
+  });
+});
+
+describe("removeItem", { tags: ["integration", "critical"] }, () => {
+  it("ends a series that already occurred yesterday, and deletes anything else", async ({ tx }) => {
+    // Wed Oct 7: the Mondays from Sep 7 stay, through Oct 5.
+    const seriesId = await insertItem(tx, lecture);
+    expect(await removeItem(tx, seriesId, now, tz)).toBe(true);
+    expect(await loadItem(tx, seriesId)).toMatchObject({ recurrence: { until: "2026-10-06" } });
+
+    const endsSoonId = await insertItem(tx, {
+      ...lecture,
+      recurrence: { ...lecture.recurrence!, until: "2026-09-20" },
+    });
+    await removeItem(tx, endsSoonId, now, tz);
+    expect(await loadItem(tx, endsSoonId)).toMatchObject({ recurrence: { until: "2026-09-20" } });
+
+    // First occurs today, or is a one-off: deleted.
+    const startsTodayId = await insertItem(tx, {
+      ...movedTo("2026-10-07T15:00", "2026-10-07T16:15"),
+      recurrence: { ...lecture.recurrence!, weekdays: [3] },
+    } as NewItem);
+    const onceId = await insertItem(tx, { ...lecture, recurrence: null });
+    for (const id of [startsTodayId, onceId]) {
+      expect(await removeItem(tx, id, now, tz)).toBe(true);
+      expect(await loadItem(tx, id)).toBeUndefined();
+    }
+
+    expect(await removeItem(tx, onceId, now, tz)).toBe(false);
   });
 });

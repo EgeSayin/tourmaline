@@ -1,7 +1,7 @@
 import { describe, expect } from "vitest";
 import type { FixedItem, FlexibleItem, NewItem } from "@/lib/items";
 import type { OccurrenceOverride } from "@/lib/recurrence";
-import { deleteItem, insertItem, loadItems, updateItem } from "@/server/db/items-repository";
+import { deleteItem, insertItem, loadItems, skipOccurrence, updateItem } from "@/server/db/items-repository";
 import { insertPlacements, loadPlacements } from "@/server/db/placements-repository";
 import { fixedItemDetails, flexibleItemDetails, items, occurrenceOverrides } from "@/server/db/schema";
 import { dbTest as it } from "../../support/database";
@@ -103,6 +103,17 @@ describe("items repository", { tags: ["integration", "critical"] }, () => {
     await expect(
       tx.transaction((inner) => inner.insert(occurrenceOverrides).values(override({ ...earlier, skipped: false }))),
     ).rejects.toThrow(); // one per occurrence date
+
+    // Skipping adds an override, or marks an existing one as skipped.
+    await tx.insert(occurrenceOverrides).values(override({ date: "2026-10-26", skipped: false }));
+    await skipOccurrence(tx, id, "2026-10-26");
+    await skipOccurrence(tx, id, "2026-11-02");
+    expect((await loadItems(tx))[0].overrides).toEqual([
+      earlier,
+      later,
+      { date: "2026-10-26", skipped: true },
+      { date: "2026-11-02", skipped: true },
+    ]);
 
     const once = { ...lecture, recurrence: null };
     expect(await updateItem(tx, id, once, now)).toBe(true);

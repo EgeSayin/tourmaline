@@ -12,12 +12,23 @@ import { DeleteItemButton } from "./delete-item-button";
 import { FixedItemFields } from "./fixed-item-fields";
 import { FlexibleItemFields } from "./flexible-item-fields";
 import { RepeatFields } from "./repeat-fields";
+import { SkipOccurrenceButton } from "./skip-occurrence-button";
 import { TimingSwitch } from "./timing-switch";
 
 const PRIORITY_OPTIONS = PRIORITIES.map((value) => ({ value, label: value.charAt(0).toUpperCase() + value.slice(1) }));
 
-/** Adds a new item, or edits `item` when given. */
-export function ItemForm({ item, timeZone, onDone }: { item?: Item; timeZone: TimeZone; onDone: () => void }) {
+/** Adds a new item, or edits `item` when given, offering to skip its occurrence `occurrenceId` if given. */
+export function ItemForm({
+  item,
+  occurrenceId,
+  timeZone,
+  onDone,
+}: {
+  item?: Item;
+  occurrenceId?: string;
+  timeZone: TimeZone;
+  onDone: () => void;
+}) {
   const [timing, setTiming] = useState<Item["timing"]>(item?.timing ?? "flexible");
   const save = item ? updateItemAction.bind(null, item.id) : createItemAction;
   const [state, formAction, pending] = useActionState(
@@ -77,6 +88,7 @@ export function ItemForm({ item, timeZone, onDone }: { item?: Item; timeZone: Ti
         <Button type="submit" disabled={pending} className="flex-1">
           {pending ? "Saving…" : item ? "Save changes" : "Add item"}
         </Button>
+        {occurrenceId && <SkipOccurrenceButton occurrenceId={occurrenceId} onSkipped={onDone} />}
         {item && <DeleteItemButton id={item.id} onDeleted={onDone} />}
       </div>
     </form>

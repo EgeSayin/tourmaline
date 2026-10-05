@@ -10,8 +10,11 @@ export function DayColumn({
   scale,
   timeZone,
   onSelect,
+  label,
   className = "",
 }: {
+  /** The day, as screen readers announce the column. */
+  label: string;
   blocks: CalendarBlock[];
   scale: TimeScale;
   timeZone: TimeZone;
@@ -19,7 +22,7 @@ export function DayColumn({
   className?: string;
 }) {
   return (
-    <div className={`relative border-l ${className}`} style={{ height: scale.height }}>
+    <div role="group" aria-label={label} className={`relative border-l ${className}`} style={{ height: scale.height }}>
       {scale.hours.slice(1).map((hour) => (
         <div key={hour} className="absolute inset-x-0 border-t" style={{ top: scale.top(hour * 60) }} />
       ))}

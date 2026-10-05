@@ -1,6 +1,9 @@
 import "server-only";
 import { weekContaining } from "@/server/days";
+import type { Item } from "@/lib/items";
+import { occurrenceId, parseOccurrenceId } from "@/lib/recurrence";
 import { sampleWeek } from "@/server/demo/sample-week";
+import { expandOccurrences } from "@/server/recurrence";
 import { freeTimeMap } from "@/server/scheduler/free-time";
 import { placeTasks } from "@/server/scheduler/schedule";
 import { db } from "./client";
@@ -10,7 +13,7 @@ import { items, settings } from "./schema";
 
 /**
  * Replaces all items and settings with the sample week for the current week, planned from the week's start,
- * so placements before now count as done.
+ * so placements before now count as done. Recurring items are planned for that week's occurrences.
  */
 async function seed() {
   if (process.env.NODE_ENV === "production") throw new Error("Refusing to seed a production database");
@@ -23,7 +26,9 @@ async function seed() {
     downtimeEndMinute: sample.settings.downtime.endMinute,
   };
   const { range } = weekContaining(now, sample.settings.timeZone);
-  const plan = placeTasks(sample.flexibleItems, freeTimeMap(range, sample.fixedItems, sample.settings));
+  const expand = <T extends Item>(list: T[]) =>
+    list.flatMap((item) => expandOccurrences(item, range, sample.settings.timeZone) as T[]);
+  const plan = placeTasks(expand(sample.flexibleItems), freeTimeMap(range, expand(sample.fixedItems), sample.settings));
 
   await db.transaction(async (tx) => {
     await tx.delete(items);
@@ -35,7 +40,11 @@ async function seed() {
     }
     await insertPlacements(
       tx,
-      plan.placements.map((placement) => ({ ...placement, itemId: savedIds.get(placement.itemId)! })),
+      plan.placements.map((placement) => {
+        const { itemId, date } = parseOccurrenceId(placement.itemId);
+        const savedId = savedIds.get(itemId)!;
+        return { ...placement, itemId: date ? occurrenceId(savedId, date) : savedId };
+      }),
     );
   });
 

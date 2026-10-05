@@ -3,6 +3,9 @@ import { earlySlot, isPhone, itemPanel, localDate, localDateTime, openAddItemFor
 
 const WEEKDAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const weekdayLabel = (days: number) => WEEKDAY_LABELS[localDate(days).dayOfWeek - 1];
+/** As queue entries show a date, e.g. "Wed, Oct 7". */
+const dateLabel = (days: number) =>
+  localDate(days).toLocaleString("en-US", { weekday: "short", month: "short", day: "numeric" });
 
 test.describe("recurring items", () => {
   test("repeats a fixed item on its chosen days until its end date, and edits it from its next occurrence on", async ({
@@ -50,11 +53,18 @@ test.describe("recurring items", () => {
     await panel.getByLabel("Title").fill(`${title} moved`);
     await panel.getByRole("button", { name: "Save changes" }).click();
     await expect(panel).toBeHidden();
-    const renamed = page.getByRole("button", { name: `${title} moved ${slot.label}` });
+    const renamedLabel = `${title} moved ${slot.label}`;
+    const renamed = page.getByRole("button", { name: renamedLabel });
     await page.goto(`/?date=${localDate(-1)}`);
     await expect(block.first()).toBeVisible();
     await page.goto(`/?date=${localDate(1)}`);
     await expect(renamed.first()).toBeVisible();
+
+    const tomorrows = page.getByRole("group", { name: dateLabel(1) }).getByRole("button", { name: renamedLabel });
+    await tomorrows.click();
+    await panel.getByRole("button", { name: `Skip ${dateLabel(1)}` }).click();
+    await expect(panel).toBeHidden();
+    await expect(tomorrows).toHaveCount(0);
   });
 
   test("lists each occurrence of a repeating task that can't fit by its date, and opens the series", async ({
@@ -81,8 +91,12 @@ test.describe("recurring items", () => {
     await expect(panel.getByLabel("Repeat")).toHaveValue("daily");
     await expect(panel.getByLabel("Due")).toHaveCount(0);
 
+    // Deleting ends the series yesterday: today's occurrence goes, while yesterday's may still be running.
+    const todays = queue.getByRole("button", { name: `${title} · ${dateLabel(0)}` });
+    await expect(todays).toBeVisible();
     await panel.getByRole("button", { name: "Delete" }).click();
     await panel.getByRole("button", { name: "Confirm delete" }).click();
-    await expect(page.getByText(title)).toHaveCount(0);
+    await expect(panel).toBeHidden();
+    await expect(todays).toHaveCount(0);
   });
 });

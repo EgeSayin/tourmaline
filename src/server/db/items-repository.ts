@@ -87,6 +87,17 @@ export async function loadItem(executor: Database | Transaction, id: string): Pr
   return item;
 }
 
+/** Marks the occurrence of `itemId` on local date `date` as skipped. */
+export async function skipOccurrence(executor: Database | Transaction, itemId: string, date: string): Promise<void> {
+  await executor
+    .insert(occurrenceOverrides)
+    .values({ itemId, occurrenceDate: date, skipped: true })
+    .onConflictDoUpdate({
+      target: [occurrenceOverrides.itemId, occurrenceOverrides.occurrenceDate],
+      set: { skipped: true },
+    });
+}
+
 /** Moves `fromId`'s occurrence overrides dated `fromDate` or later to `toId`. */
 export async function moveOverrides(tx: Transaction, fromId: string, toId: string, fromDate: string): Promise<void> {
   await tx

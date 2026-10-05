@@ -6,20 +6,21 @@ import { createContext, use, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import type { Item } from "@/lib/items";
-import { seriesOf } from "@/lib/recurrence";
+import { parseOccurrenceId, seriesOf } from "@/lib/recurrence";
 import type { TimeZone } from "@/lib/time-zone";
 import { ItemForm } from "./item-form";
 
 // Tailwind's `md` breakpoint, where `ScheduleView` switches to columns.
 const DESKTOP_QUERY = "(min-width: 768px)";
 
-type PanelMode = { kind: "closed" } | { kind: "add" } | { kind: "edit"; item: Item };
+/** In edit mode, `occurrenceId` is set when an occurrence was opened, so it can be skipped. */
+type PanelMode = { kind: "closed" } | { kind: "add" } | { kind: "edit"; item: Item; occurrenceId?: string };
 
 interface PanelContextValue {
   mode: PanelMode;
   timeZone: TimeZone;
   openAdd: () => void;
-  /** Opens the stored item behind `item`: for an occurrence, its series. */
+  /** Opens the stored item behind `item`: for an occurrence, its series, offering to skip that occurrence. */
   openEdit: (item: Item) => void;
   close: () => void;
 }
@@ -47,7 +48,12 @@ export function ItemPanelProvider({
     mode,
     timeZone,
     openAdd: () => setMode({ kind: "add" }),
-    openEdit: (item) => setMode({ kind: "edit", item: seriesOf(items, item.id) ?? item }),
+    openEdit: (item) =>
+      setMode({
+        kind: "edit",
+        item: seriesOf(items, item.id) ?? item,
+        occurrenceId: parseOccurrenceId(item.id).date ? item.id : undefined,
+      }),
     close: () => setMode({ kind: "closed" }),
   };
   return <PanelContext value={value}>{children}</PanelContext>;
@@ -82,7 +88,13 @@ function PanelContent({ mode }: { mode: Exclude<PanelMode, { kind: "closed" }> }
           <X />
         </Button>
       </div>
-      <ItemForm key={editing?.id ?? "new"} item={editing} timeZone={timeZone} onDone={close} />
+      <ItemForm
+        key={editing?.id ?? "new"}
+        item={editing}
+        occurrenceId={mode.kind === "edit" ? mode.occurrenceId : undefined}
+        timeZone={timeZone}
+        onDone={close}
+      />
     </>
   );
 }

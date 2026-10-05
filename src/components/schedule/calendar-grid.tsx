@@ -2,7 +2,7 @@
 
 import { useItemPanel } from "@/components/items/item-panel";
 import { type CalendarItems, toCalendarBlocks } from "@/lib/calendar-blocks";
-import { formatLocalWeekday } from "@/lib/format";
+import { formatLocalDate, formatLocalWeekday } from "@/lib/format";
 import type { TimeZone } from "@/lib/time-zone";
 import { DayColumn } from "./day-column";
 import { HourAxis } from "./hour-axis";
@@ -64,6 +64,7 @@ export function CalendarGrid({
         {dates.map((date) => (
           <DayColumn
             key={date}
+            label={formatLocalDate(date)}
             className={shownOn(date)}
             blocks={blocks.filter((block) => block.date === date)}
             scale={scale}
