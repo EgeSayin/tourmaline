@@ -1,14 +1,16 @@
+import { eq } from "drizzle-orm";
 import { describe, expect } from "vitest";
-import type { FixedItem, FlexibleItem } from "@/lib/items";
+import type { FixedItem, FlexibleItem, NewItem } from "@/lib/items";
 import { deleteItem, insertItem, loadItems, updateItem } from "@/server/db/items-repository";
 import { insertPlacements, loadPlacements } from "@/server/db/placements-repository";
 import { fixedItemDetails, flexibleItemDetails, items } from "@/server/db/schema";
 import { dbTest as it } from "../../support/database";
 
-const lecture: Omit<FixedItem, "id"> = {
+const lecture: Omit<FixedItem, "id" | "skippedDates"> = {
   title: "CS 101 lecture",
   priority: "mandatory",
   timing: "fixed",
+  recurrence: { frequency: "weekly", interval: 1, weekdays: [1, 3], until: "2026-12-11" },
   start: new Date("2026-10-05T15:00:00Z"),
   end: new Date("2026-10-05T16:15:00Z"),
   location: "Science Hall 101",
@@ -16,10 +18,11 @@ const lecture: Omit<FixedItem, "id"> = {
   bufferAfterMin: 10,
 };
 
-const essay: Omit<FlexibleItem, "id"> = {
+const essay: Omit<FlexibleItem, "id" | "skippedDates"> = {
   title: "Essay draft",
   priority: "high",
   timing: "flexible",
+  recurrence: null,
   durationMin: 120,
   earliestStart: new Date("2026-10-05T04:00:00Z"),
   deadline: new Date("2026-10-09T21:00:00Z"),
@@ -27,6 +30,8 @@ const essay: Omit<FlexibleItem, "id"> = {
   preferredWindows: [{ startMinute: 18 * 60, endMinute: 22 * 60 }],
   spread: "just-in-time",
 };
+
+const stored = (id: string, item: NewItem, skippedDates: string[] = []) => ({ id, skippedDates, ...item });
 
 describe("items repository", { tags: ["integration", "critical"] }, () => {
   it("reads back fixed and flexible items exactly as they were inserted", async ({ tx }) => {
@@ -36,8 +41,8 @@ describe("items repository", { tags: ["integration", "critical"] }, () => {
     const loaded = await loadItems(tx);
 
     expect(loaded).toHaveLength(2);
-    expect(loaded).toContainEqual({ id: lectureId, ...lecture });
-    expect(loaded).toContainEqual({ id: essayId, ...essay });
+    expect(loaded).toContainEqual(stored(lectureId, lecture));
+    expect(loaded).toContainEqual(stored(essayId, essay));
   });
 
   it("refuses to load an item whose details row is missing", async ({ tx }) => {
@@ -75,13 +80,32 @@ describe("items repository", { tags: ["integration", "critical"] }, () => {
       end: new Date("2026-10-06T16:15:00Z"),
     };
     expect(await updateItem(tx, id, moved, now)).toBe(true);
-    expect(await loadItems(tx)).toEqual([{ id, ...moved }]);
+    expect(await loadItems(tx)).toEqual([stored(id, moved)]);
 
     expect(await updateItem(tx, id, essay, now)).toBe(true);
-    expect(await loadItems(tx)).toEqual([{ id, ...essay }]);
+    expect(await loadItems(tx)).toEqual([stored(id, essay)]);
     expect(await tx.$count(fixedItemDetails)).toBe(0);
 
     expect(await updateItem(tx, "00000000-0000-4000-8000-000000000000", essay, now)).toBe(false);
+  });
+
+  it("keeps skipped dates while an item recurs, and allows them only on recurring items", async ({ tx }) => {
+    const id = await insertItem(tx, lecture);
+    const skippedDates = ["2026-10-07", "2026-10-19"];
+    await tx.update(items).set({ skippedDates }).where(eq(items.id, id));
+    const now = new Date("2026-10-05T12:00Z");
+
+    const everyOtherWeek = { ...lecture, recurrence: { ...lecture.recurrence!, interval: 2 } };
+    expect(await updateItem(tx, id, everyOtherWeek, now)).toBe(true);
+    expect(await loadItems(tx)).toEqual([stored(id, everyOtherWeek, skippedDates)]);
+
+    const once = { ...lecture, recurrence: null };
+    expect(await updateItem(tx, id, once, now)).toBe(true);
+    expect(await loadItems(tx)).toEqual([stored(id, once)]);
+
+    await expect(
+      tx.transaction((inner) => inner.update(items).set({ skippedDates }).where(eq(items.id, id))),
+    ).rejects.toThrow();
   });
 
   it("deletes an item together with its details", async ({ tx }) => {
@@ -89,7 +113,7 @@ describe("items repository", { tags: ["integration", "critical"] }, () => {
     const essayId = await insertItem(tx, essay);
 
     expect(await deleteItem(tx, essayId)).toBe(true);
-    expect(await loadItems(tx)).toEqual([{ id: lectureId, ...lecture }]);
+    expect(await loadItems(tx)).toEqual([stored(lectureId, lecture)]);
     expect(await tx.$count(flexibleItemDetails)).toBe(0);
 
     expect(await deleteItem(tx, essayId)).toBe(false);

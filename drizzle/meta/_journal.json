@@ -22,6 +22,13 @@
       "when": 1790960570788,
       "tag": "0002_spread_default_asap",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1791163646569,
+      "tag": "0003_items_recurrence",
+      "breakpoints": true
     }
   ]
 }

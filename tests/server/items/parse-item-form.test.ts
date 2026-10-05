@@ -28,6 +28,7 @@ describe("parseItemForm", { tags: ["unit", "critical"] }, () => {
         title: "CS 101 lecture",
         priority: "normal",
         timing: "fixed",
+        recurrence: null,
         start: new Date("2026-10-05T15:00Z"), // 11:00 EDT
         end: new Date("2026-10-05T16:15Z"),
         location: null,
@@ -57,6 +58,7 @@ describe("parseItemForm", { tags: ["unit", "critical"] }, () => {
         title: "Essay",
         priority: "high",
         timing: "flexible",
+        recurrence: null,
         durationMin: 120,
         earliestStart: new Date("2026-10-31T13:00Z"), // 09:00 EDT
         deadline: new Date("2026-11-02T22:00Z"), // 17:00 EST, after clocks go back
@@ -131,7 +133,7 @@ describe("parseItemForm", { tags: ["unit", "critical"] }, () => {
 
     for (const item of [lecture, essay]) {
       const parsed = parseItemForm(itemToFormValues(item, tz), tz, now);
-      expect(parsed.ok && { id: item.id, ...parsed.item }).toEqual(item);
+      expect(parsed.ok && { id: item.id, skippedDates: item.skippedDates, ...parsed.item }).toEqual(item);
     }
   });
 });

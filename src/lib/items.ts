@@ -1,3 +1,4 @@
+import type { Recurrence } from "./recurrence";
 import type { DailyWindow } from "./time-of-day";
 
 /** Most to least important. */
@@ -13,6 +14,10 @@ interface BaseItem {
   id: string;
   title: string;
   priority: Priority;
+  /** `null` for a one-off item. The item's own times are those of the first occurrence. */
+  recurrence: Recurrence | null;
+  /** Local dates (`YYYY-MM-DD`) of skipped occurrences; empty for a one-off item. */
+  skippedDates: string[];
 }
 
 export interface FixedItem extends BaseItem {
@@ -38,5 +43,5 @@ export interface FlexibleItem extends BaseItem {
 
 export type Item = FixedItem | FlexibleItem;
 
-/** An item before the database assigns its `id`. */
-export type NewItem = Omit<FixedItem, "id"> | Omit<FlexibleItem, "id">;
+/** An item as created or edited: the database assigns its `id`, and occurrences are skipped separately. */
+export type NewItem = Omit<FixedItem, "id" | "skippedDates"> | Omit<FlexibleItem, "id" | "skippedDates">;

@@ -3,6 +3,7 @@ import { relations, sql } from "drizzle-orm";
 import {
   boolean,
   check,
+  date,
   foreignKey,
   index,
   integer,
@@ -16,6 +17,7 @@ import {
 } from "drizzle-orm/pg-core";
 import { type Item, PRIORITIES, SPREAD_STRATEGIES } from "@/lib/items";
 import { PLACEMENT_SOURCES } from "@/lib/placements";
+import type { Recurrence } from "@/lib/recurrence";
 import type { DailyWindow } from "@/lib/time-of-day";
 import type { TimeZone } from "@/lib/time-zone";
 
@@ -64,9 +66,14 @@ export const items = pgTable(
     title: text("title").notNull(),
     priority: priorityEnum("priority").notNull().default("normal"),
     timing: timingEnum("timing").notNull(),
+    recurrence: jsonb("recurrence").$type<Recurrence>(),
+    skippedDates: date("skipped_dates").array().notNull().default([]),
     ...auditColumns,
   },
-  (t) => [unique("items_id_timing").on(t.id, t.timing)],
+  (t) => [
+    unique("items_id_timing").on(t.id, t.timing),
+    check("items_skipped_dates", sql`${t.recurrence} is not null or cardinality(${t.skippedDates}) = 0`),
+  ],
 );
 
 export const fixedItemDetails = pgTable(

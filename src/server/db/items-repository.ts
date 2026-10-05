@@ -8,7 +8,7 @@ import { fixedItemDetails, flexibleItemDetails, items, placements } from "./sche
 export async function insertItem(tx: Transaction, item: NewItem): Promise<string> {
   const [{ id }] = await tx
     .insert(items)
-    .values({ title: item.title, priority: item.priority, timing: item.timing })
+    .values({ title: item.title, priority: item.priority, timing: item.timing, recurrence: item.recurrence })
     .returning({ id: items.id });
 
   await insertDetails(tx, id, item);
@@ -16,7 +16,8 @@ export async function insertItem(tx: Transaction, item: NewItem): Promise<string
 }
 
 /**
- * Replaces the item's fields and details, including switching between fixed and flexible.
+ * Replaces the item's fields and details, including switching between fixed and flexible. Skipped dates are kept
+ * while the item still recurs.
  * A flexible task keeps its started and pinned placements, so time already spent on it still counts, and
  * loses the rest to be placed again. An item that becomes fixed loses all of them.
  * Returns `false` if no item has this `id`.
@@ -30,7 +31,13 @@ export async function updateItem(tx: Transaction, id: string, item: NewItem, now
 
   const updated = await tx
     .update(items)
-    .set({ title: item.title, priority: item.priority, timing: item.timing })
+    .set({
+      title: item.title,
+      priority: item.priority,
+      timing: item.timing,
+      recurrence: item.recurrence,
+      ...(item.recurrence ? {} : { skippedDates: [] }),
+    })
     .where(eq(items.id, id))
     .returning({ id: items.id });
   if (updated.length === 0) return false;
@@ -73,13 +80,12 @@ async function insertDetails(tx: Transaction, itemId: string, item: NewItem) {
 export async function loadItems(executor: Database | Transaction): Promise<Item[]> {
   const rows = await executor.query.items.findMany({ with: { fixedDetails: true, flexibleDetails: true } });
 
-  return rows.map(({ id, title, priority, timing, fixedDetails, flexibleDetails }): Item => {
+  return rows.map(({ id, title, priority, timing, recurrence, skippedDates, fixedDetails, flexibleDetails }): Item => {
+    const shared = { id, title, priority, recurrence, skippedDates };
     if (timing === "fixed") {
       if (!fixedDetails) throw new Error(`Fixed item ${id} has no details row`);
       return {
-        id,
-        title,
-        priority,
+        ...shared,
         timing,
         start: fixedDetails.startAt,
         end: fixedDetails.endAt,
@@ -92,9 +98,7 @@ export async function loadItems(executor: Database | Transaction): Promise<Item[
     if (!flexibleDetails) throw new Error(`Flexible item ${id} has no details row`);
     const { splitMinChunkMin, splitMaxChunkMin } = flexibleDetails;
     return {
-      id,
-      title,
-      priority,
+      ...shared,
       timing,
       durationMin: flexibleDetails.durationMin,
       earliestStart: flexibleDetails.earliestStart,
