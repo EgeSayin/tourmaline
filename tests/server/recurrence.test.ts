@@ -124,6 +124,15 @@ describe("expandOccurrences", { tags: ["unit", "critical"] }, () => {
     expect(ids(expandOccurrences(shift, utc("2026-03-09T04:00", "2026-03-09T04:30"), tz))).toEqual([
       "Shift@2026-03-07",
     ]);
+
+    // 02:30 doesn't exist on Sun Mar 8, so that occurrence starts at 03:30 and keeps its 30 minutes.
+    const backup = {
+      ...fixed("Backup", utc("2026-03-06T07:30", "2026-03-06T08:00")), // Fri 02:30–03:00 EST
+      recurrence: { frequency: "daily", interval: 1, until: null } satisfies Recurrence,
+    };
+    expect(expandOccurrences(backup, utc("2026-03-08T05:00", "2026-03-09T04:00"), tz)).toEqual([
+      { ...backup, ...utc("2026-03-08T07:30", "2026-03-08T08:00"), id: "Backup@2026-03-08" },
+    ]);
   });
 
   it("gives each task occurrence a window that runs until the rule next occurs", () => {

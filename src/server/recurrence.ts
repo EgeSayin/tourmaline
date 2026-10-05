@@ -1,5 +1,5 @@
 import "server-only";
-import { minutesBetween } from "@/lib/duration";
+import { addMinutes, minutesBetween } from "@/lib/duration";
 import type { Item } from "@/lib/items";
 import { occurrenceId, type Recurrence } from "@/lib/recurrence";
 import type { TimeZone } from "@/lib/time-zone";
@@ -45,20 +45,22 @@ export function occurrenceDates(
 
 /**
  * The occurrences of `item` that overlap `range`, in order, each with its occurrence id and times; a one-off item
- * as it is. Occurrences keep the first one's local times of day. A recurring task's window runs from its earliest
+ * as it is. Occurrences keep the first one's local start time; fixed ones also keep its length, so a clock change
+ * moves their end instead of inverting them. A recurring task's window runs from its earliest
  * start to the same time on the date the rule next occurs, even past `until` or a skipped date.
  */
 export function expandOccurrences(item: Item, range: Interval, timeZone: TimeZone): Item[] {
   if (!item.recurrence) return [item];
 
   const zoned = (date: Date) => Temporal.Instant.fromEpochMilliseconds(date.getTime()).toZonedDateTimeISO(timeZone);
-  const first = zoned(item.timing === "fixed" ? item.start : item.earliestStart).toPlainDate();
-  const onDate = (time: Date, date: Temporal.PlainDate) => toDate(zoned(time).add({ days: first.until(date).days }));
+  const firstStart = zoned(item.timing === "fixed" ? item.start : item.earliestStart);
+  const first = firstStart.toPlainDate();
+  const startOn = (date: Temporal.PlainDate) => toDate(firstStart.add({ days: first.until(date).days }));
 
+  const lengthMin = item.timing === "fixed" ? minutesBetween(item.start, item.end) : 0;
   const periodDays = item.recurrence.interval * (item.recurrence.frequency === "daily" ? 1 : 7);
   // Plus a day: around a clock change, an occurrence under a day long can end two local dates after it starts.
-  const spanDays =
-    item.timing === "fixed" ? Math.ceil(minutesBetween(item.start, item.end) / MINUTES_PER_DAY) + 1 : periodDays;
+  const spanDays = item.timing === "fixed" ? Math.ceil(lengthMin / MINUTES_PER_DAY) + 1 : periodDays;
   const dates = occurrenceDates(
     { ...item.recurrence, until: null },
     first,
@@ -75,21 +77,14 @@ export function expandOccurrences(item: Item, range: Interval, timeZone: TimeZon
     const day = date.toString();
     if ((until && day > until) || item.skippedDates.includes(day)) continue;
 
+    const start = startOn(date);
+    const end = item.timing === "fixed" ? addMinutes(start, lengthMin) : startOn(dates[i + 1]);
+    if (start >= range.end || end <= range.start) continue;
+
     const id = occurrenceId(item.id, day);
-    const occurrence: Item =
-      item.timing === "fixed"
-        ? { ...item, id, start: onDate(item.start, date), end: onDate(item.end, date) }
-        : {
-            ...item,
-            id,
-            earliestStart: onDate(item.earliestStart, date),
-            deadline: onDate(item.earliestStart, dates[i + 1]),
-          };
-    const { start, end } = timeSpan(occurrence);
-    if (start < range.end && end > range.start) occurrences.push(occurrence);
+    occurrences.push(
+      item.timing === "fixed" ? { ...item, id, start, end } : { ...item, id, earliestStart: start, deadline: end },
+    );
   }
   return occurrences;
 }
-
-const timeSpan = (item: Item): Interval =>
-  item.timing === "fixed" ? { start: item.start, end: item.end } : { start: item.earliestStart, end: item.deadline };
