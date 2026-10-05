@@ -1,5 +1,5 @@
 import "server-only";
-import { and, eq, gte } from "drizzle-orm";
+import { and, eq, gte, type SQL } from "drizzle-orm";
 import type { Item, NewItem } from "@/lib/items";
 import type { Database, Transaction } from "./connection";
 import { fixedItemDetails, flexibleItemDetails, items, occurrenceOverrides, placements } from "./schema";
@@ -77,8 +77,27 @@ async function insertDetails(tx: Transaction, itemId: string, item: NewItem) {
 }
 
 /** Every item with its details. Throws if an item's details row is missing. */
-export async function loadItems(executor: Database | Transaction): Promise<Item[]> {
+export function loadItems(executor: Database | Transaction): Promise<Item[]> {
+  return findItems(executor);
+}
+
+/** The item with this `id`, or `undefined` if there is none. Throws if its details row is missing. */
+export async function loadItem(executor: Database | Transaction, id: string): Promise<Item | undefined> {
+  const [item] = await findItems(executor, eq(items.id, id));
+  return item;
+}
+
+/** Moves `fromId`'s occurrence overrides dated `fromDate` or later to `toId`. */
+export async function moveOverrides(tx: Transaction, fromId: string, toId: string, fromDate: string): Promise<void> {
+  await tx
+    .update(occurrenceOverrides)
+    .set({ itemId: toId })
+    .where(and(eq(occurrenceOverrides.itemId, fromId), gte(occurrenceOverrides.occurrenceDate, fromDate)));
+}
+
+async function findItems(executor: Database | Transaction, where?: SQL): Promise<Item[]> {
   const rows = await executor.query.items.findMany({
+    where,
     with: {
       fixedDetails: true,
       flexibleDetails: true,

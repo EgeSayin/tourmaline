@@ -5,7 +5,7 @@ const WEEKDAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const weekdayLabel = (days: number) => WEEKDAY_LABELS[localDate(days).dayOfWeek - 1];
 
 test.describe("recurring items", () => {
-  test("repeats a fixed item on its chosen days until its end date, and edits it as a series", async ({
+  test("repeats a fixed item on its chosen days until its end date, and edits it from its next occurrence on", async ({
     page,
   }, testInfo) => {
     const title = `E2E standup (${testInfo.project.name})`;
@@ -46,9 +46,15 @@ test.describe("recurring items", () => {
       "true",
     );
 
-    await panel.getByRole("button", { name: "Delete" }).click();
-    await panel.getByRole("button", { name: "Confirm delete" }).click();
-    await expect(block).toHaveCount(0);
+    // Saved from the next occurrence on, so yesterday's keeps the old title and tomorrow's has the new one.
+    await panel.getByLabel("Title").fill(`${title} moved`);
+    await panel.getByRole("button", { name: "Save changes" }).click();
+    await expect(panel).toBeHidden();
+    const renamed = page.getByRole("button", { name: `${title} moved ${slot.label}` });
+    await page.goto(`/?date=${localDate(-1)}`);
+    await expect(block.first()).toBeVisible();
+    await page.goto(`/?date=${localDate(1)}`);
+    await expect(renamed.first()).toBeVisible();
   });
 
   test("lists each occurrence of a repeating task that can't fit by its date, and opens the series", async ({

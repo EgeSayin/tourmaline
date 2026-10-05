@@ -4,8 +4,9 @@ import "server-only";
 import { refresh } from "next/cache";
 import { z } from "zod";
 import { db } from "@/server/db/client";
-import { deleteItem, insertItem, updateItem } from "@/server/db/items-repository";
+import { deleteItem, insertItem } from "@/server/db/items-repository";
 import { loadSettings } from "@/server/db/settings-repository";
+import { editItem } from "./edit-item";
 import { type ItemFormErrors, type ParsedItemForm, parseItemForm } from "./parse-item-form";
 
 export type ItemFormState =
@@ -20,7 +21,11 @@ async function parseSubmission(formData: FormData) {
   if (!settings) throw new Error("Settings must be saved before editing items");
 
   const fields = Object.fromEntries([...formData].map(([key, value]) => [key, String(value)]));
-  return { fields, parsed: parseItemForm(fields, settings.timeZone, Temporal.Now.instant()) };
+  return {
+    fields,
+    timeZone: settings.timeZone,
+    parsed: parseItemForm(fields, settings.timeZone, Temporal.Now.instant()),
+  };
 }
 
 function invalid(fields: Record<string, string>, parsed: Extract<ParsedItemForm, { ok: false }>): ItemFormState {
@@ -42,11 +47,11 @@ export async function updateItemAction(
   formData: FormData,
 ): Promise<ItemFormState> {
   const validId = itemId.parse(id);
-  const { fields, parsed } = await parseSubmission(formData);
+  const { fields, timeZone, parsed } = await parseSubmission(formData);
   if (!parsed.ok) return invalid(fields, parsed);
 
   const now = new Date();
-  const found = await db.transaction((tx) => updateItem(tx, validId, parsed.item, now));
+  const found = await db.transaction((tx) => editItem(tx, validId, parsed.item, now, timeZone));
   if (!found) throw new Error(`Item ${validId} not found`);
   refresh();
   return { status: "saved" };
