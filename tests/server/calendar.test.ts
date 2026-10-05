@@ -132,6 +132,11 @@ describe("loadCalendar", { tags: ["integration", "critical"] }, () => {
       ...fixed("Seminar", utc("2026-10-12T14:00", "2026-10-12T15:00")),
       recurrence: { frequency: "weekly", interval: 1, weekdays: [1], until: null },
     });
+    const oldClub = {
+      ...fixed("Old club", utc("2026-09-01T22:00", "2026-09-01T23:00")),
+      recurrence: { ...daily, until: "2026-09-30" },
+    };
+    await insertItem(tx, oldClub);
     const gymId = await insertItem(tx, {
       ...flexible("Gym", 60, utc("2026-10-05T14:00", "2026-10-06T14:00")), // 10:00 to 10:00 the next day
       recurrence: daily,
@@ -151,6 +156,19 @@ describe("loadCalendar", { tags: ["integration", "critical"] }, () => {
     );
     expect(gymPlacements.at(-1)!.end > new Date("2026-10-09T14:30Z")).toBe(true);
     expect(schedule?.queue).toEqual([]);
+
+    // The edit form opens each series at its next occurrence: today's gym window started at 10:00.
+    expect(schedule?.items.find((item) => item.id === gymId)).toMatchObject({
+      earliestStart: new Date("2026-10-07T14:00Z"),
+      deadline: new Date("2026-10-08T14:00Z"),
+    });
+    expect(schedule?.items.find((item) => item.title === "Old club")).toMatchObject({
+      start: oldClub.start,
+      end: oldClub.end,
+    }); // ended, so as saved
+    expect(schedule?.items.find((item) => item.title === "Essay")).toMatchObject({
+      deadline: new Date("2026-10-09T14:30Z"),
+    });
 
     const standups = schedule!.fixedItems;
     for (const p of schedule!.placements) {

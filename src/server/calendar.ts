@@ -15,7 +15,7 @@ import type { Database, Transaction } from "@/server/db/connection";
 import { loadItems } from "@/server/db/items-repository";
 import { loadPlacements, replacePendingPlacements } from "@/server/db/placements-repository";
 import { loadSettings } from "@/server/db/settings-repository";
-import { expandOccurrences } from "@/server/recurrence";
+import { expandOccurrences, nextOccurrence } from "@/server/recurrence";
 import { planningHorizon } from "@/server/scheduler/horizon";
 import type { Interval } from "@/server/scheduler/intervals";
 import { replan } from "@/server/scheduler/replan";
@@ -35,7 +35,10 @@ export interface Calendar {
   /** Local date of `now`. */
   today: string;
   navigation: { week: WeekNavigation; days: DayNavigation };
-  /** Stored items: one-offs, and each series as saved. */
+  /**
+   * Stored items as the edit form opens them: one-offs as saved, and each series at its next occurrence (as saved
+   * once it has ended), under the series' id.
+   */
   items: Item[];
   /** One-off fixed items, and fixed occurrences overlapping the week or the days. */
   fixedItems: FixedItem[];
@@ -96,7 +99,10 @@ export async function loadCalendar(
       week: weekNavigation(week.dates[0], today.toString()),
       days: dayNavigation(days.dates[0], PHONE_DAY_COUNT),
     },
-    items,
+    items: items.map((item) => {
+      const next = nextOccurrence(item, nowDate, settings.timeZone);
+      return next ? { ...next, id: item.id } : item;
+    }),
     fixedItems: shownItems.filter(isFixed),
     flexibleItems: shownItems.filter(isFlexible),
     placements: placements.filter((p) => p.start < shown.end && p.end > shown.start),

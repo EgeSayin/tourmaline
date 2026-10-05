@@ -7,7 +7,7 @@ import type { TimeZone } from "./time-zone";
 const MINUTES_PER_DAY = 24 * 60;
 
 export interface CalendarItems {
-  /** Stored items: one-offs, and each series as saved. */
+  /** Stored items, one-offs and series, under their own ids. */
   items: Item[];
   /** One-off fixed items and fixed occurrences. */
   fixedItems: FixedItem[];

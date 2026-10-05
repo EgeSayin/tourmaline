@@ -92,11 +92,20 @@ export function expandOccurrences(item: Item, range: Interval, timeZone: TimeZon
 
 /** The first occurrence of a recurring `item`, or `undefined` if it ends before occurring. */
 export function firstOccurrence(item: NewItem, timeZone: TimeZone): Item | undefined {
-  if (!item.recurrence) return undefined;
   const start = item.timing === "fixed" ? item.start : item.earliestStart;
-  // Every period holds a date the rule could occur on, so the first occurrence starts within one.
-  const range = { start, end: addMinutes(start, (daysPerPeriod(item.recurrence) + 1) * MINUTES_PER_DAY) };
-  return expandOccurrences({ ...item, id: "", overrides: [] }, range, timeZone)[0];
+  return nextOccurrence({ ...item, id: "", overrides: [] }, start, timeZone);
+}
+
+/** The first occurrence of a recurring `item` that ends after `from`, or `undefined` if none does. */
+export function nextOccurrence(item: Item, from: Date, timeZone: TimeZone): Item | undefined {
+  if (!item.recurrence) return undefined;
+  // Every period holds a date the rule could occur on, and each skip can push the next one a period further.
+  const periods = item.overrides.filter((override) => override.skipped).length + 1;
+  const range = {
+    start: from,
+    end: addMinutes(from, (periods * daysPerPeriod(item.recurrence) + 1) * MINUTES_PER_DAY),
+  };
+  return expandOccurrences(item, range, timeZone)[0];
 }
 
 const daysPerPeriod = (rule: Recurrence) => rule.interval * (rule.frequency === "daily" ? 1 : 7);

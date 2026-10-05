@@ -1,7 +1,7 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import { type Recurrence, WEEKDAYS } from "@/lib/recurrence";
-import { expandOccurrences, occurrenceDates } from "@/server/recurrence";
+import { expandOccurrences, nextOccurrence, occurrenceDates } from "@/server/recurrence";
 import { utc } from "../support/intervals";
 import { fixed, flexible } from "../support/items";
 
@@ -164,5 +164,33 @@ describe("expandOccurrences", { tags: ["unit", "critical"] }, () => {
     const essay = flexible("Essay", 60, utc("2026-10-05T14:00", "2026-10-09T14:00"));
 
     expect(expandOccurrences(essay, utc("2027-01-01T00:00", "2027-01-02T00:00"), tz)).toEqual([essay]);
+  });
+});
+
+describe("nextOccurrence", { tags: ["unit", "critical"] }, () => {
+  const tz = "America/New_York";
+
+  it("finds the first occurrence ending after a time, past skips, or none once the series ends", () => {
+    // Every other Monday from Oct 5, 11:00–12:15 EDT.
+    const seminar = {
+      ...fixed("Seminar", utc("2026-10-05T15:00", "2026-10-05T16:15")),
+      recurrence: { frequency: "weekly", interval: 2, weekdays: [1], until: "2026-12-31" } satisfies Recurrence,
+    };
+    const next = (item: typeof seminar, from: string) => nextOccurrence(item, new Date(from), tz)?.id;
+
+    expect(next(seminar, "2026-10-05T16:00Z")).toBe("Seminar@2026-10-05"); // still running
+    expect(next(seminar, "2026-10-05T16:15Z")).toBe("Seminar@2026-10-19");
+
+    const skipping = {
+      ...seminar,
+      overrides: [
+        { date: "2026-10-19", skipped: true },
+        { date: "2026-11-02", skipped: true },
+      ],
+    };
+    expect(next(skipping, "2026-10-05T16:15Z")).toBe("Seminar@2026-11-16");
+
+    expect(next(seminar, "2026-12-29T00:00Z")).toBeUndefined();
+    expect(nextOccurrence(fixed("Once", utc("2026-10-05T15:00", "2026-10-05T16:00")), new Date(0), tz)).toBeUndefined();
   });
 });
