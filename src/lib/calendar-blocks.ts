@@ -1,9 +1,20 @@
 import type { FixedItem, FlexibleItem, Item } from "./items";
 import { toLocal } from "./local-time";
 import type { Placement } from "./placements";
+import { seriesOf } from "./recurrence";
 import type { TimeZone } from "./time-zone";
 
 const MINUTES_PER_DAY = 24 * 60;
+
+export interface CalendarItems {
+  /** Stored items: one-offs, and each series as saved. */
+  items: Item[];
+  /** One-off fixed items and fixed occurrences. */
+  fixedItems: FixedItem[];
+  /** One-off tasks and task occurrences. */
+  flexibleItems: FlexibleItem[];
+  placements: Placement[];
+}
 
 export type BlockStyle = "fixed" | "fixed-optional" | "scheduled";
 
@@ -23,13 +34,12 @@ export interface CalendarBlock {
 }
 
 /**
- * Positions fixed items and placements on their local day; placements of tasks not in `flexibleItems` are skipped.
- * A block running past midnight is cut off at the end of the day it starts on.
+ * Positions fixed items and placements on their local day. A placement whose task isn't in `flexibleItems`, such as
+ * one for an occurrence its series no longer has, is shown under its stored item in `items`, or skipped if that's
+ * gone too. A block running past midnight is cut off at the end of the day it starts on.
  */
 export function toCalendarBlocks(
-  fixedItems: FixedItem[],
-  flexibleItems: FlexibleItem[],
-  placements: Placement[],
+  { items, fixedItems, flexibleItems, placements }: CalendarItems,
   timeZone: TimeZone,
 ): CalendarBlock[] {
   const tasks = new Map(flexibleItems.map((item) => [item.id, item]));
@@ -44,7 +54,7 @@ export function toCalendarBlocks(
       faded: false,
     })),
     ...placements.flatMap((placement) => {
-      const task = tasks.get(placement.itemId);
+      const task = tasks.get(placement.itemId) ?? seriesOf(items, placement.itemId);
       if (!task) return [];
       return {
         key: `${placement.itemId}@${placement.start.toISOString()}`,

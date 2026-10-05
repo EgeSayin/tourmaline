@@ -22,7 +22,7 @@ export default async function Home({ searchParams }: PageProps<"/">) {
   }
 
   return (
-    <ItemPanelProvider timeZone={calendar.timeZone}>
+    <ItemPanelProvider items={calendar.items} timeZone={calendar.timeZone}>
       <main>
         <ScheduleView
           calendarHeader={
@@ -40,9 +40,12 @@ export default async function Home({ searchParams }: PageProps<"/">) {
               today={calendar.today}
               weekDates={calendar.weekDates}
               dayDates={calendar.dayDates}
-              fixedItems={calendar.fixedItems}
-              flexibleItems={calendar.flexibleItems}
-              placements={calendar.placements}
+              calendarItems={{
+                items: calendar.items,
+                fixedItems: calendar.fixedItems,
+                flexibleItems: calendar.flexibleItems,
+                placements: calendar.placements,
+              }}
               timeZone={calendar.timeZone}
             />
           }

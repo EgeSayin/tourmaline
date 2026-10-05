@@ -1,10 +1,8 @@
 "use client";
 
 import { useItemPanel } from "@/components/items/item-panel";
-import { toCalendarBlocks } from "@/lib/calendar-blocks";
+import { type CalendarItems, toCalendarBlocks } from "@/lib/calendar-blocks";
 import { formatLocalWeekday } from "@/lib/format";
-import type { FixedItem, FlexibleItem } from "@/lib/items";
-import type { Placement } from "@/lib/placements";
 import type { TimeZone } from "@/lib/time-zone";
 import { DayColumn } from "./day-column";
 import { HourAxis } from "./hour-axis";
@@ -15,22 +13,18 @@ export function CalendarGrid({
   today,
   weekDates,
   dayDates,
-  fixedItems,
-  flexibleItems,
-  placements,
+  calendarItems,
   timeZone,
 }: {
   /** Local date of now, highlighted when shown. */
   today: string;
   weekDates: string[];
   dayDates: string[];
-  fixedItems: FixedItem[];
-  flexibleItems: FlexibleItem[];
-  placements: Placement[];
+  calendarItems: CalendarItems;
   timeZone: TimeZone;
 }) {
   const { openEdit } = useItemPanel();
-  const blocks = toCalendarBlocks(fixedItems, flexibleItems, placements, timeZone);
+  const blocks = toCalendarBlocks(calendarItems, timeZone);
   const scale = timeScaleFor(blocks);
   const dates = [...new Set([...weekDates, ...dayDates])].sort();
   // Hidden columns take no grid track, so each breakpoint's column count matches its visible dates.

@@ -35,6 +35,8 @@ export interface Calendar {
   /** Local date of `now`. */
   today: string;
   navigation: { week: WeekNavigation; days: DayNavigation };
+  /** Stored items: one-offs, and each series as saved. */
+  items: Item[];
   /** One-off fixed items, and fixed occurrences overlapping the week or the days. */
   fixedItems: FixedItem[];
   /** One-off tasks, and task occurrences overlapping the week or the days. */
@@ -94,6 +96,7 @@ export async function loadCalendar(
       week: weekNavigation(week.dates[0], today.toString()),
       days: dayNavigation(days.dates[0], PHONE_DAY_COUNT),
     },
+    items,
     fixedItems: shownItems.filter(isFixed),
     flexibleItems: shownItems.filter(isFlexible),
     placements: placements.filter((p) => p.start < shown.end && p.end > shown.start),

@@ -6,6 +6,7 @@ import { createContext, use, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import type { Item } from "@/lib/items";
+import { seriesOf } from "@/lib/recurrence";
 import type { TimeZone } from "@/lib/time-zone";
 import { ItemForm } from "./item-form";
 
@@ -18,6 +19,7 @@ interface PanelContextValue {
   mode: PanelMode;
   timeZone: TimeZone;
   openAdd: () => void;
+  /** Opens the stored item behind `item`: for an occurrence, its series. */
   openEdit: (item: Item) => void;
   close: () => void;
 }
@@ -30,13 +32,22 @@ export function useItemPanel() {
   return context;
 }
 
-export function ItemPanelProvider({ timeZone, children }: { timeZone: TimeZone; children: React.ReactNode }) {
+export function ItemPanelProvider({
+  items,
+  timeZone,
+  children,
+}: {
+  /** Stored items, to find an occurrence's series. */
+  items: Item[];
+  timeZone: TimeZone;
+  children: React.ReactNode;
+}) {
   const [mode, setMode] = useState<PanelMode>({ kind: "closed" });
   const value: PanelContextValue = {
     mode,
     timeZone,
     openAdd: () => setMode({ kind: "add" }),
-    openEdit: (item) => setMode({ kind: "edit", item }),
+    openEdit: (item) => setMode({ kind: "edit", item: seriesOf(items, item.id) ?? item }),
     close: () => setMode({ kind: "closed" }),
   };
   return <PanelContext value={value}>{children}</PanelContext>;

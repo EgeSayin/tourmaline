@@ -6,7 +6,7 @@ import { utc } from "../support/intervals";
 const tz = "America/New_York";
 
 describe("toCalendarBlocks", { tags: ["unit"] }, () => {
-  it("places blocks on their local day with a style per kind, cutting off blocks that pass midnight, each with a unique key", () => {
+  it("places blocks on their local day with a style per kind, cutting off blocks that pass midnight, each with a unique key, and falls back to a placement's series", () => {
     const lecture = fixed("Lecture", utc("2026-10-05T15:00", "2026-10-05T16:15")); // Mon 11:00–12:15 EDT
     const party = { ...fixed("Party", utc("2026-10-06T02:30", "2026-10-06T05:00")), priority: "normal" as const }; // Mon 22:30–01:00
     const reading = flexible("Reading", 60, utc("2026-10-05T04:00", "2026-10-09T04:00"), "low");
@@ -20,10 +20,16 @@ describe("toCalendarBlocks", { tags: ["unit"] }, () => {
     });
 
     const deleted = { ...placement(placed), itemId: "Deleted" }; // its task is gone, so it's skipped
+    // The gym series no longer occurs on Tuesday, so that placement is shown under the series.
+    const gym = { ...flexible("Gym", 60, utc("2026-10-05T14:00", "2026-10-06T14:00")), priority: "high" as const };
+    const formerGym = { ...placement(utc("2026-10-06T15:00", "2026-10-06T16:00")), itemId: "Gym@2026-10-06" };
     const blocks = toCalendarBlocks(
-      [lecture, party],
-      [reading],
-      [placement(placed), placement(placedAgain), deleted],
+      {
+        items: [lecture, party, gym],
+        fixedItems: [lecture, party],
+        flexibleItems: [reading],
+        placements: [placement(placed), placement(placedAgain), deleted, formerGym],
+      },
       tz,
     );
     expect(new Set(blocks.map((block) => block.key)).size).toBe(blocks.length);
@@ -69,6 +75,17 @@ describe("toCalendarBlocks", { tags: ["unit"] }, () => {
         date: "2026-10-05",
         startMinute: 16 * 60,
         endMinute: 16 * 60 + 30,
+      },
+      {
+        key: expect.any(String),
+        item: gym,
+        start: formerGym.start,
+        end: formerGym.end,
+        style: "scheduled",
+        faded: false,
+        date: "2026-10-06",
+        startMinute: 11 * 60,
+        endMinute: 12 * 60,
       },
     ]);
   });
