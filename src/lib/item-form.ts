@@ -95,6 +95,7 @@ const flexibleForm = z
   .refine((form) => (form.preferredFrom === undefined) === (form.preferredUntil === undefined), {
     path: ["preferredUntil"],
     message: "Set both times or neither",
+    ...evenIfInvalid,
   })
   .refine((form) => form.preferredFrom === undefined || form.preferredFrom !== form.preferredUntil, {
     path: ["preferredUntil"],

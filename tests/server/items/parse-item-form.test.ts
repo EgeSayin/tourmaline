@@ -193,10 +193,13 @@ describe("parseItemForm", { tags: ["unit", "critical"] }, () => {
     });
 
     // Missing fields are all reported at once, whichever check finds them.
-    expect(parseItemForm({ timing: "flexible", title: "", repeat: "weekly" }, tz, now)).toMatchObject({
+    expect(
+      parseItemForm({ timing: "flexible", title: "", repeat: "weekly", preferredFrom: "12:00" }, tz, now),
+    ).toMatchObject({
       ok: false,
       errors: {
         title: [expect.any(String)],
+        preferredUntil: ["Set both times or neither"],
         durationMin: [expect.any(String)],
         earliestStart: [expect.any(String)],
         weekdays: [expect.any(String)],
