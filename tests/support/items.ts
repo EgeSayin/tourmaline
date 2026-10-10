@@ -53,6 +53,10 @@ export const fixedItemArb = fc
 const minuteOfDayArb = fc.integer({ min: 0, max: 24 * 60 - 1 });
 const dailyWindowArb = fc.record({ startMinute: minuteOfDayArb, endMinute: minuteOfDayArb });
 
+export const splitArb = fc
+  .tuple(fc.integer({ min: 1, max: 120 }), fc.integer({ min: 0, max: 120 }))
+  .map(([minChunkMin, extra]) => ({ minChunkMin, maxChunkMin: minChunkMin + extra }));
+
 /** Tasks with unique ids. */
 export const flexibleItemsArb = fc
   .array(
@@ -61,12 +65,14 @@ export const flexibleItemsArb = fc
       intervalArb(SPAN_MIN),
       fc.constantFrom(...PRIORITIES),
       fc.array(dailyWindowArb, { maxLength: 2 }),
+      fc.option(splitArb, { nil: null }),
     ),
     { maxLength: 10 },
   )
   .map((tasks) =>
-    tasks.map(([durationMin, window, priority, preferredWindows], i) => ({
+    tasks.map(([durationMin, window, priority, preferredWindows, split], i) => ({
       ...flexible(`Task ${i}`, durationMin, window, priority),
       preferredWindows,
+      split,
     })),
   );

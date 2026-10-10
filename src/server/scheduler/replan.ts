@@ -85,7 +85,7 @@ function fillAround(
   const remainingTasks = tasks
     .map((task) => ({ ...task, durationMin: task.durationMin - (placedMinutes.get(task.id) ?? 0) }))
     .filter((task) => task.durationMin > 0);
-  const { placements: added, unplaced } = placeTasks(remainingTasks, open, timeZone);
+  const { placements: added, unplaced } = placeTasks(remainingTasks, open, timeZone, [...kept, ...preserved]);
 
   const placements = [...kept, ...preserved, ...added].sort((a, b) => a.start.getTime() - b.start.getTime());
   return { placements, unplaced };

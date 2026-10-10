@@ -2,14 +2,14 @@ import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import type { Task } from "@/lib/items";
 import { SLOT_MIN } from "@/lib/placements";
-import type { SchedulerSettings } from "@/lib/settings";
+import { CHUNK_BREAK_MIN, type SchedulerSettings } from "@/lib/settings";
 import { minutesBetween } from "@/lib/time/duration";
 import type { DailyWindow } from "@/lib/time/time-of-day";
 import { type Interval, mergeIntervals, subtractIntervals } from "@/lib/time/interval";
 import { freeTimeMap } from "@/server/scheduler/free-time";
 import { findEarliestChunks, findEarliestSlot, placeTasks } from "@/server/scheduler/placement";
 import { at, covers, intervalArb, intervalsArb, iv, minuteOf, SPAN_MIN } from "../../support/intervals";
-import { fixed, fixedItemArb, flexible, flexibleItemsArb } from "../../support/items";
+import { fixed, fixedItemArb, flexible, flexibleItemsArb, splitArb } from "../../support/items";
 import { utcSettingsArb } from "../../support/settings";
 
 /** Earliest minute on the `SLOT_MIN` grid starting `durationMin` consecutive minutes inside both `free` and `window`. */
@@ -87,9 +87,6 @@ describe("findEarliestChunks", { tags: ["unit", "critical"] }, () => {
     { tags: ["property"] },
     () => {
       const freeArb = intervalsArb.map(mergeIntervals);
-      const splitArb = fc
-        .tuple(fc.integer({ min: 1, max: 120 }), fc.integer({ min: 0, max: 120 }))
-        .map(([minChunkMin, extra]) => ({ minChunkMin, maxChunkMin: minChunkMin + extra }));
       const durationArb = fc.integer({ min: 1, max: 6 * 60 });
       const breakArb = fc.integer({ min: 0, max: 90 });
 
@@ -179,8 +176,40 @@ describe("placeTasks", { tags: ["unit", "critical"] }, () => {
     ]);
   });
 
+  it("places a split task whole as chunks, in its preferred windows if they fit there", () => {
+    const settings: SchedulerSettings = { timeZone: "UTC", downtime: { startMinute: 22 * 60, endMinute: 10 * 60 } };
+    const day = iv("00:00", "23:59");
+    const free = freeTimeMap(day, [fixed("Seminar", iv("12:00", "13:00"))], settings);
+    const tasks = [
+      {
+        ...flexible("Thesis", 150, day),
+        split: { minChunkMin: 30, maxChunkMin: 60 },
+        preferredWindows: [{ startMinute: 14 * 60, endMinute: 18 * 60 }],
+      },
+      // Only 60 minutes free in its preferred window.
+      {
+        ...flexible("Practice", 90, day),
+        split: { minChunkMin: 30, maxChunkMin: 45 },
+        preferredWindows: [{ startMinute: 21 * 60, endMinute: 22 * 60 }],
+      },
+      // Would fit 10:00–12:00 as one block, but not as two hours with a break between.
+      { ...flexible("Revision", 120, iv("10:00", "13:00")), split: { minChunkMin: 60, maxChunkMin: 60 } },
+    ];
+
+    const { placements, unplaced } = placeTasks(tasks, free, settings.timeZone);
+
+    expect(placements.map(({ taskId, start, end }) => ({ taskId, start, end }))).toEqual([
+      { taskId: "Thesis", ...iv("14:00", "15:00") },
+      { taskId: "Thesis", ...iv("15:30", "16:30") },
+      { taskId: "Thesis", ...iv("17:00", "17:30") },
+      { taskId: "Practice", ...iv("10:00", "10:45") },
+      { taskId: "Practice", ...iv("11:15", "12:00") },
+    ]);
+    expect(unplaced.map((task) => task.id)).toEqual(["Revision"]);
+  });
+
   it(
-    "places tasks only in free time inside their windows, never overlapping, leaving out only tasks that can't fit",
+    "places all of each task in free time inside its window, chunks apart, never overlapping, leaving out only blocks that can't fit",
     { tags: ["property"] },
     () => {
       const fixedItemsArb = fc.array(fixedItemArb, { maxLength: 6 });
@@ -196,14 +225,21 @@ describe("placeTasks", { tags: ["unit", "critical"] }, () => {
             const { placements, unplaced } = placeTasks(tasks, free, settings.timeZone);
             const tasksById = new Map(tasks.map((task) => [task.id, task]));
 
-            const outcomeIds = [...placements.map((p) => p.taskId), ...unplaced.map((task) => task.id)];
+            const placedIds = new Set(placements.map((p) => p.taskId));
+            const outcomeIds = [...placedIds, ...unplaced.map((task) => task.id)];
             expect(outcomeIds.toSorted()).toEqual([...tasksById.keys()].toSorted());
 
-            for (const placement of placements) {
-              const task = tasksById.get(placement.taskId)!;
-              expect(minutesBetween(placement.start, placement.end)).toBe(task.durationMin);
-              expect(placement.start >= task.earliestStart && placement.end <= task.deadline).toBe(true);
-              expect(subtractIntervals([placement], free)).toEqual([]);
+            for (const id of placedIds) {
+              const task = tasksById.get(id)!;
+              const chunks = placements.filter((p) => p.taskId === id);
+              expect(chunks.reduce((sum, p) => sum + minutesBetween(p.start, p.end), 0)).toBe(task.durationMin);
+              if (!task.split) expect(chunks).toHaveLength(1);
+              for (const [i, chunk] of chunks.entries()) {
+                expect(chunk.start >= task.earliestStart && chunk.end <= task.deadline).toBe(true);
+                expect(subtractIntervals([chunk], free)).toEqual([]);
+                if (i > 0)
+                  expect(minutesBetween(chunks[i - 1].end, chunk.start)).toBeGreaterThanOrEqual(CHUNK_BREAK_MIN);
+              }
             }
 
             const byStart = placements.toSorted((a, b) => a.start.getTime() - b.start.getTime());
@@ -211,8 +247,9 @@ describe("placeTasks", { tags: ["unit", "critical"] }, () => {
               expect(byStart[i - 1].end <= byStart[i].start).toBe(true);
             }
 
+            // Only for single blocks: a greedy chunk search can miss chunks that would fit.
             const leftover = subtractIntervals(free, placements);
-            for (const task of unplaced) {
+            for (const task of unplaced.filter((task) => !task.split)) {
               expect(
                 findEarliestSlot(leftover, task.durationMin, { start: task.earliestStart, end: task.deadline }),
               ).toBeNull();

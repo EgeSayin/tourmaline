@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { minutesBetween } from "@/lib/time/duration";
 import type { Task } from "@/lib/items";
 import type { Placement } from "@/lib/placements";
-import type { SchedulerSettings } from "@/lib/settings";
+import { CHUNK_BREAK_MIN, type SchedulerSettings } from "@/lib/settings";
 import { freeTimeMap } from "@/server/scheduler/free-time";
 import { subtractIntervals } from "@/lib/time/interval";
 import { replan } from "@/server/scheduler/replan";
@@ -108,6 +108,33 @@ describe("replan", { tags: ["unit", "critical"] }, () => {
     expect(result.unplaced).toEqual([]);
   });
 
+  it("keeps a break between a split task's new chunks and its earlier ones", () => {
+    const settings: SchedulerSettings = { timeZone: "UTC", downtime: { startMinute: 22 * 60, endMinute: 10 * 60 } };
+    const thesis = {
+      ...flexible("Thesis", 90, utc("2026-10-05T10:00", "2026-10-05T22:00")),
+      split: { minChunkMin: 30, maxChunkMin: 45 },
+    };
+    const done: Placement = {
+      taskId: "Thesis",
+      ...utc("2026-10-05T10:00", "2026-10-05T10:45"),
+      source: "auto",
+      pinned: false,
+    };
+
+    const result = replan({
+      horizon: utc("2026-10-05T11:00", "2026-10-06T00:00"),
+      fixedItems: [],
+      tasks: [thesis],
+      existing: [done],
+      settings,
+    });
+
+    expect(result.placements).toEqual([
+      done,
+      { taskId: "Thesis", ...utc("2026-10-05T11:15", "2026-10-05T12:00"), source: "auto", pinned: false },
+    ]);
+  });
+
   it(
     "keeps started and pinned placements and fills each task's remaining time after now",
     { tags: ["property"] },
@@ -134,6 +161,17 @@ describe("replan", { tags: ["unit", "critical"] }, () => {
             if (i > 0) expect(byStart[i - 1].end <= placement.start).toBe(true);
           }
 
+          const split = new Set(tasks.filter((task) => task.split).map((task) => task.id));
+          for (const placement of others.filter((p) => p.source === "auto" && split.has(p.taskId))) {
+            for (const other of result.placements.filter((p) => p.taskId === placement.taskId && p !== placement)) {
+              const apart = Math.max(
+                minutesBetween(other.end, placement.start),
+                minutesBetween(placement.end, other.start),
+              );
+              expect(apart).toBeGreaterThanOrEqual(CHUNK_BREAK_MIN);
+            }
+          }
+
           const leftover = subtractIntervals(free, [...kept, ...others]);
           for (const task of tasks) {
             const remaining = task.durationMin - minutesFor(kept, task.id);
@@ -146,9 +184,12 @@ describe("replan", { tags: ["unit", "critical"] }, () => {
             } else if (unplaced) {
               expect(placedMin).toBe(0);
               expect(unplaced.durationMin).toBe(remaining);
-              expect(
-                findEarliestSlot(leftover, remaining, { start: task.earliestStart, end: task.deadline }),
-              ).toBeNull();
+              // Only for single blocks: a greedy chunk search can miss chunks that would fit.
+              if (!task.split) {
+                expect(
+                  findEarliestSlot(leftover, remaining, { start: task.earliestStart, end: task.deadline }),
+                ).toBeNull();
+              }
             } else {
               expect(placedMin).toBe(remaining);
             }
