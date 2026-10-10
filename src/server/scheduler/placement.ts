@@ -54,6 +54,42 @@ export function findEarliestSlot(free: IntervalSet, durationMin: number, window:
   return null;
 }
 
+/**
+ * Greedily cuts `durationMin` into chunks inside both `free` and `window`, earliest first, each on the `SLOT_MIN`
+ * grid and at least `breakMin` after the one before. Chunks are `minChunkMin` to `maxChunkMin` long; only when
+ * `durationMin` is less than `minChunkMin` is the single chunk shorter. Returns `null` unless all of it fits.
+ */
+export function findEarliestChunks(
+  free: IntervalSet,
+  durationMin: number,
+  window: Interval,
+  { minChunkMin, maxChunkMin }: NonNullable<Task["split"]>,
+  breakMin: number,
+): Interval[] | null {
+  const chunks: Interval[] = [];
+  let remaining = durationMin;
+  let earliest = window.start;
+
+  for (const slot of free) {
+    const end = slot.end < window.end ? slot.end : window.end;
+    let start = ceilToSlot(slot.start > earliest ? slot.start : earliest);
+    while (remaining > 0 && start < end) {
+      let length = Math.min(maxChunkMin, remaining, minutesBetween(start, end));
+      // Leave enough for a full last chunk.
+      if (remaining - length > 0 && remaining - length < minChunkMin) length = remaining - minChunkMin;
+      if (length < minChunkMin && length !== remaining) break;
+
+      const chunk = { start, end: addMinutes(start, length) };
+      chunks.push(chunk);
+      remaining -= length;
+      earliest = addMinutes(chunk.end, breakMin);
+      start = ceilToSlot(earliest);
+    }
+    if (remaining === 0) return chunks;
+  }
+  return null;
+}
+
 /** The part of `free` inside the task's preferred windows; all of `free` when it has none. */
 function preferredTime(free: IntervalSet, task: Task, timeZone: TimeZone): IntervalSet {
   if (task.preferredWindows.length === 0) return free;

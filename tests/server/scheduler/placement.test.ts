@@ -7,8 +7,8 @@ import { minutesBetween } from "@/lib/time/duration";
 import type { DailyWindow } from "@/lib/time/time-of-day";
 import { type Interval, mergeIntervals, subtractIntervals } from "@/lib/time/interval";
 import { freeTimeMap } from "@/server/scheduler/free-time";
-import { findEarliestSlot, placeTasks } from "@/server/scheduler/placement";
-import { at, covers, intervalArb, intervalsArb, iv, SPAN_MIN } from "../../support/intervals";
+import { findEarliestChunks, findEarliestSlot, placeTasks } from "@/server/scheduler/placement";
+import { at, covers, intervalArb, intervalsArb, iv, minuteOf, SPAN_MIN } from "../../support/intervals";
 import { fixed, fixedItemArb, flexible, flexibleItemsArb } from "../../support/items";
 import { utcSettingsArb } from "../../support/settings";
 
@@ -50,6 +50,75 @@ describe("findEarliestSlot", { tags: ["unit", "critical"] }, () => {
       }),
     );
   });
+});
+
+describe("findEarliestChunks", { tags: ["unit", "critical"] }, () => {
+  const split = { minChunkMin: 30, maxChunkMin: 60 };
+  const free = mergeIntervals([iv("10:00", "11:00"), iv("11:10", "12:00"), iv("13:00", "17:00")]);
+  const day = iv("00:00", "23:59");
+
+  it("cuts a task into the earliest chunks that fit, with a break after each", () => {
+    // 60, then 30 after the break (the slot left at 11:30 is short), then the last 60.
+    expect(findEarliestChunks(free, 150, day, split, 30)).toEqual([
+      iv("10:00", "11:00"),
+      iv("11:30", "12:00"),
+      iv("13:00", "14:00"),
+    ]);
+    // 60 and 10 would leave a chunk below the minimum, so 40 and 30.
+    expect(findEarliestChunks(mergeIntervals([iv("13:00", "17:00")]), 70, day, split, 30)).toEqual([
+      iv("13:00", "13:40"),
+      iv("14:10", "14:40"),
+    ]);
+    // Shorter than the minimum: one short chunk.
+    expect(findEarliestChunks(free, 20, day, split, 30)).toEqual([iv("10:00", "10:20")]);
+    // Rounded up to the grid after a break that ends off it.
+    expect(findEarliestChunks(free, 90, day, split, 23)).toEqual([iv("10:00", "11:00"), iv("11:25", "11:55")]);
+  });
+
+  it("returns null unless all of the time fits", () => {
+    expect(findEarliestChunks(free, 120, iv("00:00", "12:00"), split, 30)).toBeNull(); // 90 fits before noon
+    expect(findEarliestChunks(mergeIntervals([iv("10:00", "10:25")]), 30, day, split, 30)).toBeNull();
+    // 50 can't be cut into chunks of 30 to 40.
+    expect(findEarliestChunks(free, 50, day, { minChunkMin: 30, maxChunkMin: 40 }, 0)).toBeNull();
+  });
+
+  it(
+    "returns chunks inside free time and the window, on the grid, sized and spaced as asked, adding up to the duration",
+    { tags: ["property"] },
+    () => {
+      const freeArb = intervalsArb.map(mergeIntervals);
+      const splitArb = fc
+        .tuple(fc.integer({ min: 1, max: 120 }), fc.integer({ min: 0, max: 120 }))
+        .map(([minChunkMin, extra]) => ({ minChunkMin, maxChunkMin: minChunkMin + extra }));
+      const durationArb = fc.integer({ min: 1, max: 6 * 60 });
+      const breakArb = fc.integer({ min: 0, max: 90 });
+
+      fc.assert(
+        fc.property(
+          freeArb,
+          intervalArb(SPAN_MIN),
+          durationArb,
+          splitArb,
+          breakArb,
+          (free, window, durationMin, split, breakMin) => {
+            const chunks = findEarliestChunks(free, durationMin, window, split, breakMin);
+            if (chunks === null) return;
+
+            expect(chunks.reduce((sum, chunk) => sum + minutesBetween(chunk.start, chunk.end), 0)).toBe(durationMin);
+            for (const [i, chunk] of chunks.entries()) {
+              const length = minutesBetween(chunk.start, chunk.end);
+              if (durationMin >= split.minChunkMin) expect(length).toBeGreaterThanOrEqual(split.minChunkMin);
+              expect(length).toBeLessThanOrEqual(split.maxChunkMin);
+              expect(minuteOf(chunk.start) % SLOT_MIN).toBe(0);
+              expect(subtractIntervals([chunk], free)).toEqual([]);
+              expect(chunk.start >= window.start && chunk.end <= window.end).toBe(true);
+              if (i > 0) expect(minutesBetween(chunks[i - 1].end, chunk.start)).toBeGreaterThanOrEqual(breakMin);
+            }
+          },
+        ),
+      );
+    },
+  );
 });
 
 function utc(start: string, end: string): Interval {
