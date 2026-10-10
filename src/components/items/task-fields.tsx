@@ -20,6 +20,15 @@ export function TaskFields({ repeating }: { repeating: boolean }) {
         description={repeating ? "The first one; each is due when the next one starts." : "Leave empty to start now."}
       />
       {!repeating && <FormInput name="deadline" label="Due" type="datetime-local" />}
+      <div className="grid grid-cols-2 gap-4">
+        <FormInput
+          name="preferredFrom"
+          label="Preferred from"
+          type="time"
+          description="Leave both empty for any time."
+        />
+        <FormInput name="preferredUntil" label="Preferred to" type="time" />
+      </div>
     </>
   );
 }

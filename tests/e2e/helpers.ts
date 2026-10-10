@@ -1,4 +1,5 @@
 import { expect, type Page, type TestInfo } from "@playwright/test";
+import { toTimeInputValue } from "@/lib/time/time-of-day";
 
 // Matches the seeded settings.
 export const TIME_ZONE = "America/New_York";
@@ -32,14 +33,8 @@ export async function openAddItemForm(page: Page, testInfo: TestInfo) {
  */
 export function earlySlot(testInfo: TestInfo, slot: number) {
   const startMinute = 60 + (slot * 2 + (isPhone(testInfo) ? 1 : 0)) * 30;
-  const [start, end] = [clock(startMinute), clock(startMinute + 30)];
+  const [start, end] = [toTimeInputValue(startMinute), toTimeInputValue(startMinute + 30)];
   return { startMinute, start, end, label: `${start}–${end}` };
-}
-
-/** "HH:MM" for a minute of the day. */
-export function clock(minuteOfDay: number): string {
-  const pad = (value: number) => String(value).padStart(2, "0");
-  return `${pad(Math.floor(minuteOfDay / 60))}:${pad(minuteOfDay % 60)}`;
 }
 
 /** Adds a fixed item today in `slot` through the form. */

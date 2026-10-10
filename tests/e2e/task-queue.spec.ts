@@ -2,12 +2,16 @@ import { expect, test } from "@playwright/test";
 import { isPhone, itemPanel, localDateTime, openAddItemForm } from "./helpers";
 
 test.describe("task queue", () => {
-  test("lists a task that can't fit, opens it for editing and drops it once deleted", async ({ page }, testInfo) => {
+  test("lists a task that can't fit, opens it with its values and drops it once deleted", async ({
+    page,
+  }, testInfo) => {
     const title = `E2E all-nighter (${testInfo.project.name})`;
     const form = await openAddItemForm(page, testInfo);
     await form.getByLabel("Title").fill(title);
     await form.getByLabel("Duration (min)").fill(String(24 * 60)); // longer than any free stretch
     await form.getByLabel("Due").fill(localDateTime(2, "20:00"));
+    await form.getByLabel("Preferred from").fill("12:00");
+    await form.getByLabel("Preferred to").fill("14:00");
     await form.getByRole("button", { name: "Add item" }).click();
     await expect(form).toBeHidden();
 
@@ -20,6 +24,8 @@ test.describe("task queue", () => {
     const panel = itemPanel(page, testInfo, "Edit item");
     await expect(panel.getByLabel("Title")).toHaveValue(title);
     await expect(panel.getByLabel("Duration (min)")).toHaveValue(String(24 * 60));
+    await expect(panel.getByLabel("Preferred from")).toHaveValue("12:00");
+    await expect(panel.getByLabel("Preferred to")).toHaveValue("14:00");
 
     await panel.getByRole("button", { name: "Delete" }).click();
     await panel.getByRole("button", { name: "Confirm delete" }).click();

@@ -1,11 +1,12 @@
 import { expect, test } from "@playwright/test";
-import { addFixedItemToday, clock, earlySlot, localDateTime, openItemForEditing } from "./helpers";
+import { toTimeInputValue } from "@/lib/time/time-of-day";
+import { addFixedItemToday, earlySlot, localDateTime, openItemForEditing } from "./helpers";
 
 test.describe("editing items", () => {
   test("opens an item with its values and saves changes", async ({ page }, testInfo) => {
     const title = `E2E seminar (${testInfo.project.name})`;
     const slot = earlySlot(testInfo, 1);
-    const newEnd = clock(slot.startMinute + 15);
+    const newEnd = toTimeInputValue(slot.startMinute + 15);
     await addFixedItemToday(page, testInfo, title, slot);
 
     const panel = await openItemForEditing(page, testInfo, title);
