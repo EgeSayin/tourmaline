@@ -65,18 +65,20 @@ function recurringTask(
   earliestStart: Date,
   recurrence: Recurrence,
   priority: Priority = "normal",
+  preferredWindows: Task["preferredWindows"] = [],
 ): Task {
   const { deadline: _, ...task } = flexible(id, title, durationMin, [earliestStart, earliestStart], priority);
-  return withFirstDeadline<Task>({ ...task, recurrence }, settings.timeZone)!;
+  return withFirstDeadline<Task>({ ...task, recurrence, preferredWindows }, settings.timeZone)!;
 }
 
 const lectureBuffers = { location: "Science Hall 101", bufferBeforeMin: 15, bufferAfterMin: 15 };
 const weekly = (...weekdays: Weekday[]): Recurrence => ({ frequency: "weekly", interval: 1, weekdays, until: null });
 const daily: Recurrence = { frequency: "daily", interval: 1, until: null };
+const lunchtime = { startMinute: 12 * 60, endMinute: 14 * 60 };
 
 /**
  * A student's week of fixed items and tasks, in the week (Monday–Sunday) containing `now`. Lectures, chess club,
- * gym and language practice repeat from that week on.
+ * lunch, gym and language practice repeat from that week on.
  */
 export function sampleWeek(now: Date) {
   const week = weekContaining(now, settings.timeZone).dates;
@@ -90,7 +92,7 @@ export function sampleWeek(now: Date) {
   ];
 
   const tasks: Task[] = [
-    ...week.map((d) => flexible(`lunch-${d}`, "Lunch", 45, [local(d, "11:30"), local(d, "14:30")], "mandatory")),
+    recurringTask("lunch", "Lunch", 45, local(MON, "10:00"), daily, "mandatory", [lunchtime]),
     recurringTask("gym", "Gym", 60, local(TUE, "17:00"), weekly(2, 4, 6), "high"),
     recurringTask("language", "Language practice", 20, local(MON, "10:00"), daily),
     flexible("calc-pset", "Calculus problem set", 3 * 60, [local(MON, "00:00"), local(THU, "14:00")]),
