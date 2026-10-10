@@ -28,7 +28,11 @@ async function seed() {
   const { range } = weekContaining(now, sample.settings.timeZone);
   const expand = <T extends Item>(list: T[]) =>
     list.flatMap((item) => expandOccurrences(item, range, sample.settings.timeZone));
-  const plan = placeTasks(expand(sample.tasks), freeTimeMap(range, expand(sample.fixedItems), sample.settings));
+  const plan = placeTasks(
+    expand(sample.tasks),
+    freeTimeMap(range, expand(sample.fixedItems), sample.settings),
+    sample.settings.timeZone,
+  );
 
   await db.transaction(async (tx) => {
     await tx.delete(items);

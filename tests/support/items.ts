@@ -50,11 +50,23 @@ export const fixedItemArb = fc
   .tuple(intervalArb(), fc.integer({ min: 0, max: 90 }), fc.integer({ min: 0, max: 90 }))
   .map(([interval, before, after]) => fixed("Fixed", interval, before, after));
 
+const minuteOfDayArb = fc.integer({ min: 0, max: 24 * 60 - 1 });
+const dailyWindowArb = fc.record({ startMinute: minuteOfDayArb, endMinute: minuteOfDayArb });
+
 /** Tasks with unique ids. */
 export const flexibleItemsArb = fc
-  .array(fc.tuple(fc.integer({ min: 1, max: 4 * 60 }), intervalArb(SPAN_MIN), fc.constantFrom(...PRIORITIES)), {
-    maxLength: 10,
-  })
+  .array(
+    fc.tuple(
+      fc.integer({ min: 1, max: 4 * 60 }),
+      intervalArb(SPAN_MIN),
+      fc.constantFrom(...PRIORITIES),
+      fc.array(dailyWindowArb, { maxLength: 2 }),
+    ),
+    { maxLength: 10 },
+  )
   .map((tasks) =>
-    tasks.map(([durationMin, window, priority], i) => flexible(`Task ${i}`, durationMin, window, priority)),
+    tasks.map(([durationMin, window, priority, preferredWindows], i) => ({
+      ...flexible(`Task ${i}`, durationMin, window, priority),
+      preferredWindows,
+    })),
   );

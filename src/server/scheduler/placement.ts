@@ -3,6 +3,8 @@ import type { Task } from "@/lib/items";
 import { type Placement, SLOT_MIN } from "@/lib/placements";
 import { addMinutes, minutesBetween } from "@/lib/time/duration";
 import { type Interval, type IntervalSet, subtractIntervals } from "@/lib/time/interval";
+import type { TimeZone } from "@/lib/time/time-zone";
+import { dailyIntervals } from "./free-time";
 import { orderByUrgency } from "./urgency";
 
 const SLOT_MS = SLOT_MIN * 60_000;
@@ -13,14 +15,20 @@ export interface PlacementResult {
   unplaced: Task[];
 }
 
-/** Places each task as one block at its earliest fit in `free`, most urgent first. */
-export function placeTasks(tasks: Task[], free: IntervalSet): PlacementResult {
+/**
+ * Places each task as one block, most urgent first: at its earliest fit in `free` inside its preferred windows,
+ * or else at its earliest fit anywhere in its window.
+ */
+export function placeTasks(tasks: Task[], free: IntervalSet, timeZone: TimeZone): PlacementResult {
   let remaining = free;
   const placements: Placement[] = [];
   const unplaced: Task[] = [];
 
   for (const task of orderByUrgency(tasks, remaining)) {
-    const slot = findEarliestSlot(remaining, task.durationMin, { start: task.earliestStart, end: task.deadline });
+    const window = { start: task.earliestStart, end: task.deadline };
+    const slot =
+      findEarliestSlot(preferredTime(remaining, task, timeZone), task.durationMin, window) ??
+      findEarliestSlot(remaining, task.durationMin, window);
     if (slot) {
       placements.push({ taskId: task.id, ...slot, source: "auto", pinned: false });
       remaining = subtractIntervals(remaining, [slot]);
@@ -44,6 +52,14 @@ export function findEarliestSlot(free: IntervalSet, durationMin: number, window:
     }
   }
   return null;
+}
+
+/** The part of `free` inside the task's preferred windows; all of `free` when it has none. */
+function preferredTime(free: IntervalSet, task: Task, timeZone: TimeZone): IntervalSet {
+  if (task.preferredWindows.length === 0) return free;
+  const window = { start: task.earliestStart, end: task.deadline };
+  const preferred = task.preferredWindows.flatMap((daily) => dailyIntervals(window, daily, timeZone));
+  return subtractIntervals(free, subtractIntervals([window], preferred));
 }
 
 function ceilToSlot(date: Date): Date {
