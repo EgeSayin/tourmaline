@@ -3,7 +3,7 @@ import type { SchedulerSettings } from "@/lib/settings";
 
 const MINUTES_PER_DAY = 24 * 60;
 
-/** UTC keeps local time equal to generated UTC minutes; time zone handling is covered by downtime tests. */
+/** UTC keeps local time equal to generated UTC minutes; time zone handling is covered by the `dailyIntervals` tests. */
 export const utcSettingsArb: fc.Arbitrary<SchedulerSettings> = fc.record({
   timeZone: fc.constant("UTC"),
   downtime: fc.record({
