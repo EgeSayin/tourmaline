@@ -100,6 +100,14 @@ describe("parseItemForm", { tags: ["unit", "critical"] }, () => {
 
     const task = { timing: "flexible", title: "Essay", durationMin: "60" };
     const dueTomorrow = { ...task, deadline: "2026-10-06T17:00" };
+    expect(parseItemForm({ ...dueTomorrow, minChunkMin: "42", maxChunkMin: "60" }, tz, now)).toEqual({
+      ok: false,
+      errors: { minChunkMin: ["Use multiples of 5 minutes"] },
+    });
+    expect(parseItemForm({ ...dueTomorrow, minChunkMin: "45", maxChunkMin: "30" }, tz, now)).toEqual({
+      ok: false,
+      errors: { maxChunkMin: ["Maximum chunk must be at least the minimum"] },
+    });
     expect(parseItemForm({ ...dueTomorrow, preferredFrom: "12:00" }, tz, now)).toEqual({
       ok: false,
       errors: { preferredUntil: ["Set both times or neither"] },
@@ -194,12 +202,17 @@ describe("parseItemForm", { tags: ["unit", "critical"] }, () => {
 
     // Missing fields are all reported at once, whichever check finds them.
     expect(
-      parseItemForm({ timing: "flexible", title: "", repeat: "weekly", preferredFrom: "12:00" }, tz, now),
+      parseItemForm(
+        { timing: "flexible", title: "", repeat: "weekly", preferredFrom: "12:00", minChunkMin: "30" },
+        tz,
+        now,
+      ),
     ).toMatchObject({
       ok: false,
       errors: {
         title: [expect.any(String)],
         preferredUntil: ["Set both times or neither"],
+        maxChunkMin: ["Set both chunk sizes or neither"],
         durationMin: [expect.any(String)],
         earliestStart: [expect.any(String)],
         weekdays: [expect.any(String)],

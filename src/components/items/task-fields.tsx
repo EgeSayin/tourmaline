@@ -29,6 +29,25 @@ export function TaskFields({ repeating }: { repeating: boolean }) {
         />
         <FormInput name="preferredUntil" label="Preferred to" type="time" />
       </div>
+      <div className="grid grid-cols-2 gap-4">
+        <FormInput
+          name="minChunkMin"
+          label="Chunks from (min)"
+          type="number"
+          min={SLOT_MIN}
+          step={SLOT_MIN}
+          placeholder="30"
+          description="Leave both empty to keep it in one block."
+        />
+        <FormInput
+          name="maxChunkMin"
+          label="Chunks to (min)"
+          type="number"
+          min={SLOT_MIN}
+          step={SLOT_MIN}
+          placeholder="60"
+        />
+      </div>
     </>
   );
 }

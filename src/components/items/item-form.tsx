@@ -75,14 +75,8 @@ export function ItemForm({
         </FieldGroup>
       </FormStateProvider>
 
-      {/* Not editable in the form yet; carried along so saving doesn't drop them. */}
-      {timing === "flexible" && (
-        <>
-          <input type="hidden" name="minChunkMin" defaultValue={values.minChunkMin} />
-          <input type="hidden" name="maxChunkMin" defaultValue={values.maxChunkMin} />
-          <input type="hidden" name="spread" defaultValue={values.spread} />
-        </>
-      )}
+      {/* Not editable in the form yet; carried along so saving doesn't drop it. */}
+      {timing === "flexible" && <input type="hidden" name="spread" defaultValue={values.spread} />}
 
       <div className="flex flex-wrap justify-between gap-2">
         <Button type="submit" disabled={pending} className="flex-1">

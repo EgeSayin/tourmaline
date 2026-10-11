@@ -12,6 +12,9 @@ test.describe("task queue", () => {
     await form.getByLabel("Due").fill(localDateTime(2, "20:00"));
     await form.getByLabel("Preferred from").fill("12:00");
     await form.getByLabel("Preferred to").fill("14:00");
+    // 30-minute chunks with breaks between need about two days of free time on their own.
+    await form.getByLabel("Chunks from (min)").fill("30");
+    await form.getByLabel("Chunks to (min)").fill("30");
     await form.getByRole("button", { name: "Add item" }).click();
     await expect(form).toBeHidden();
 
@@ -26,6 +29,8 @@ test.describe("task queue", () => {
     await expect(panel.getByLabel("Duration (min)")).toHaveValue(String(24 * 60));
     await expect(panel.getByLabel("Preferred from")).toHaveValue("12:00");
     await expect(panel.getByLabel("Preferred to")).toHaveValue("14:00");
+    await expect(panel.getByLabel("Chunks from (min)")).toHaveValue("30");
+    await expect(panel.getByLabel("Chunks to (min)")).toHaveValue("30");
 
     await panel.getByRole("button", { name: "Delete" }).click();
     await panel.getByRole("button", { name: "Confirm delete" }).click();

@@ -71,8 +71,8 @@ const flexibleForm = z
     earliestStart: z.preprocess(emptyToUndefined, localDateTime.optional()),
     /** Not asked for a recurring task: each occurrence is due when the next one starts. */
     deadline: z.preprocess(emptyToUndefined, localDateTime.optional()),
-    minChunkMin: z.preprocess(toNumber, minutes(1).optional()),
-    maxChunkMin: z.preprocess(toNumber, minutes(1).optional()),
+    minChunkMin: z.preprocess(toNumber, taskMinutes.optional()),
+    maxChunkMin: z.preprocess(toNumber, taskMinutes.optional()),
     spread: z.preprocess(emptyToUndefined, z.enum(SPREAD_STRATEGIES).default("asap")),
     preferredFrom: z.preprocess(emptyToUndefined, timeOfDay.optional()),
     preferredUntil: z.preprocess(emptyToUndefined, timeOfDay.optional()),
@@ -91,6 +91,7 @@ const flexibleForm = z
   .refine((form) => (form.minChunkMin === undefined) === (form.maxChunkMin === undefined), {
     path: ["maxChunkMin"],
     message: "Set both chunk sizes or neither",
+    ...evenIfInvalid,
   })
   .refine((form) => (form.preferredFrom === undefined) === (form.preferredUntil === undefined), {
     path: ["preferredUntil"],
