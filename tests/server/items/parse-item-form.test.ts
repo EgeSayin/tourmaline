@@ -49,6 +49,7 @@ describe("parseItemForm", { tags: ["unit", "critical"] }, () => {
           deadline: "2026-11-02T17:00",
           minChunkMin: "30",
           maxChunkMin: "60",
+          spread: "just-in-time",
         },
         tz,
         now,
@@ -64,7 +65,7 @@ describe("parseItemForm", { tags: ["unit", "critical"] }, () => {
         earliestStart: new Date("2026-10-31T13:00Z"), // 09:00 EDT
         deadline: new Date("2026-11-02T22:00Z"), // 17:00 EST, after clocks go back
         split: { minChunkMin: 30, maxChunkMin: 60 },
-        spread: "asap",
+        spread: "just-in-time",
       },
     });
   });
@@ -219,6 +220,7 @@ describe("parseItemForm", { tags: ["unit", "critical"] }, () => {
     const essay = {
       ...flexible("Essay", 120, { start: new Date("2026-10-31T13:00Z"), end: new Date("2026-11-02T22:00Z") }, "high"),
       split: { minChunkMin: 30, maxChunkMin: 60 },
+      spread: "even" as const,
     };
 
     const weeklyLecture = {

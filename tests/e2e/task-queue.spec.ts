@@ -13,6 +13,7 @@ test.describe("task queue", () => {
     // 30-minute chunks with breaks between need about two days of free time on their own.
     await form.getByLabel("Chunks from (min)").fill("30");
     await form.getByLabel("Chunks to (min)").fill("30");
+    await form.getByLabel("Spread").selectOption("even");
     await form.getByRole("button", { name: "Add item" }).click();
     await expect(form).toBeHidden();
 
@@ -27,6 +28,7 @@ test.describe("task queue", () => {
     await expect(panel.getByLabel("Duration (min)")).toHaveValue(String(24 * 60));
     await expect(panel.getByLabel("Chunks from (min)")).toHaveValue("30");
     await expect(panel.getByLabel("Chunks to (min)")).toHaveValue("30");
+    await expect(panel.getByLabel("Spread")).toHaveValue("even");
 
     await panel.getByRole("button", { name: "Delete" }).click();
     await panel.getByRole("button", { name: "Confirm delete" }).click();

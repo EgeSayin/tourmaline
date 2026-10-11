@@ -1,5 +1,12 @@
-import { FormInput } from "@/components/forms/form-fields";
+import { FormInput, FormSelect } from "@/components/forms/form-fields";
+import { SPREAD_STRATEGIES, type SpreadStrategy } from "@/lib/items";
 import { SLOT_MIN } from "@/lib/placements";
+
+const SPREAD_LABELS = {
+  asap: "As soon as possible",
+  even: "Evenly until due",
+  "just-in-time": "Just in time",
+} satisfies Record<SpreadStrategy, string>;
 
 /** A repeating task isn't asked for a due date: each occurrence is due when the next one starts. */
 export function TaskFields({ repeating }: { repeating: boolean }) {
@@ -40,6 +47,12 @@ export function TaskFields({ repeating }: { repeating: boolean }) {
           placeholder="60"
         />
       </div>
+      <FormSelect
+        name="spread"
+        label="Spread"
+        options={SPREAD_STRATEGIES.map((value) => ({ value, label: SPREAD_LABELS[value] }))}
+        defaultValue="asap"
+      />
     </>
   );
 }
