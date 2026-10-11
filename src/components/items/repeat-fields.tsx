@@ -1,4 +1,4 @@
-import { FormInput, FormSelect, FormToggleGroup } from "@/components/forms/form-fields";
+import { FormInput, FormSection, FormSelect, FormToggleGroup } from "@/components/forms/form-fields";
 import { type Repeat, REPEAT_OPTIONS } from "@/lib/item-form";
 import { WEEKDAYS } from "@/lib/recurrence";
 import { WEEKDAY_NAMES } from "@/lib/time/format";
@@ -9,10 +9,10 @@ const WEEKDAY_OPTIONS = WEEKDAYS.map((day) => ({ value: String(day), label: WEEK
 
 export function RepeatFields({ repeat, onRepeatChange }: { repeat: Repeat; onRepeatChange: (repeat: Repeat) => void }) {
   return (
-    <>
+    <FormSection title="Repeat">
       <FormSelect
         name="repeat"
-        label="Repeat"
+        label="How often"
         options={REPEAT_OPTIONS.map((value) => ({ value, label: REPEAT_LABELS[value] }))}
         defaultValue="none"
         onValueChange={(value) => onRepeatChange(value as Repeat)}
@@ -31,6 +31,6 @@ export function RepeatFields({ repeat, onRepeatChange }: { repeat: Repeat; onRep
           <FormInput name="until" clearable label="Until" type="date" description="Leave empty to repeat forever." />
         </div>
       )}
-    </>
+    </FormSection>
   );
 }

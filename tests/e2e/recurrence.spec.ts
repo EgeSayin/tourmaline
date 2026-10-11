@@ -20,7 +20,7 @@ test.describe("recurring items", () => {
     await form.getByLabel("Title").fill(title);
     await form.getByLabel("Starts").fill(localDateTime(-1, slot.start));
     await form.getByLabel("Ends").fill(localDateTime(-1, slot.end));
-    await form.getByLabel("Repeat").selectOption("weekly");
+    await form.getByLabel("How often").selectOption("weekly");
     await form.getByRole("button", { name: "Add item" }).click();
     await expect(form.getByText("Choose at least one day")).toBeVisible();
 
@@ -42,7 +42,7 @@ test.describe("recurring items", () => {
     const panel = itemPanel(page, testInfo, "Edit item");
     const ended = Temporal.PlainTime.compare(Temporal.Now.plainTimeISO(TIME_ZONE), slot.end) >= 0;
     await expect(panel.getByLabel("Starts")).toHaveValue(localDateTime(ended ? 1 : 0, slot.start));
-    await expect(panel.getByLabel("Repeat")).toHaveValue("weekly");
+    await expect(panel.getByLabel("How often")).toHaveValue("weekly");
     await expect(panel.getByLabel("Until", { exact: true })).toHaveValue(String(localDate(1)));
     await expect(panel.getByRole("button", { name: weekdayLabel(0), exact: true })).toHaveAttribute(
       "aria-pressed",
@@ -74,7 +74,7 @@ test.describe("recurring items", () => {
     const form = await openAddItemForm(page, testInfo);
     await form.getByLabel("Title").fill(title);
     await form.getByLabel("Duration (min)").fill(String(15 * 60)); // longer than any free stretch in a day
-    await form.getByLabel("Repeat").selectOption("daily");
+    await form.getByLabel("How often").selectOption("daily");
     await expect(form.getByLabel("Due")).toHaveCount(0);
     // From yesterday, so one occurrence always covers now.
     await form.getByLabel("Not before", { exact: true }).fill(localDateTime(-1, "10:00"));
@@ -88,7 +88,7 @@ test.describe("recurring items", () => {
 
     await entries.first().click();
     const panel = itemPanel(page, testInfo, "Edit item");
-    await expect(panel.getByLabel("Repeat")).toHaveValue("daily");
+    await expect(panel.getByLabel("How often")).toHaveValue("daily");
     await expect(panel.getByLabel("Due")).toHaveCount(0);
 
     // Deleting ends the series yesterday: today's occurrence goes, while yesterday's may still be running.

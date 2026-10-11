@@ -67,7 +67,7 @@ export function ItemPanel() {
   return (
     <Dialog.Root open={mode.kind !== "closed"} onOpenChange={(open) => !open && close()} modal={false}>
       <Dialog.Portal>
-        <Dialog.Popup className="fixed inset-x-0 bottom-0 z-50 flex max-h-[50dvh] flex-col gap-4 overflow-y-auto rounded-t-xl border-t bg-popover p-4 text-popover-foreground shadow-[0_-8px_24px_rgb(0_0_0/0.12)] transition duration-200 data-ending-style:translate-y-8 data-ending-style:opacity-0 data-starting-style:translate-y-8 data-starting-style:opacity-0">
+        <Dialog.Popup className="fixed inset-x-0 bottom-0 z-50 flex max-h-[85dvh] flex-col gap-4 overflow-y-auto rounded-t-xl border-t bg-popover p-4 text-popover-foreground shadow-[0_-8px_24px_rgb(0_0_0/0.12)] transition duration-200 data-ending-style:translate-y-8 data-ending-style:opacity-0 data-starting-style:translate-y-8 data-starting-style:opacity-0">
           <Dialog.Title className="sr-only">{label}</Dialog.Title>
           {mode.kind !== "closed" && <PanelContent mode={mode} />}
         </Dialog.Popup>

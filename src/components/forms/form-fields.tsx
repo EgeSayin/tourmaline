@@ -20,6 +20,21 @@ export function FormStateProvider({ children, ...state }: FormState & { children
   return <FormStateContext value={state}>{children}</FormStateContext>;
 }
 
+/** A titled group of fields, set off by a rule. */
+export function FormSection({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <FieldSet>
+      <FieldLegend
+        variant="label"
+        className="flex w-full items-center gap-3 text-xs tracking-wide text-muted-foreground uppercase after:h-px after:flex-1 after:bg-border"
+      >
+        {title}
+      </FieldLegend>
+      {children}
+    </FieldSet>
+  );
+}
+
 interface FieldProps {
   name: string;
   label: string;
