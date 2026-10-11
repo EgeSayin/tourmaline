@@ -12,3 +12,8 @@ export function zoned(date: Date, timeZone: TimeZone): Temporal.ZonedDateTime {
 export function localDate(date: Date, timeZone: TimeZone): Temporal.PlainDate {
   return zoned(date, timeZone).toPlainDate();
 }
+
+/** Midnight at the start of local `day`, or the first moment of it where a clock change skips midnight. */
+export function startOfDay(day: Temporal.PlainDate, timeZone: TimeZone): Date {
+  return toDate(day.toZonedDateTime(timeZone));
+}

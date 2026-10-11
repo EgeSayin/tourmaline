@@ -1,6 +1,6 @@
 import type { TimeZone } from "@/lib/time/time-zone";
 import type { Interval } from "@/lib/time/interval";
-import { localDate, toDate } from "@/server/time/temporal";
+import { localDate, startOfDay } from "@/server/time/temporal";
 
 export interface Days {
   dates: string[];
@@ -14,8 +14,6 @@ export function weekContaining(time: Date, timeZone: TimeZone): Days {
 }
 
 export const PHONE_DAY_COUNT = 3;
-
-const startOfDay = (day: Temporal.PlainDate, timeZone: TimeZone) => toDate(day.toZonedDateTime(timeZone));
 
 /** The Monday-to-Sunday week, in local time, that contains `date`. */
 export function weekOf(date: Temporal.PlainDate, timeZone: TimeZone): Days {

@@ -2,7 +2,7 @@ import type { FocusCaps } from "@/lib/settings";
 import { minutesBetween } from "@/lib/time/duration";
 import { clipIntervals, type Interval, mergeIntervals } from "@/lib/time/interval";
 import type { TimeZone } from "@/lib/time/time-zone";
-import { localDate, toDate } from "@/server/time/temporal";
+import { localDate, startOfDay } from "@/server/time/temporal";
 
 /** A local day with its focus cap and the minutes already filled. */
 export interface FocusDay extends Interval {
@@ -20,9 +20,9 @@ export function focusDays(range: Interval, busy: Interval[], focusCaps: FocusCap
   if (range.end <= range.start) return days;
   const merged = mergeIntervals(busy);
   for (let day = localDate(range.start, timeZone); ; day = day.add({ days: 1 })) {
-    const start = toDate(day.toZonedDateTime(timeZone));
+    const start = startOfDay(day, timeZone);
     if (start >= range.end) break;
-    const interval = { start, end: toDate(day.add({ days: 1 }).toZonedDateTime(timeZone)) };
+    const interval = { start, end: startOfDay(day.add({ days: 1 }), timeZone) };
     days.push({
       ...interval,
       date: day.toString(),
