@@ -1,14 +1,14 @@
 "use client";
 
 import { startTransition, useActionState, useState } from "react";
+import { DeleteButton } from "@/components/forms/delete-button";
 import { FormInput, FormSelect, FormStateProvider } from "@/components/forms/form-fields";
 import { Button } from "@/components/ui/button";
 import { FieldGroup } from "@/components/ui/field";
 import { itemToFormValues, type Repeat } from "@/lib/item-form";
 import { isTask, type Item, PRIORITIES, type Priority } from "@/lib/items";
 import type { TimeZone } from "@/lib/time/time-zone";
-import { createItemAction, type ItemFormState, updateItemAction } from "@/server/items/actions";
-import { DeleteItemButton } from "./delete-item-button";
+import { createItemAction, deleteItemAction, type ItemFormState, updateItemAction } from "@/server/items/actions";
 import { FixedItemFields } from "./fixed-item-fields";
 import { TaskFields } from "./task-fields";
 import { RepeatFields } from "./repeat-fields";
@@ -54,12 +54,7 @@ export function ItemForm({ item, timeZone, onDone }: { item?: Item; timeZone: Ti
 
       <FormStateProvider values={values} errors={invalid?.errors ?? {}}>
         <FieldGroup>
-          <FormInput
-            name="title"
-            label="Title"
-            autoFocus={!item}
-            placeholder={timing === "fixed" ? "CS 101 lecture" : "Physics homework"}
-          />
+          <FormInput name="title" label="Title" autoFocus={!item} />
           <FormSelect
             key={timing}
             name="priority"
@@ -78,7 +73,7 @@ export function ItemForm({ item, timeZone, onDone }: { item?: Item; timeZone: Ti
         </Button>
         {/* A series is done one occurrence at a time, from its blocks. */}
         {item && isTask(item) && !item.recurrence && <TaskDoneButton task={item} date={null} onChanged={onDone} />}
-        {item && <DeleteItemButton id={item.id} onDeleted={onDone} />}
+        {item && <DeleteButton onDelete={() => deleteItemAction(item.id)} onDeleted={onDone} />}
       </div>
     </form>
   );
