@@ -42,7 +42,7 @@ export function ScheduleBlock({
       className={`absolute inset-x-0.5 flex cursor-pointer flex-col justify-start overflow-hidden rounded-md px-1 text-left text-xs md:inset-x-1 md:px-2 ${
         isTiny ? "leading-3" : "py-1"
       } transition hover:brightness-95 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none dark:hover:brightness-125 ${blockFill(block.color)} ${BLOCK_STYLES[block.style].className} ${
-        filteredOut ? "opacity-25" : block.faded ? "opacity-60" : ""
+        filteredOut ? "opacity-25" : ""
       }`}
       style={{ top: top + 1, height: scale.top(block.endMinute) - top - 2 }}
     >

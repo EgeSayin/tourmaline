@@ -38,8 +38,6 @@ export interface CalendarBlock {
   start: Date;
   end: Date;
   style: BlockStyle;
-  /** Low-priority scheduled tasks are shown faded. */
-  faded: boolean;
   /** Its item's category's colour, or `null` without a category. */
   color: CategoryColor | null;
   /** Local `YYYY-MM-DD` of the block's start. */
@@ -87,7 +85,6 @@ export function toCalendarBlocks(
       ...block,
       title: item.title,
       style: blockStyle(item, block.placement),
-      faded: item.timing === "flexible" && item.priority === "low",
       color: colors.get(item.categoryId ?? "") ?? null,
       date: start.date,
       startMinute: start.minuteOfDay,

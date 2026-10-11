@@ -48,7 +48,6 @@ describe("toCalendarBlocks", { tags: ["unit"] }, () => {
         start: lecture.start,
         end: lecture.end,
         style: "fixed",
-        faded: false,
         color: "green",
         date: "2026-10-05",
         startMinute: 11 * 60,
@@ -62,7 +61,6 @@ describe("toCalendarBlocks", { tags: ["unit"] }, () => {
         start: party.start,
         end: party.end,
         style: "fixed-optional",
-        faded: false,
         color: null,
         date: "2026-10-05",
         startMinute: 22 * 60 + 30,
@@ -81,7 +79,6 @@ describe("toCalendarBlocks", { tags: ["unit"] }, () => {
         start,
         end,
         style,
-        faded: true, // low priority
         color: "green",
         date: "2026-10-05",
         startMinute,
