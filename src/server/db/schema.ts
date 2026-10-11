@@ -3,7 +3,6 @@ import {
   boolean,
   check,
   date,
-  foreignKey,
   index,
   integer,
   jsonb,
@@ -69,10 +68,7 @@ export const categories = pgTable("categories", {
   ...auditColumns,
 });
 
-/**
- * Fields shared by every item. Each item has exactly one details row matching its `timing`;
- * the composite foreign keys below guarantee the kind matches, the repository guarantees the row exists.
- */
+/** One row per item. The other kind's columns stay null, which `items_kind` enforces along with each kind's own. */
 export const items = pgTable(
   "items",
   {
@@ -84,49 +80,35 @@ export const items = pgTable(
     categoryId: uuid("category_id").references(() => categories.id, { onDelete: "set null" }),
     /** A one-off task marked done; occurrences use their override. Not part of the item's own fields. */
     done: boolean("done").notNull().default(false),
-    ...auditColumns,
-  },
-  (t) => [unique("items_id_timing").on(t.id, t.timing)],
-);
-
-export const fixedItemDetails = pgTable(
-  "fixed_item_details",
-  {
-    itemId: uuid("item_id").primaryKey(),
-    timing: timingEnum("timing").notNull().default("fixed"),
-    startAt: timestamptz("start_at").notNull(),
-    endAt: timestamptz("end_at").notNull(),
+    // Fixed items
+    startAt: timestamptz("start_at"),
+    endAt: timestamptz("end_at"),
     location: text("location"),
-    bufferBeforeMin: integer("buffer_before_min").notNull().default(0),
-    bufferAfterMin: integer("buffer_after_min").notNull().default(0),
-  },
-  (t) => [
-    foreignKey({ columns: [t.itemId, t.timing], foreignColumns: [items.id, items.timing] }).onDelete("cascade"),
-    check("fixed_item_details_timing", sql`${t.timing} = 'fixed'`),
-    check("fixed_item_details_times", sql`${t.startAt} < ${t.endAt}`),
-    check("fixed_item_details_buffers", sql`${t.bufferBeforeMin} >= 0 and ${t.bufferAfterMin} >= 0`),
-  ],
-);
-
-export const flexibleItemDetails = pgTable(
-  "flexible_item_details",
-  {
-    itemId: uuid("item_id").primaryKey(),
-    timing: timingEnum("timing").notNull().default("flexible"),
-    durationMin: integer("duration_min").notNull(),
-    earliestStart: timestamptz("earliest_start").notNull(),
-    deadline: timestamptz("deadline").notNull(),
+    bufferBeforeMin: integer("buffer_before_min"),
+    bufferAfterMin: integer("buffer_after_min"),
+    // Tasks
+    durationMin: integer("duration_min"),
+    earliestStart: timestamptz("earliest_start"),
+    deadline: timestamptz("deadline"),
     splitMinChunkMin: integer("split_min_chunk_min"),
     splitMaxChunkMin: integer("split_max_chunk_min"),
-    spread: spreadEnum("spread").notNull().default("asap"),
+    spread: spreadEnum("spread"),
+    ...auditColumns,
   },
   (t) => [
-    foreignKey({ columns: [t.itemId, t.timing], foreignColumns: [items.id, items.timing] }).onDelete("cascade"),
-    check("flexible_item_details_timing", sql`${t.timing} = 'flexible'`),
-    check("flexible_item_details_duration", sql`${t.durationMin} > 0 and ${t.durationMin} % ${slotMin} = 0`),
-    check("flexible_item_details_window", sql`${t.earliestStart} < ${t.deadline}`),
     check(
-      "flexible_item_details_split",
+      "items_kind",
+      sql`case ${t.timing}
+        when 'fixed' then num_nonnulls(${t.startAt}, ${t.endAt}, ${t.bufferBeforeMin}, ${t.bufferAfterMin}) = 4
+          and num_nonnulls(${t.durationMin}, ${t.earliestStart}, ${t.deadline}, ${t.splitMinChunkMin}, ${t.splitMaxChunkMin}, ${t.spread}) = 0
+          and ${t.startAt} < ${t.endAt} and ${t.bufferBeforeMin} >= 0 and ${t.bufferAfterMin} >= 0
+        else num_nonnulls(${t.durationMin}, ${t.earliestStart}, ${t.deadline}, ${t.spread}) = 4
+          and num_nonnulls(${t.startAt}, ${t.endAt}, ${t.location}, ${t.bufferBeforeMin}, ${t.bufferAfterMin}) = 0
+          and ${t.earliestStart} < ${t.deadline} and ${t.durationMin} > 0 and ${t.durationMin} % ${slotMin} = 0
+      end`,
+    ),
+    check(
+      "items_split",
       sql`(${t.splitMinChunkMin} is null) = (${t.splitMaxChunkMin} is null) and (${t.splitMinChunkMin} is null or (${t.splitMinChunkMin} between 1 and ${t.splitMaxChunkMin} and ${t.splitMinChunkMin} % ${slotMin} = 0 and ${t.splitMaxChunkMin} % ${slotMin} = 0))`,
     ),
   ],
@@ -151,8 +133,9 @@ export const placements = pgTable(
   "placements",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    itemId: uuid("item_id").notNull(),
-    timing: timingEnum("timing").notNull().default("flexible"),
+    itemId: uuid("item_id")
+      .notNull()
+      .references(() => items.id, { onDelete: "cascade" }),
     /** Which occurrence of a recurring task this is for; `null` for a one-off task. */
     occurrenceDate: date("occurrence_date"),
     startAt: timestamptz("start_at").notNull(),
@@ -162,28 +145,16 @@ export const placements = pgTable(
     createdAt: timestamptz("created_at").notNull().defaultNow(),
   },
   (t) => [
-    foreignKey({ columns: [t.itemId, t.timing], foreignColumns: [items.id, items.timing] }).onDelete("cascade"),
-    check("placements_timing", sql`${t.timing} = 'flexible'`),
     check("placements_times", sql`${t.startAt} < ${t.endAt}`),
     unique("placements_task_start").on(t.itemId, t.occurrenceDate, t.startAt).nullsNotDistinct(),
     index("placements_start_at").on(t.startAt),
   ],
 );
 
-export const itemsRelations = relations(items, ({ one, many }) => ({
-  fixedDetails: one(fixedItemDetails),
-  flexibleDetails: one(flexibleItemDetails),
+export const itemsRelations = relations(items, ({ many }) => ({
   overrides: many(occurrenceOverrides),
 }));
 
 export const occurrenceOverridesRelations = relations(occurrenceOverrides, ({ one }) => ({
   item: one(items, { fields: [occurrenceOverrides.itemId], references: [items.id] }),
-}));
-
-export const fixedItemDetailsRelations = relations(fixedItemDetails, ({ one }) => ({
-  item: one(items, { fields: [fixedItemDetails.itemId], references: [items.id] }),
-}));
-
-export const flexibleItemDetailsRelations = relations(flexibleItemDetails, ({ one }) => ({
-  item: one(items, { fields: [flexibleItemDetails.itemId], references: [items.id] }),
 }));

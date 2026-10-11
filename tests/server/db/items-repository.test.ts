@@ -2,8 +2,7 @@ import { describe, expect } from "vitest";
 import type { FixedItem, NewItem, NewTask } from "@/lib/items";
 import type { OccurrenceOverride } from "@/lib/recurrence";
 import { insertItem, loadItems, updateItem } from "@/server/db/items-repository";
-import { insertPlacements, loadPlacements } from "@/server/db/placements-repository";
-import { fixedItemDetails, items } from "@/server/db/schema";
+import { items } from "@/server/db/schema";
 import { dbTest as it } from "../../support/database";
 
 const lecture: Omit<FixedItem, "id" | "overrides"> = {
@@ -52,12 +51,6 @@ describe("items repository", () => {
     expect(loaded).toContainEqual(stored(essayId, essay));
   });
 
-  it("refuses to load an item whose details row is missing", async ({ tx }) => {
-    await tx.insert(items).values({ title: "Orphan", timing: "fixed" });
-
-    await expect(loadItems(tx)).rejects.toThrow("has no details row");
-  });
-
   it("updates an item in place, including switching between fixed and flexible", async ({ tx }) => {
     const id = await insertItem(tx, lecture);
 
@@ -72,24 +65,15 @@ describe("items repository", () => {
 
     expect(await updateItem(tx, id, essay)).toBe(true);
     expect(await loadItems(tx)).toEqual([stored(id, essay)]);
-    expect(await tx.$count(fixedItemDetails)).toBe(0);
-
-    // A task with placements can't become fixed: they must be deleted first.
-    const slot = {
-      taskId: id,
-      start: essay.earliestStart,
-      end: essay.deadline,
-      pinned: false,
-      status: "planned" as const,
-    };
-    await insertPlacements(tx, [slot]);
-    await expect(tx.transaction((inner) => updateItem(inner, id, lecture))).rejects.toThrow();
-    expect(await loadPlacements(tx, { start: essay.earliestStart, end: essay.deadline })).toEqual([slot]);
-
+    expect(await updateItem(tx, id, lecture)).toBe(true);
+    expect(await loadItems(tx)).toEqual([stored(id, lecture)]);
     expect(await updateItem(tx, "00000000-0000-4000-8000-000000000000", essay)).toBe(false);
   });
 
-  it("rejects task durations and chunk sizes off the 5-minute grid", async ({ tx }) => {
+  it("rejects task durations and chunk sizes off the 5-minute grid, and a kind's missing fields", async ({ tx }) => {
+    await expect(
+      tx.transaction((inner) => inner.insert(items).values({ title: "No times", timing: "fixed" })),
+    ).rejects.toThrow();
     const offGrid: NewItem[] = [
       { ...essay, durationMin: 62 },
       { ...essay, split: { minChunkMin: 32, maxChunkMin: 90 } },
