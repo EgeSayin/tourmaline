@@ -23,13 +23,12 @@ describe("placements repository", () => {
     const placement = (start: string, end: string, extra: Partial<Placement> = {}): Placement => ({
       taskId: essayId,
       ...utc(start, end),
-      source: "auto",
       pinned: false,
       status: "planned",
       ...extra,
     });
 
-    const wednesday = placement("2026-10-07T14:00", "2026-10-07T15:00", { source: "manual", pinned: true });
+    const wednesday = placement("2026-10-07T14:00", "2026-10-07T15:00", { pinned: true });
     const monday = placement("2026-10-05T14:00", "2026-10-05T15:00", { status: "done" });
     const acrossWeekStart = placement("2026-10-05T03:00", "2026-10-05T05:00", { status: "missed" });
     const nextWeek = placement("2026-10-12T14:00", "2026-10-12T15:00");
@@ -49,7 +48,6 @@ describe("placements repository", () => {
     const placement = (taskId: string, start: string, end: string): Placement => ({
       taskId,
       ...utc(start, end),
-      source: "auto",
       pinned: false,
       status: "planned",
     });
@@ -81,7 +79,6 @@ describe("placements repository", () => {
     const placement = (taskId: string, start: string, end: string, pinned = false): Placement => ({
       taskId,
       ...utc(start, end),
-      source: "auto",
       pinned,
       status: "planned",
     });
@@ -102,7 +99,6 @@ describe("placements repository", () => {
     const essayId = await insertItem(tx, flexible("Essay", 60, week));
     const slot = {
       ...utc("2026-10-06T14:00", "2026-10-06T15:00"),
-      source: "auto" as const,
       pinned: false,
       status: "planned" as const,
     };
@@ -124,7 +120,6 @@ describe("placements repository", () => {
     const placement = (start: string, end: string, extra: Partial<Placement> = {}): Placement => ({
       taskId: essayId,
       ...utc(start, end),
-      source: "auto",
       pinned: false,
       status: "planned",
       ...extra,
@@ -132,7 +127,7 @@ describe("placements repository", () => {
     const now = new Date("2026-10-07T12:00Z");
 
     const started = placement("2026-10-07T11:30", "2026-10-07T12:30");
-    const pinned = placement("2026-10-08T14:00", "2026-10-08T15:00", { source: "manual", pinned: true });
+    const pinned = placement("2026-10-08T14:00", "2026-10-08T15:00", { pinned: true });
     const doneEarly = placement("2026-10-08T16:00", "2026-10-08T17:00", { status: "done" });
     const stale = placement("2026-10-09T14:00", "2026-10-09T15:00");
     const staleNextWeek = placement("2026-10-13T14:00", "2026-10-13T15:00");

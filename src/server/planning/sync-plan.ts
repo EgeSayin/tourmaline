@@ -1,14 +1,13 @@
-import { isFixed, type Item, isTask, type Task } from "@/lib/items";
+import { isFixed, type Item, isTask, itemSpan, type Task } from "@/lib/items";
 import { isPending, type Placement } from "@/lib/placements";
 import { RECURRENCE_LOOKAHEAD_DAYS, type SchedulerSettings } from "@/lib/settings";
 import { addMinutes } from "@/lib/time/duration";
-import { earlier } from "@/lib/time/interval";
+import { earlier, type Interval, later } from "@/lib/time/interval";
 import type { Database, Transaction } from "@/server/db/connection";
 import { loadPlacements, replacePendingPlacements } from "@/server/db/placements-repository";
 import { expandOccurrences } from "@/server/recurrence";
 import { replan } from "@/server/scheduler/replan";
 import { localDate, toDate } from "@/server/time/temporal";
-import { planningHorizon } from "./horizon";
 
 const MINUTES_PER_DAY = 24 * 60;
 
@@ -68,7 +67,11 @@ export async function syncPlan(
 
 /** Whether both lists, each sorted by start, hold the same placements. */
 function samePlacements(a: Placement[], b: Placement[]): boolean {
-  const key = (p: Placement) =>
-    `${p.taskId}|${p.start.getTime()}|${p.end.getTime()}|${p.source}|${p.pinned}|${p.status}`;
+  const key = (p: Placement) => `${p.taskId}|${p.start.getTime()}|${p.end.getTime()}|${p.pinned}|${p.status}`;
   return a.length === b.length && a.every((placement, i) => key(placement) === key(b[i]));
+}
+
+/** From `now` to the latest fixed item end or task deadline, or empty if none is after `now`. */
+function planningHorizon(now: Date, items: Item[]): Interval {
+  return { start: now, end: items.reduce((end, item) => later(end, itemSpan(item).end), now) };
 }

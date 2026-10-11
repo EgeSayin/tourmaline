@@ -21,7 +21,7 @@ const scenarioArb = fc
   )
   .map(([horizon, settings, fixedItems, tasks]) => ({ horizon, settings, fixedItems, tasks }));
 
-/** Saved placements: random times and statuses, some pinned, marked `manual` to tell them from new ones. */
+/** Saved placements: random times and statuses, some pinned. */
 function existingArb(tasks: Task[]): fc.Arbitrary<Placement[]> {
   if (tasks.length === 0) return fc.constant([]);
   return fc.array(
@@ -35,7 +35,6 @@ function existingArb(tasks: Task[]): fc.Arbitrary<Placement[]> {
       .map(([i, times, pinned, status]): Placement => ({
         taskId: tasks[i].id,
         ...times,
-        source: "manual",
         pinned,
         status,
       })),
@@ -74,7 +73,6 @@ describe("replan", () => {
     ): Placement => ({
       taskId,
       ...times,
-      source: "auto",
       pinned: false,
       status: "planned",
       ...extra,
@@ -120,7 +118,6 @@ describe("replan", () => {
     const existingReading: Placement = {
       taskId: "Reading",
       ...utc("2026-10-05T11:00", "2026-10-05T12:00"),
-      source: "auto",
       pinned: false,
       status: "planned",
     };
@@ -137,14 +134,12 @@ describe("replan", () => {
       {
         taskId: "Exam prep",
         ...utc("2026-10-05T10:00", "2026-10-05T13:00"),
-        source: "auto",
         pinned: false,
         status: "planned",
       },
       {
         taskId: "Reading",
         ...utc("2026-10-05T13:00", "2026-10-05T14:00"),
-        source: "auto",
         pinned: false,
         status: "planned",
       },
@@ -166,7 +161,6 @@ describe("replan", () => {
     const planned = (taskId: string, times: { start: Date; end: Date }): Placement => ({
       taskId,
       ...times,
-      source: "auto",
       pinned: false,
       status: "planned",
     });
@@ -214,7 +208,6 @@ describe("replan", () => {
     const done: Placement = {
       taskId: "Thesis",
       ...utc("2026-10-05T10:00", "2026-10-05T10:45"),
-      source: "auto",
       pinned: false,
       status: "done",
     };
@@ -232,7 +225,6 @@ describe("replan", () => {
       {
         taskId: "Thesis",
         ...utc("2026-10-05T11:15", "2026-10-05T12:00"),
-        source: "auto",
         pinned: false,
         status: "planned",
       },
@@ -254,9 +246,6 @@ describe("replan", () => {
         const others = result.placements.filter((p) => !kept.some((k) => samePlacement(k, p)));
 
         for (const placement of kept) expect(result.placements).toContainEqual(placement);
-        for (const placement of others) {
-          expect(placement.source === "auto" || existing.some((e) => samePlacement(e, placement))).toBe(true);
-        }
 
         const free = freeTimeMap(horizon, fixedItems, settings);
         const byStart = [...others].sort((a, b) => a.start.getTime() - b.start.getTime());
@@ -268,7 +257,9 @@ describe("replan", () => {
         }
 
         const split = new Set(tasks.filter((task) => task.split).map((task) => task.id));
-        for (const placement of others.filter((p) => p.source === "auto" && split.has(p.taskId))) {
+        for (const placement of others.filter(
+          (p) => !existing.some((e) => samePlacement(e, p)) && split.has(p.taskId),
+        )) {
           for (const other of result.placements.filter((p) => p.taskId === placement.taskId && p !== placement)) {
             const apart = Math.max(
               minutesBetween(other.end, placement.start),

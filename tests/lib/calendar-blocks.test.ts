@@ -24,7 +24,6 @@ describe("toCalendarBlocks", () => {
     ): Placement => ({
       taskId,
       ...times,
-      source: "auto",
       pinned: false,
       status: "planned",
       ...extra,
@@ -110,7 +109,6 @@ describe("conflicts", () => {
     const done: Placement = {
       taskId: "Reading",
       ...utc("2026-10-05T16:00", "2026-10-05T17:00"), // overlaps the dinner
-      source: "auto",
       pinned: false,
       status: "done",
     };

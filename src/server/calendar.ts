@@ -1,6 +1,7 @@
 import { type CalendarBlock, type EditTarget, toCalendarBlocks } from "@/lib/calendar-blocks";
-import { isFixed } from "@/lib/items";
+import { isFixed, type Item } from "@/lib/items";
 import type { PlacementRef } from "@/lib/placements";
+import { parseOccurrenceId } from "@/lib/recurrence";
 import type { FocusCaps } from "@/lib/settings";
 import { later } from "@/lib/time/interval";
 import type { TimeZone } from "@/lib/time/time-zone";
@@ -12,8 +13,7 @@ import { loadPlacements, loadPlacementsToReview } from "@/server/db/placements-r
 import { loadSettings } from "@/server/db/settings-repository";
 import { syncPlan } from "@/server/planning/sync-plan";
 import { focusDays } from "@/server/scheduler/focus-cap";
-import { expandOccurrences } from "@/server/recurrence";
-import { editTargets } from "@/server/edit-targets";
+import { expandOccurrences, nextOccurrence } from "@/server/recurrence";
 import { listTasks, type TaskEntry } from "@/server/tasks";
 import {
   type DayNavigation,
@@ -146,5 +146,20 @@ export async function loadCalendar(
     }),
     tasks: listTasks(items, plan.unplaced, targetFor, now),
     categories: listCategories(categories, items),
+  };
+}
+
+/** Finds the edit target for an item or occurrence id among `items`. */
+export function editTargets(items: Item[], now: Date, timeZone: TimeZone): (id: string) => EditTarget | undefined {
+  const editable = new Map(
+    items.map((item) => {
+      const next = nextOccurrence(item, now, timeZone);
+      return [item.id, next ? { ...next, id: item.id } : item];
+    }),
+  );
+  return (id) => {
+    const { itemId, date } = parseOccurrenceId(id);
+    const item = editable.get(itemId);
+    return item && { item, occurrenceDate: date };
   };
 }

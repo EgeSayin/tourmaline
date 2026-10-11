@@ -7,7 +7,6 @@ describe("placementState", () => {
     const block: Placement = {
       taskId: "Essay",
       ...utc("2026-10-05T14:00", "2026-10-05T15:00"),
-      source: "auto",
       pinned: false,
       status: "planned",
     };

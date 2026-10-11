@@ -57,7 +57,6 @@ describe("the task list", () => {
     const block = (taskId: string, start: string, end: string, extra: Partial<Placement> = {}): Placement => ({
       taskId,
       ...utc(start, end),
-      source: "auto",
       pinned: false,
       status: "planned",
       ...extra,
@@ -94,7 +93,6 @@ describe("the task list", () => {
     const placed = (taskId: string, start: string, end: string): Placement => ({
       taskId,
       ...utc(start, end),
-      source: "auto",
       pinned: false,
       status: "planned",
     });

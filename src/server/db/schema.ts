@@ -17,7 +17,7 @@ import {
 } from "drizzle-orm/pg-core";
 import { CATEGORY_COLORS } from "@/lib/categories";
 import { type Item, PRIORITIES, SPREAD_STRATEGIES } from "@/lib/items";
-import { PLACEMENT_SOURCES, PLACEMENT_STATUSES, SLOT_MIN } from "@/lib/placements";
+import { PLACEMENT_STATUSES, SLOT_MIN } from "@/lib/placements";
 import type { Recurrence } from "@/lib/recurrence";
 import type { FocusCaps } from "@/lib/settings";
 import type { TimeZone } from "@/lib/time/time-zone";
@@ -25,7 +25,6 @@ import type { TimeZone } from "@/lib/time/time-zone";
 export const priorityEnum = pgEnum("priority", PRIORITIES);
 export const timingEnum = pgEnum("timing", ["fixed", "flexible"] as const satisfies readonly Item["timing"][]);
 export const spreadEnum = pgEnum("spread", SPREAD_STRATEGIES);
-export const placementSourceEnum = pgEnum("placement_source", PLACEMENT_SOURCES);
 export const placementStatusEnum = pgEnum("placement_status", PLACEMENT_STATUSES);
 export const categoryColorEnum = pgEnum("category_color", CATEGORY_COLORS);
 
@@ -161,7 +160,6 @@ export const placements = pgTable(
     occurrenceDate: date("occurrence_date"),
     startAt: timestamptz("start_at").notNull(),
     endAt: timestamptz("end_at").notNull(),
-    source: placementSourceEnum("source").notNull().default("auto"),
     pinned: boolean("pinned").notNull().default(false),
     status: placementStatusEnum("status").notNull().default("planned"),
     createdAt: timestamptz("created_at").notNull().defaultNow(),
@@ -179,15 +177,10 @@ export const itemsRelations = relations(items, ({ one, many }) => ({
   fixedDetails: one(fixedItemDetails),
   flexibleDetails: one(flexibleItemDetails),
   overrides: many(occurrenceOverrides),
-  placements: many(placements),
 }));
 
 export const occurrenceOverridesRelations = relations(occurrenceOverrides, ({ one }) => ({
   item: one(items, { fields: [occurrenceOverrides.itemId], references: [items.id] }),
-}));
-
-export const placementsRelations = relations(placements, ({ one }) => ({
-  item: one(items, { fields: [placements.itemId], references: [items.id] }),
 }));
 
 export const fixedItemDetailsRelations = relations(fixedItemDetails, ({ one }) => ({

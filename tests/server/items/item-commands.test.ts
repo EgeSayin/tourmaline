@@ -129,7 +129,6 @@ describe("editing in place", () => {
     const placed = (start: string, end: string, pinned = false) => ({
       taskId: essayId,
       ...utc(start, end),
-      source: "auto" as const,
       pinned,
       status: "planned" as const,
     });
@@ -170,7 +169,6 @@ describe("placement commands", () => {
     const block = (start: string, end: string): Placement => ({
       taskId: essayId,
       ...utc(start, end),
-      source: "auto",
       pinned: false,
       status: "planned",
     });
@@ -206,7 +204,6 @@ describe("setTaskDone", () => {
     const block = (start: string, end: string): Placement => ({
       taskId: essayId,
       ...utc(start, end),
-      source: "auto",
       pinned: false,
       status: "planned",
     });

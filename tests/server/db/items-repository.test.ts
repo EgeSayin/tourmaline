@@ -88,7 +88,6 @@ describe("items repository", () => {
       taskId: id,
       start: essay.earliestStart,
       end: essay.deadline,
-      source: "auto" as const,
       pinned: false,
       status: "planned" as const,
     };

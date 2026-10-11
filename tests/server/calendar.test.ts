@@ -15,7 +15,6 @@ const daily: Recurrence = { frequency: "daily", interval: 1, until: null };
 const auto = (taskId: string, times: { start: Date; end: Date }): Placement => ({
   taskId,
   ...times,
-  source: "auto",
   pinned: false,
   status: "planned",
 });

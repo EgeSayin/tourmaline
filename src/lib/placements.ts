@@ -1,8 +1,3 @@
-/** `auto`: chosen by the scheduler. `manual`: placed by the user. */
-export const PLACEMENT_SOURCES = ["auto", "manual"] as const;
-
-export type PlacementSource = (typeof PLACEMENT_SOURCES)[number];
-
 /** `planned` until checked off as `done` or marked `missed`. */
 export const PLACEMENT_STATUSES = ["planned", "done", "missed"] as const;
 
@@ -14,7 +9,6 @@ export interface Placement {
   taskId: string;
   start: Date;
   end: Date;
-  source: PlacementSource;
   /** Pinned placements are never moved by the scheduler. */
   pinned: boolean;
   status: PlacementStatus;

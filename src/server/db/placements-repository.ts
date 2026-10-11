@@ -73,7 +73,6 @@ function toPlacement(row: typeof placements.$inferSelect): Placement {
     taskId: row.occurrenceDate ? occurrenceId(row.itemId, row.occurrenceDate) : row.itemId,
     start: row.startAt,
     end: row.endAt,
-    source: row.source,
     pinned: row.pinned,
     status: row.status,
   };
@@ -89,7 +88,6 @@ export async function insertPlacements(executor: Database | Transaction, toInser
         occurrenceDate: date,
         startAt: placement.start,
         endAt: placement.end,
-        source: placement.source,
         pinned: placement.pinned,
         status: placement.status,
       };

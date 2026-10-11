@@ -62,7 +62,6 @@ export function placeTasks(
         ...blocks.map((block) => ({
           taskId: task.id,
           ...block,
-          source: "auto" as const,
           pinned: false,
           status: "planned" as const,
         })),
