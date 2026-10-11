@@ -67,6 +67,7 @@ export function CalendarGrid({
         {dates.map((date) => (
           <DayColumn
             key={date}
+            date={date}
             label={formatLocalDate(date)}
             className={shownOn(date)}
             blocks={blocks.filter((block) => block.date === date)}

@@ -1,11 +1,13 @@
 import type { CalendarBlock } from "@/lib/calendar-blocks";
 import type { TimeZone } from "@/lib/time/time-zone";
+import { NowLine } from "./now-line";
 import { ScheduleBlock } from "./schedule-block";
 import type { TimeScale } from "./time-scale";
 
 const QUARTERS = [15, 30, 45];
 
 export function DayColumn({
+  date,
   blocks,
   scale,
   timeZone,
@@ -13,6 +15,8 @@ export function DayColumn({
   label,
   className = "",
 }: {
+  /** Local `YYYY-MM-DD`. */
+  date: string;
   /** The day, as screen readers announce the column. */
   label: string;
   blocks: CalendarBlock[];
@@ -35,6 +39,7 @@ export function DayColumn({
           />
         )),
       )}
+      <NowLine date={date} scale={scale} timeZone={timeZone} />
       {blocks.map((block) => (
         <ScheduleBlock
           key={block.key}
