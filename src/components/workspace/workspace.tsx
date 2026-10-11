@@ -1,23 +1,27 @@
 "use client";
 
-import { CalendarDays, Hourglass, ListTodo } from "lucide-react";
+import { Hourglass } from "lucide-react";
+import Link from "next/link";
 import { useState } from "react";
 import { SegmentedControl } from "@/components/controls/segmented-control";
 import { BlockPanel } from "@/components/schedule/block-panel";
 import { useBlockPanel } from "@/components/schedule/block-panel-state";
 import { ReviewList } from "@/components/schedule/review-list";
 import { TaskQueue } from "@/components/schedule/task-queue";
-import { type AppPage, AppShell } from "@/components/shell/app-shell";
+import { type AppPage, AppShell, PAGES } from "@/components/shell/app-shell";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { Calendar } from "@/server/calendar";
 
 type List = "review" | "queue";
 
+const PHONE_TAB =
+  "flex flex-col items-center gap-1 py-2 text-xs font-medium text-muted-foreground aria-[current=page]:text-foreground aria-pressed:text-foreground";
+
 /**
  * What every page shows around its middle: the lists on the left (blocks to review and the queue, opening on the
  * review while it has any) and, on the right, `editor` when given, or else the panel for the block clicked.
- * Phones switch between the middle and the lists at the bottom; an open editor takes the screen.
+ * Phones switch pages and the lists at the bottom; an open editor takes the screen until the lists are shown.
  */
 export function Workspace({
   page,
@@ -37,8 +41,6 @@ export function Workspace({
   const panelOpen = useBlockPanel().block !== null;
   // The phone tab holds both lists.
   const waiting = queue.length + review.length;
-  const MainIcon = page === "calendar" ? CalendarDays : ListTodo;
-  const mainLabel = page === "calendar" ? "Calendar" : "Tasks";
 
   return (
     <AppShell
@@ -87,40 +89,42 @@ export function Workspace({
       main={main}
       side={editor ?? <BlockPanel />}
       sideOpen={editor !== null || panelOpen}
-      phoneSection={editor !== null ? "side" : phoneView === "main" ? "main" : "left"}
+      phoneSection={phoneView === "lists" ? "left" : editor !== null ? "side" : "main"}
       phoneNav={
-        <SegmentedControl
-          label="View"
-          value={phoneView}
-          onChange={setPhoneView}
-          options={[
-            {
-              value: "main",
-              label: mainLabel,
-              content: (
-                <>
-                  <MainIcon className="size-5" />
-                  {mainLabel}
-                </>
-              ),
-            },
-            {
-              value: "lists",
-              label: counted("Queue", waiting),
-              content: (
-                <>
-                  <span className="relative">
-                    <Hourglass className="size-5" />
-                    <Count n={waiting} className="absolute -top-1.5 -right-2.5" />
-                  </span>
-                  Queue
-                </>
-              ),
-            },
-          ]}
-          className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-2 border-t bg-background/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden"
-          optionClassName="flex flex-col items-center gap-1 py-2 text-xs font-medium text-muted-foreground aria-checked:text-foreground"
-        />
+        <nav
+          aria-label="Views"
+          className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-3 border-t bg-background/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden"
+        >
+          {PAGES.map(({ page: target, href, label, Icon }) => (
+            <Link
+              key={target}
+              href={href}
+              aria-current={target === page && phoneView === "main" ? "page" : undefined}
+              // On its own page, the tab only leaves the lists; with an editor open, it closes it too.
+              onClick={(event) => {
+                if (target === page && editor === null) event.preventDefault();
+                setPhoneView("main");
+              }}
+              className={PHONE_TAB}
+            >
+              <Icon className="size-5" />
+              {label}
+            </Link>
+          ))}
+          <button
+            type="button"
+            aria-label={counted("Queue", waiting)}
+            aria-pressed={phoneView === "lists"}
+            onClick={() => setPhoneView("lists")}
+            className={PHONE_TAB}
+          >
+            <span className="relative">
+              <Hourglass className="size-5" />
+              <Count n={waiting} className="absolute -top-1.5 -right-2.5" />
+            </span>
+            Queue
+          </button>
+        </nav>
       }
     />
   );

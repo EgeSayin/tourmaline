@@ -14,7 +14,8 @@ export type PhoneSection = "left" | "main" | "side";
  * middle header switches between pages, which change only the middle section, where each page puts its own header;
  * the right one holds the theme toggle and Add item. The main section spans the side column while `sideOpen` is
  * false. `side` places itself, as a column or, on phones, wherever it likes.
- * Phones: the headers stack on top, only `phoneSection` is shown, and `phoneNav` is a bar at the bottom.
+ * Phones: only the right header shows on top, then only `phoneSection`; `phoneNav` is a bar at the bottom that also
+ * switches pages.
  */
 export function AppShell({
   page,
@@ -45,7 +46,7 @@ export function AppShell({
       )}
     >
       <header className="hidden min-h-16 border-r border-b md:block" />
-      <header className="flex min-h-16 items-center border-b px-4">
+      <header className="hidden min-h-16 items-center border-b px-4 md:flex">
         <AppNav page={page} />
       </header>
       <header className="flex min-h-16 items-center justify-between gap-2 border-b px-4 md:justify-end md:border-l">
@@ -66,7 +67,7 @@ export function AppShell({
   );
 }
 
-const PAGES = [
+export const PAGES = [
   { page: "calendar", href: "/", label: "Calendar", Icon: CalendarDays },
   { page: "tasks", href: "/tasks", label: "Tasks", Icon: ListTodo },
 ] as const;

@@ -45,4 +45,28 @@ test.describe("calendar navigation", () => {
     await expect(page).toHaveURL(/\/$/);
     await expect(heading).toHaveText(firstRange!);
   });
+
+  test("on phones, switches pages and the lists from the bottom bar, keeping the shown days", async ({
+    page,
+  }, testInfo) => {
+    test.skip(!isPhone(testInfo), "larger screens switch pages in the header");
+    const tomorrow = Temporal.Now.plainDateISO(TIME_ZONE).add({ days: 1 });
+    await page.goto(`/?date=${tomorrow}`);
+    const bar = page.getByRole("navigation", { name: "Views" });
+    const calendar = bar.getByRole("link", { name: "Calendar" });
+
+    await bar.getByRole("button", { name: /^Queue/ }).click();
+    await expect(page.getByRole("radiogroup", { name: "Lists" })).toBeVisible();
+    await expect(calendar).not.toHaveAttribute("aria-current");
+    await calendar.click();
+    await expect(page.getByRole("region", { name: "Calendar" })).toBeVisible();
+    await expect(calendar).toHaveAttribute("aria-current", "page");
+    // Any navigation would be a fetch; none must start.
+    await page.waitForLoadState("networkidle");
+    await expect(page).toHaveURL(new RegExp(`\\?date=${tomorrow}$`));
+
+    await bar.getByRole("link", { name: "Tasks" }).click();
+    await expect(page.getByRole("heading", { name: "Tasks" })).toBeVisible();
+    await expect(bar.getByRole("link", { name: "Tasks" })).toHaveAttribute("aria-current", "page");
+  });
 });

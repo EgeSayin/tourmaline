@@ -70,8 +70,15 @@ export async function openItemForEditing(page: Page, testInfo: TestInfo, title: 
 /** Shows the calendar's task queue: the lists' Queue tab, behind the bottom tab on phones. */
 export async function showQueue(page: Page, testInfo: TestInfo) {
   await page.goto("/");
-  const tab = (group: string) => page.getByRole("radiogroup", { name: group }).getByRole("radio", { name: /^Queue/ });
-  if (isPhone(testInfo)) await tab("View").click();
-  await tab("Lists").click();
+  if (isPhone(testInfo)) {
+    await page
+      .getByRole("navigation", { name: "Views" })
+      .getByRole("button", { name: /^Queue/ })
+      .click();
+  }
+  await page
+    .getByRole("radiogroup", { name: "Lists" })
+    .getByRole("radio", { name: /^Queue/ })
+    .click();
   return page.getByRole("region", { name: "Task queue" });
 }
