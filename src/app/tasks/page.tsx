@@ -39,7 +39,12 @@ export default async function Tasks({ searchParams }: PageProps<"/tasks">) {
           main={
             <>
               <h1 className="text-lg font-semibold tracking-tight">Tasks</h1>
-              <TaskList entries={calendar.tasks} selectedId={selected?.id ?? null} timeZone={calendar.timeZone} />
+              <TaskList
+                entries={calendar.tasks}
+                categories={calendar.categories}
+                selectedId={selected?.id ?? null}
+                timeZone={calendar.timeZone}
+              />
             </>
           }
           editor={

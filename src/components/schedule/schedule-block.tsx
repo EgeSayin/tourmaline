@@ -1,6 +1,10 @@
+"use client";
+
 import { Pin } from "lucide-react";
+import { useCategoryFilter } from "@/components/categories/category-filter";
 import { PLACEMENT_STATE_LABELS } from "@/components/items/placement-state";
 import type { CalendarBlock } from "@/lib/calendar-blocks";
+import { matchesFilter } from "@/lib/categories";
 import { formatTimeRange } from "@/lib/time/format";
 import type { TimeZone } from "@/lib/time/time-zone";
 import { BLOCK_STYLES, blockFill } from "./block-styles";
@@ -17,6 +21,8 @@ export function ScheduleBlock({
   timeZone: TimeZone;
   onSelect: () => void;
 }) {
+  const [filter] = useCategoryFilter();
+  const filteredOut = !matchesFilter(block.target.item.categoryId, filter);
   const top = scale.top(block.startMinute);
   const isTiny = block.endMinute - block.startMinute < 15;
   const { placement } = block;
@@ -31,11 +37,12 @@ export function ScheduleBlock({
       type="button"
       onClick={onSelect}
       aria-label={label}
+      data-filtered-out={filteredOut || undefined}
       title={label}
       className={`absolute inset-x-0.5 flex cursor-pointer flex-col justify-start overflow-hidden rounded-md px-1 text-left text-xs md:inset-x-1 md:px-2 ${
         isTiny ? "leading-3" : "py-1"
       } transition hover:brightness-95 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none dark:hover:brightness-125 ${blockFill(block.color)} ${BLOCK_STYLES[block.style].className} ${
-        block.faded ? "opacity-60" : ""
+        filteredOut ? "opacity-25" : block.faded ? "opacity-60" : ""
       }`}
       style={{ top: top + 1, height: scale.top(block.endMinute) - top - 2 }}
     >

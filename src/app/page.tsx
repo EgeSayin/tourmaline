@@ -1,4 +1,5 @@
 import { connection } from "next/server";
+import { CategoryFilterSelect } from "@/components/categories/category-filter";
 import { BlockPanelProvider } from "@/components/schedule/block-panel-state";
 import { CalendarGrid } from "@/components/schedule/calendar-grid";
 import { CalendarHeader } from "@/components/schedule/calendar-header";
@@ -36,7 +37,10 @@ export default async function Home({ searchParams }: PageProps<"/">) {
                 today={calendar.today}
                 navigation={calendar.navigation}
               />
-              <ScheduleLegend />
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <ScheduleLegend />
+                <CategoryFilterSelect categories={calendar.categories} />
+              </div>
               <CalendarGrid
                 today={calendar.today}
                 weekDates={calendar.weekDates}

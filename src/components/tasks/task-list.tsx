@@ -3,8 +3,10 @@
 import { Repeat } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
+import { CategoryFilterSelect, useCategoryFilter } from "@/components/categories/category-filter";
 import { SegmentedControl } from "@/components/controls/segmented-control";
 import { buttonVariants } from "@/components/ui/button";
+import { type Category, matchesFilter } from "@/lib/categories";
 import { formatDateTime } from "@/lib/time/format";
 import type { TimeZone } from "@/lib/time/time-zone";
 import { cn } from "@/lib/utils";
@@ -32,36 +34,44 @@ const STATUS_STYLES = {
   past: "text-muted-foreground",
 } satisfies Record<TaskStatus, string>;
 
-/** Every item you've added, filtered; each opens its editor. */
+/** Every item you've added, filtered by status and category; each opens its editor. */
 export function TaskList({
   entries,
+  categories,
   selectedId,
   timeZone,
 }: {
   entries: TaskEntry[];
+  categories: Category[];
   selectedId: string | null;
   timeZone: TimeZone;
 }) {
   const [filter, setFilter] = useState<Filter>("open");
-  const shown = entries.filter((entry) => SHOWN[filter](entry.status));
+  const [category] = useCategoryFilter();
+  const shown = entries.filter(
+    (entry) => SHOWN[filter](entry.status) && matchesFilter(entry.target.item.categoryId, category),
+  );
 
   return (
     <>
-      <SegmentedControl
-        label="Show"
-        value={filter}
-        onChange={setFilter}
-        options={[
-          { value: "open", label: "Open" },
-          { value: "done", label: "Done" },
-          { value: "all", label: "All" },
-        ]}
-        className="inline-grid grid-cols-3 gap-1 rounded-lg border p-1"
-        optionClassName={cn(
-          buttonVariants({ variant: "ghost", size: "sm" }),
-          "aria-checked:bg-secondary aria-checked:text-secondary-foreground",
-        )}
-      />
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <SegmentedControl
+          label="Show"
+          value={filter}
+          onChange={setFilter}
+          options={[
+            { value: "open", label: "Open" },
+            { value: "done", label: "Done" },
+            { value: "all", label: "All" },
+          ]}
+          className="inline-grid grid-cols-3 gap-1 rounded-lg border p-1"
+          optionClassName={cn(
+            buttonVariants({ variant: "ghost", size: "sm" }),
+            "aria-checked:bg-secondary aria-checked:text-secondary-foreground",
+          )}
+        />
+        <CategoryFilterSelect categories={categories} />
+      </div>
       {shown.length === 0 ? (
         <p className="rounded-lg border border-dashed px-3 py-4 text-sm text-muted-foreground">Nothing here.</p>
       ) : (

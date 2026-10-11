@@ -25,3 +25,14 @@ export interface Category {
 export type NewCategory = Omit<Category, "id">;
 
 export const CATEGORY_NAME_MAX = 40;
+
+/** Shows every item, those without a category (`NO_CATEGORY`), or one category's, by its id. */
+export type CategoryFilter = typeof ALL_CATEGORIES | typeof NO_CATEGORY | (string & {});
+
+export const ALL_CATEGORIES = "all";
+export const NO_CATEGORY = "none";
+
+export function matchesFilter(categoryId: string | null, filter: CategoryFilter): boolean {
+  if (filter === ALL_CATEGORIES) return true;
+  return filter === NO_CATEGORY ? categoryId === null : categoryId === filter;
+}
