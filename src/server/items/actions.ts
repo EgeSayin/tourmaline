@@ -1,6 +1,7 @@
 "use server";
 
 import { refresh } from "next/cache";
+import { type FormState, formFields } from "@/lib/form-state";
 import { z } from "zod";
 import { db } from "@/server/db/client";
 import { inPlanTransaction } from "@/server/db/plan-lock";
@@ -16,12 +17,7 @@ import {
   setTaskDone,
   skipOccurrence,
 } from "./item-commands";
-import { type ItemFormErrors, type ParsedItemForm, parseItemForm } from "./parse-item-form";
-
-export type ItemFormState =
-  | { status: "idle" }
-  | { status: "saved" }
-  | { status: "invalid"; errors: ItemFormErrors; fields: Record<string, string> };
+import { parseItemForm } from "./parse-item-form";
 
 const itemId = z.uuid();
 const placementRef = z.object({
@@ -40,32 +36,24 @@ async function loadTimeZone() {
 
 async function parseSubmission(formData: FormData, now: Date) {
   const timeZone = await loadTimeZone();
-  const fields = Object.fromEntries([...formData].map(([key, value]) => [key, String(value)]));
+  const fields = formFields(formData);
   return { fields, timeZone, parsed: parseItemForm(fields, timeZone, now) };
 }
 
-function invalid(fields: Record<string, string>, parsed: Extract<ParsedItemForm, { ok: false }>): ItemFormState {
-  return { status: "invalid", errors: parsed.errors, fields };
-}
-
-export async function createItemAction(_previous: ItemFormState, formData: FormData): Promise<ItemFormState> {
+export async function createItemAction(_previous: FormState, formData: FormData): Promise<FormState> {
   const { fields, parsed } = await parseSubmission(formData, new Date());
-  if (!parsed.ok) return invalid(fields, parsed);
+  if (!parsed.ok) return { status: "invalid", errors: parsed.errors, fields };
 
   await inPlanTransaction(db, (tx) => createItem(tx, parsed.item));
   refresh();
   return { status: "saved" };
 }
 
-export async function updateItemAction(
-  id: string,
-  _previous: ItemFormState,
-  formData: FormData,
-): Promise<ItemFormState> {
+export async function updateItemAction(id: string, _previous: FormState, formData: FormData): Promise<FormState> {
   const validId = itemId.parse(id);
   const now = new Date();
   const { fields, timeZone, parsed } = await parseSubmission(formData, now);
-  if (!parsed.ok) return invalid(fields, parsed);
+  if (!parsed.ok) return { status: "invalid", errors: parsed.errors, fields };
 
   const found = await inPlanTransaction(db, (tx) => editItem(tx, validId, parsed.item, now, timeZone));
   if (!found) throw new Error(`Item ${validId} not found`);

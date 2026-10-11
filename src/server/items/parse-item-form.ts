@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { FormErrors } from "@/lib/form-state";
 import { itemFormSchema } from "@/lib/item-form";
 import type { NewItem } from "@/lib/items";
 import type { Recurrence } from "@/lib/recurrence";
@@ -6,9 +7,7 @@ import type { TimeZone } from "@/lib/time/time-zone";
 import { firstOccurrence, withFirstDeadline } from "@/server/recurrence";
 import { toDate } from "@/server/time/temporal";
 
-export type ItemFormErrors = Partial<Record<string, string[]>>;
-
-export type ParsedItemForm = { ok: true; item: NewItem } | { ok: false; errors: ItemFormErrors };
+export type ParsedItemForm = { ok: true; item: NewItem } | { ok: false; errors: FormErrors };
 
 /**
  * Validates submitted form fields and converts their local times to exact times in `timeZone`.

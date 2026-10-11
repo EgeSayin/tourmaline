@@ -1,7 +1,5 @@
 import { type Segment, SegmentedControl } from "@/components/controls/segmented-control";
-import { buttonVariants } from "@/components/ui/button";
 import type { Item } from "@/lib/items";
-import { cn } from "@/lib/utils";
 
 const OPTIONS = [
   { value: "flexible", label: "Find time for it" },
@@ -23,11 +21,8 @@ export function TimingSwitch({
         options={OPTIONS}
         value={value}
         onChange={onChange}
-        className="grid grid-cols-2 gap-1 rounded-lg border p-1"
-        optionClassName={cn(
-          buttonVariants({ variant: "ghost" }),
-          "aria-checked:bg-secondary aria-checked:text-secondary-foreground",
-        )}
+        size="default"
+        className="grid grid-cols-2"
       />
     </>
   );

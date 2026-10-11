@@ -5,7 +5,6 @@ import Link from "next/link";
 import { useState } from "react";
 import { CategoryFilterSelect, useCategoryFilter } from "@/components/categories/category-filter";
 import { SegmentedControl } from "@/components/controls/segmented-control";
-import { buttonVariants } from "@/components/ui/button";
 import { type Category, matchesFilter } from "@/lib/categories";
 import { formatDateTime } from "@/lib/time/format";
 import type { TimeZone } from "@/lib/time/time-zone";
@@ -64,11 +63,7 @@ export function TaskList({
             { value: "done", label: "Done" },
             { value: "all", label: "All" },
           ]}
-          className="inline-grid grid-cols-3 gap-1 rounded-lg border p-1"
-          optionClassName={cn(
-            buttonVariants({ variant: "ghost", size: "sm" }),
-            "aria-checked:bg-secondary aria-checked:text-secondary-foreground",
-          )}
+          className="inline-grid grid-cols-3"
         />
         <CategoryFilterSelect categories={categories} />
       </div>

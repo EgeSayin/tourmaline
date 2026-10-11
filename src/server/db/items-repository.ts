@@ -1,6 +1,6 @@
 import { and, eq, gte, type SQL } from "drizzle-orm";
 import type { Item, NewItem } from "@/lib/items";
-import type { Database, Transaction } from "./connection";
+import type { Executor, Transaction } from "./connection";
 import { fixedItemDetails, flexibleItemDetails, items, occurrenceOverrides } from "./schema";
 
 /** Inserts the item and its details row; requiring a transaction keeps the two from being written separately. */
@@ -46,7 +46,7 @@ export async function updateItem(tx: Transaction, id: string, item: NewItem): Pr
 }
 
 /** Deletes the item and, through the cascade, its details. Returns `false` if no item has this `id`. */
-export async function deleteItem(executor: Database | Transaction, id: string): Promise<boolean> {
+export async function deleteItem(executor: Executor, id: string): Promise<boolean> {
   const deleted = await executor.delete(items).where(eq(items.id, id)).returning({ id: items.id });
   return deleted.length > 0;
 }
@@ -75,24 +75,24 @@ async function insertDetails(tx: Transaction, itemId: string, item: NewItem) {
 }
 
 /** Every item with its details. Throws if an item's details row is missing. */
-export function loadItems(executor: Database | Transaction): Promise<Item[]> {
+export function loadItems(executor: Executor): Promise<Item[]> {
   return findItems(executor);
 }
 
 /** The item with this `id`, or `undefined` if there is none. Throws if its details row is missing. */
-export async function loadItem(executor: Database | Transaction, id: string): Promise<Item | undefined> {
+export async function loadItem(executor: Executor, id: string): Promise<Item | undefined> {
   const [item] = await findItems(executor, eq(items.id, id));
   return item;
 }
 
 /** Marks the one-off item `id` done or not done. */
-export async function setItemDone(executor: Database | Transaction, id: string, done: boolean): Promise<void> {
+export async function setItemDone(executor: Executor, id: string, done: boolean): Promise<void> {
   await executor.update(items).set({ done }).where(eq(items.id, id));
 }
 
 /** Marks the occurrence of `itemId` on local date `date` done or not done. */
 export async function setOccurrenceDone(
-  executor: Database | Transaction,
+  executor: Executor,
   itemId: string,
   date: string,
   done: boolean,
@@ -104,7 +104,7 @@ export async function setOccurrenceDone(
 }
 
 /** Marks the occurrence of `itemId` on local date `date` as skipped. */
-export async function skipOccurrence(executor: Database | Transaction, itemId: string, date: string): Promise<void> {
+export async function skipOccurrence(executor: Executor, itemId: string, date: string): Promise<void> {
   await executor
     .insert(occurrenceOverrides)
     .values({ itemId, occurrenceDate: date, skipped: true })
@@ -126,7 +126,7 @@ export async function moveOverrides(tx: Transaction, fromId: string, toId: strin
     .where(and(eq(occurrenceOverrides.itemId, fromId), gte(occurrenceOverrides.occurrenceDate, fromDate)));
 }
 
-async function findItems(executor: Database | Transaction, where?: SQL): Promise<Item[]> {
+async function findItems(executor: Executor, where?: SQL): Promise<Item[]> {
   const rows = await executor.query.items.findMany({
     where,
     with: {

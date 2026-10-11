@@ -2,11 +2,11 @@ import { and, asc, eq, gt, gte, isNull, lt, lte } from "drizzle-orm";
 import { isPending, type Placement, type PlacementRef } from "@/lib/placements";
 import { occurrenceId, parseOccurrenceId } from "@/lib/recurrence";
 import type { Interval } from "@/lib/time/interval";
-import type { Database, Transaction } from "./connection";
+import type { Executor, Transaction } from "./connection";
 import { placements } from "./schema";
 
 /** Placements overlapping `range`, sorted by start. */
-export async function loadPlacements(executor: Database | Transaction, range: Interval): Promise<Placement[]> {
+export async function loadPlacements(executor: Executor, range: Interval): Promise<Placement[]> {
   const rows = await executor
     .select()
     .from(placements)
@@ -16,7 +16,7 @@ export async function loadPlacements(executor: Database | Transaction, range: In
 }
 
 /** Planned placements that ended by `now`, waiting to be reviewed, sorted by start. */
-export async function loadPlacementsToReview(executor: Database | Transaction, now: Date): Promise<Placement[]> {
+export async function loadPlacementsToReview(executor: Executor, now: Date): Promise<Placement[]> {
   const rows = await executor
     .select()
     .from(placements)
@@ -26,22 +26,19 @@ export async function loadPlacementsToReview(executor: Database | Transaction, n
 }
 
 /** Every placement of a task or occurrence (by its occurrence id), sorted by start. */
-export async function loadTaskPlacements(executor: Database | Transaction, taskId: string): Promise<Placement[]> {
+export async function loadTaskPlacements(executor: Executor, taskId: string): Promise<Placement[]> {
   const rows = await executor.select().from(placements).where(ofTask(taskId)).orderBy(asc(placements.startAt));
   return rows.map(toPlacement);
 }
 
 /** The placement `ref` points to, or `undefined` if there is none. */
-export async function loadPlacement(
-  executor: Database | Transaction,
-  ref: PlacementRef,
-): Promise<Placement | undefined> {
+export async function loadPlacement(executor: Executor, ref: PlacementRef): Promise<Placement | undefined> {
   const [row] = await executor.select().from(placements).where(matching(ref));
   return row && toPlacement(row);
 }
 
 export async function updatePlacement(
-  executor: Database | Transaction,
+  executor: Executor,
   ref: PlacementRef,
   changes: Partial<Pick<Placement, "status" | "pinned">>,
 ): Promise<void> {
@@ -49,7 +46,7 @@ export async function updatePlacement(
 }
 
 /** Checks off the task's placements still to review as of `now`: planned and ended. */
-export async function checkOffToReview(executor: Database | Transaction, taskId: string, now: Date): Promise<void> {
+export async function checkOffToReview(executor: Executor, taskId: string, now: Date): Promise<void> {
   await executor
     .update(placements)
     .set({ status: "done" })
@@ -78,7 +75,7 @@ function toPlacement(row: typeof placements.$inferSelect): Placement {
   };
 }
 
-export async function insertPlacements(executor: Database | Transaction, toInsert: Placement[]): Promise<void> {
+export async function insertPlacements(executor: Executor, toInsert: Placement[]): Promise<void> {
   if (toInsert.length === 0) return;
   await executor.insert(placements).values(
     toInsert.map((placement) => {

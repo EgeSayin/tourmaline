@@ -3,7 +3,7 @@ import { isPending, type Placement } from "@/lib/placements";
 import { RECURRENCE_LOOKAHEAD_DAYS, type SchedulerSettings } from "@/lib/settings";
 import { addMinutes } from "@/lib/time/duration";
 import { earlier, type Interval, later } from "@/lib/time/interval";
-import type { Database, Transaction } from "@/server/db/connection";
+import type { Executor } from "@/server/db/connection";
 import { loadPlacements, replacePendingPlacements } from "@/server/db/placements-repository";
 import { expandOccurrences } from "@/server/recurrence";
 import { replan } from "@/server/scheduler/replan";
@@ -29,7 +29,7 @@ export interface Plan {
  * calls don't write.
  */
 export async function syncPlan(
-  executor: Database | Transaction,
+  executor: Executor,
   items: Item[],
   settings: SchedulerSettings,
   now: Date,

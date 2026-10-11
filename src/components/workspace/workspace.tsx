@@ -9,8 +9,6 @@ import { useBlockPanel } from "@/components/schedule/block-panel-state";
 import { ReviewList } from "@/components/schedule/review-list";
 import { TaskQueue } from "@/components/schedule/task-queue";
 import { type AppPage, AppShell, PAGES } from "@/components/shell/app-shell";
-import { buttonVariants } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
 import type { Calendar } from "@/server/calendar";
 
 type List = "review" | "queue";
@@ -71,11 +69,7 @@ export function Workspace({
                 ),
               },
             ]}
-            className="grid grid-cols-2 gap-1 rounded-lg border p-1"
-            optionClassName={cn(
-              buttonVariants({ variant: "ghost", size: "sm" }),
-              "aria-checked:bg-secondary aria-checked:text-secondary-foreground",
-            )}
+            className="grid grid-cols-2"
           />
           <section aria-label="To review" hidden={list !== "review"}>
             <ReviewList entries={review} timeZone={timeZone} />

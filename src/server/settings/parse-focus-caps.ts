@@ -1,10 +1,9 @@
 import { z } from "zod";
+import type { FormErrors } from "@/lib/form-state";
 import { WEEKDAYS } from "@/lib/recurrence";
 import { type FocusCaps, focusCapField } from "@/lib/settings";
 
-export type FocusCapsErrors = Partial<Record<string, string[]>>;
-
-export type ParsedFocusCaps = { ok: true; focusCaps: FocusCaps } | { ok: false; errors: FocusCapsErrors };
+export type ParsedFocusCaps = { ok: true; focusCaps: FocusCaps } | { ok: false; errors: FormErrors };
 
 const MINUTES_PER_HOUR = 60;
 

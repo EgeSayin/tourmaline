@@ -3,9 +3,7 @@
 import { Monitor, Moon, Sun } from "lucide-react";
 import { useTheme } from "next-themes";
 import { type Segment, SegmentedControl } from "@/components/controls/segmented-control";
-import { buttonVariants } from "@/components/ui/button";
 import { useIsClient } from "@/hooks/use-is-client";
-import { cn } from "@/lib/utils";
 
 const OPTIONS = [
   { value: "light", label: "Light theme", content: <Sun /> },
@@ -24,11 +22,8 @@ export function ThemeToggle() {
       options={OPTIONS}
       value={isClient ? OPTIONS.find((option) => option.value === theme)?.value : undefined}
       onChange={setTheme}
-      className="inline-flex gap-0.5 rounded-lg border bg-card p-0.5"
-      optionClassName={cn(
-        buttonVariants({ variant: "ghost", size: "icon-sm" }),
-        "text-muted-foreground aria-checked:bg-muted aria-checked:text-foreground",
-      )}
+      size="icon-sm"
+      className="inline-flex gap-0.5 p-0.5"
     />
   );
 }

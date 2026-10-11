@@ -1,9 +1,8 @@
 import { z } from "zod";
+import type { FormErrors } from "@/lib/form-state";
 import { type Category, CATEGORY_COLORS, CATEGORY_NAME_MAX, type NewCategory } from "@/lib/categories";
 
-export type CategoryFormErrors = Partial<Record<string, string[]>>;
-
-export type ParsedCategoryForm = { ok: true; category: NewCategory } | { ok: false; errors: CategoryFormErrors };
+export type ParsedCategoryForm = { ok: true; category: NewCategory } | { ok: false; errors: FormErrors };
 
 const categoryFormSchema = z.object({
   name: z.string().trim().min(1, "Enter a name").max(CATEGORY_NAME_MAX, `Keep it to ${CATEGORY_NAME_MAX} characters`),

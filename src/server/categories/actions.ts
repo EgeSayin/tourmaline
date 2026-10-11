@@ -1,27 +1,23 @@
 "use server";
 
 import { refresh } from "next/cache";
+import { type FormState, formFields } from "@/lib/form-state";
 import { z } from "zod";
 import { deleteCategory, insertCategory, loadCategories, updateCategory } from "@/server/db/categories-repository";
 import { db } from "@/server/db/client";
-import { type CategoryFormErrors, parseCategoryForm } from "./parse-category-form";
-
-export type CategoryFormState =
-  | { status: "idle" }
-  | { status: "saved" }
-  | { status: "invalid"; errors: CategoryFormErrors; fields: Record<string, string> };
+import { parseCategoryForm } from "./parse-category-form";
 
 const categoryId = z.uuid();
 
 /** Adds a category, or with `id` renames and recolours that one. */
 export async function saveCategoryAction(
   id: string | null,
-  _previous: CategoryFormState,
+  _previous: FormState,
   formData: FormData,
-): Promise<CategoryFormState> {
+): Promise<FormState> {
   const validId = id === null ? null : categoryId.parse(id);
-  const fields = Object.fromEntries([...formData].map(([key, value]) => [key, String(value)]));
-  const state = await db.transaction(async (tx): Promise<CategoryFormState> => {
+  const fields = formFields(formData);
+  const state = await db.transaction(async (tx): Promise<FormState> => {
     const parsed = parseCategoryForm(fields, await loadCategories(tx), validId);
     if (!parsed.ok) return { status: "invalid", errors: parsed.errors, fields };
     if (validId === null) await insertCategory(tx, parsed.category);

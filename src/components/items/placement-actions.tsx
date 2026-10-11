@@ -1,6 +1,5 @@
 import { Check, Pin, PinOff, Undo2, X } from "lucide-react";
-import { useTransition } from "react";
-import { Button } from "@/components/ui/button";
+import { ActionButton } from "@/components/forms/action-button";
 import type { BlockPlacement } from "@/lib/calendar-blocks";
 import type { PlacementStatus } from "@/lib/placements";
 import { setPlacementPinnedAction, setPlacementStatusAction } from "@/server/items/actions";
@@ -10,45 +9,38 @@ import { setPlacementPinnedAction, setPlacementStatusAction } from "@/server/ite
  * until it ends, and undo a check-off or a miss.
  */
 export function PlacementActions({ placement, onDone }: { placement: BlockPlacement; onDone?: () => void }) {
-  const [pending, startTransition] = useTransition();
   const { ref, state, pinned } = placement;
-  const run = (action: () => Promise<void>) =>
-    startTransition(async () => {
-      await action();
-      onDone?.();
-    });
-  const setStatus = (status: PlacementStatus) => run(() => setPlacementStatusAction(ref, status));
+  const setStatus = (status: PlacementStatus) => () => setPlacementStatusAction(ref, status);
 
   return (
     <div className="flex flex-wrap gap-2">
       {state === "done" || state === "missed" ? (
-        <Button type="button" size="sm" variant="outline" disabled={pending} onClick={() => setStatus("planned")}>
+        <ActionButton size="sm" variant="outline" action={setStatus("planned")} onDone={onDone}>
           <Undo2 />
-          Undo {state === "done" ? "done" : "missed"}
-        </Button>
+          Undo {state}
+        </ActionButton>
       ) : (
         <>
-          <Button type="button" size="sm" disabled={pending} onClick={() => setStatus("done")}>
+          <ActionButton size="sm" action={setStatus("done")} onDone={onDone}>
             <Check />
             {state === "planned" ? "Done early" : "Done"}
-          </Button>
+          </ActionButton>
           {state !== "planned" && (
-            <Button type="button" size="sm" variant="outline" disabled={pending} onClick={() => setStatus("missed")}>
+            <ActionButton size="sm" variant="outline" action={setStatus("missed")} onDone={onDone}>
               <X />
               Missed
-            </Button>
+            </ActionButton>
           )}
           {state !== "to-review" && (
-            <Button
-              type="button"
+            <ActionButton
               size="sm"
               variant="outline"
-              disabled={pending}
-              onClick={() => run(() => setPlacementPinnedAction(ref, !pinned))}
+              action={() => setPlacementPinnedAction(ref, !pinned)}
+              onDone={onDone}
             >
               {pinned ? <PinOff /> : <Pin />}
               {pinned ? "Unpin" : "Pin"}
-            </Button>
+            </ActionButton>
           )}
         </>
       )}

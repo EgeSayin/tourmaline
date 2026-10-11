@@ -1,23 +1,16 @@
 "use server";
 
 import { refresh } from "next/cache";
+import { type FormState, formFields } from "@/lib/form-state";
 import { db } from "@/server/db/client";
 import { replacePendingPlacements } from "@/server/db/placements-repository";
 import { inPlanTransaction } from "@/server/db/plan-lock";
 import { saveFocusCaps } from "@/server/db/settings-repository";
-import { type FocusCapsErrors, parseFocusCaps } from "./parse-focus-caps";
-
-export type FocusCapsFormState =
-  | { status: "idle" }
-  | { status: "saved" }
-  | { status: "invalid"; errors: FocusCapsErrors; fields: Record<string, string> };
+import { parseFocusCaps } from "./parse-focus-caps";
 
 /** Saves each weekday's focus cap and plans every block that can move again under the new caps. */
-export async function saveFocusCapsAction(
-  _previous: FocusCapsFormState,
-  formData: FormData,
-): Promise<FocusCapsFormState> {
-  const fields = Object.fromEntries([...formData].map(([key, value]) => [key, String(value)]));
+export async function saveFocusCapsAction(_previous: FormState, formData: FormData): Promise<FormState> {
+  const fields = formFields(formData);
   const parsed = parseFocusCaps(fields);
   if (!parsed.ok) return { status: "invalid", errors: parsed.errors, fields };
 

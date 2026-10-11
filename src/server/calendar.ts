@@ -7,7 +7,7 @@ import { later } from "@/lib/time/interval";
 import type { TimeZone } from "@/lib/time/time-zone";
 import { type CategoryEntry, listCategories } from "@/server/categories/category-list";
 import { loadCategories } from "@/server/db/categories-repository";
-import type { Database, Transaction } from "@/server/db/connection";
+import type { Executor } from "@/server/db/connection";
 import { loadItems } from "@/server/db/items-repository";
 import { loadPlacements, loadPlacementsToReview } from "@/server/db/placements-repository";
 import { loadSettings } from "@/server/db/settings-repository";
@@ -81,7 +81,7 @@ export interface Calendar {
  * (default: today), with their saved placements, the lists and every item. `null` if no settings are saved yet.
  */
 export async function loadCalendar(
-  executor: Database | Transaction,
+  executor: Executor,
   now: Date,
   shownDate?: Temporal.PlainDate,
 ): Promise<Calendar | null> {

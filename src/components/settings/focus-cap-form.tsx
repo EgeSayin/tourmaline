@@ -1,39 +1,28 @@
 "use client";
 
-import { startTransition, useActionState } from "react";
 import { FormInput, FormSection, FormStateProvider } from "@/components/forms/form-fields";
 import { Button } from "@/components/ui/button";
 import { WEEKDAYS } from "@/lib/recurrence";
 import { type FocusCaps, focusCapField } from "@/lib/settings";
 import { WEEKDAY_NAMES } from "@/lib/time/format";
-import { type FocusCapsFormState, saveFocusCapsAction } from "@/server/settings/actions";
+import { useFormAction } from "@/hooks/use-form-action";
+import { saveFocusCapsAction } from "@/server/settings/actions";
 
 /** Edits the most time to fill each weekday with, in hours. */
 export function FocusCapForm({ focusCaps }: { focusCaps: FocusCaps }) {
-  const [state, formAction, pending] = useActionState<FocusCapsFormState, FormData>(saveFocusCapsAction, {
-    status: "idle",
-  });
-  const invalid = state.status === "invalid" ? state : null;
-  const values =
-    invalid?.fields ??
+  const { state, values, errors, pending, onSubmit } = useFormAction(
+    saveFocusCapsAction,
     Object.fromEntries(
       WEEKDAYS.map((weekday) => {
         const cap = focusCaps[weekday - 1];
         return [focusCapField(weekday), cap === null ? "" : String(cap / 60)];
       }),
-    );
+    ),
+  );
 
   return (
-    <form
-      // Not `action`: React resets a form after its action.
-      onSubmit={(event) => {
-        event.preventDefault();
-        const formData = new FormData(event.currentTarget);
-        startTransition(() => formAction(formData));
-      }}
-      className="flex max-w-xl flex-col gap-4"
-    >
-      <FormStateProvider values={values} errors={invalid?.errors ?? {}}>
+    <form onSubmit={onSubmit} className="flex max-w-xl flex-col gap-4">
+      <FormStateProvider values={values} errors={errors}>
         <FormSection title="Focus cap">
           <p className="text-sm text-muted-foreground">
             The most hours of fixed items and task blocks to plan into each day. Tasks go over it only to finish before

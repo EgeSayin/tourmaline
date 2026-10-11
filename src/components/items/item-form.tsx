@@ -1,6 +1,6 @@
 "use client";
 
-import { startTransition, useActionState, useState } from "react";
+import { useState } from "react";
 import { CategorySelect } from "./category-select";
 import { DeleteButton } from "@/components/forms/delete-button";
 import { FormInput, FormSelect, FormStateProvider } from "@/components/forms/form-fields";
@@ -10,7 +10,8 @@ import { itemToFormValues, type Repeat } from "@/lib/item-form";
 import type { Category } from "@/lib/categories";
 import { isTask, type Item, PRIORITIES, type Priority } from "@/lib/items";
 import type { TimeZone } from "@/lib/time/time-zone";
-import { createItemAction, deleteItemAction, type ItemFormState, updateItemAction } from "@/server/items/actions";
+import { useFormAction } from "@/hooks/use-form-action";
+import { createItemAction, deleteItemAction, updateItemAction } from "@/server/items/actions";
 import { FixedItemFields } from "./fixed-item-fields";
 import { TaskFields } from "./task-fields";
 import { RepeatFields } from "./repeat-fields";
@@ -39,32 +40,18 @@ export function ItemForm({
   onDone: () => void;
 }) {
   const [timing, setTiming] = useState<Item["timing"]>(item?.timing ?? "flexible");
-  const save = item ? updateItemAction.bind(null, item.id) : createItemAction;
-  const [state, formAction, pending] = useActionState(
-    async (previous: ItemFormState, formData: FormData) => {
-      const result = await save(previous, formData);
-      if (result.status === "saved") onDone();
-      return result;
-    },
-    { status: "idle" },
+  const { values, errors, pending, onSubmit } = useFormAction(
+    item ? updateItemAction.bind(null, item.id) : createItemAction,
+    item ? itemToFormValues(item, timeZone) : {},
+    onDone,
   );
-  const invalid = state.status === "invalid" ? state : null;
-  const values = invalid?.fields ?? (item ? itemToFormValues(item, timeZone) : {});
   const [repeat, setRepeat] = useState<Repeat>(item?.recurrence?.frequency ?? "none");
 
   return (
-    <form
-      // Not `action`: React resets a form after its action, and a reset select shows its first value again.
-      onSubmit={(event) => {
-        event.preventDefault();
-        const formData = new FormData(event.currentTarget);
-        startTransition(() => formAction(formData));
-      }}
-      className="flex flex-col gap-6"
-    >
+    <form onSubmit={onSubmit} className="flex flex-col gap-6">
       <TimingSwitch value={timing} onChange={setTiming} />
 
-      <FormStateProvider values={values} errors={invalid?.errors ?? {}}>
+      <FormStateProvider values={values} errors={errors}>
         <FieldGroup>
           <FormInput name="title" label="Title" autoFocus={!item} />
           <CategorySelect categories={categories} />

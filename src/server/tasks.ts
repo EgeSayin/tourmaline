@@ -3,7 +3,7 @@ import { isTask, type Item, itemSpan, type Task } from "@/lib/items";
 import { parseOccurrenceId } from "@/lib/recurrence";
 import { OCCURRENCES_SHOWN } from "@/lib/settings";
 import type { TimeZone } from "@/lib/time/time-zone";
-import type { Database, Transaction } from "@/server/db/connection";
+import type { Executor } from "@/server/db/connection";
 import { loadItem } from "@/server/db/items-repository";
 import { loadTaskPlacements } from "@/server/db/placements-repository";
 import { upcomingOccurrences } from "@/server/recurrence";
@@ -61,11 +61,7 @@ export interface TaskBlock {
 }
 
 /** The blocks of a task, or of an occurrence by its id, sorted by start, in their state at `now`. */
-export async function loadTaskBlocks(
-  executor: Database | Transaction,
-  taskId: string,
-  now: Date,
-): Promise<TaskBlock[]> {
+export async function loadTaskBlocks(executor: Executor, taskId: string, now: Date): Promise<TaskBlock[]> {
   return (await loadTaskPlacements(executor, taskId)).map((placement) => ({
     start: placement.start,
     end: placement.end,
@@ -95,7 +91,7 @@ export interface ItemSchedule {
  * series that end after `now`, skipped ones left out. Empty for a one-off fixed item or a missing one.
  */
 export async function loadSchedule(
-  executor: Database | Transaction,
+  executor: Executor,
   id: string,
   now: Date,
   timeZone: TimeZone,

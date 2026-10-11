@@ -8,3 +8,4 @@ export function createDatabase(client: postgres.Sql) {
 
 export type Database = ReturnType<typeof createDatabase>;
 export type Transaction = Parameters<Parameters<Database["transaction"]>[0]>[0];
+export type Executor = Database | Transaction;

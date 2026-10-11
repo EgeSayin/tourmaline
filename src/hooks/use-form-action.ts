@@ -1,0 +1,37 @@
+"use client";
+
+import { startTransition, useActionState } from "react";
+import type { FormState } from "@/lib/form-state";
+
+/**
+ * Submits a form to `action`, calling `onSaved` once it saves. Field values are the submitted ones after a failed
+ * submission, `initialValues` before.
+ */
+export function useFormAction(
+  action: (previous: FormState, formData: FormData) => Promise<FormState>,
+  initialValues: Record<string, string>,
+  onSaved?: () => void,
+) {
+  const [state, formAction, pending] = useActionState(
+    async (previous: FormState, formData: FormData) => {
+      const result = await action(previous, formData);
+      if (result.status === "saved") onSaved?.();
+      return result;
+    },
+    { status: "idle" } as FormState,
+  );
+  const invalid = state.status === "invalid" ? state : null;
+
+  return {
+    state,
+    pending,
+    values: invalid?.fields ?? initialValues,
+    errors: invalid?.errors ?? {},
+    // Not a form `action`: React resets a form after its action, and a reset select shows its first value again.
+    onSubmit: (event: React.FormEvent<HTMLFormElement>) => {
+      event.preventDefault();
+      const formData = new FormData(event.currentTarget);
+      startTransition(() => formAction(formData));
+    },
+  };
+}
