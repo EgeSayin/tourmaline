@@ -1,6 +1,7 @@
 "use client";
 
-import { createContext, use, useState } from "react";
+import { X } from "lucide-react";
+import { createContext, use, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Field, FieldDescription, FieldError, FieldLabel, FieldLegend, FieldSet } from "@/components/ui/field";
@@ -37,32 +38,59 @@ function FormField({ name, label, description, children }: FieldProps & { childr
   );
 }
 
+/** `clearable` adds a button that empties the input: WebKit offers no way to empty a date or time input. */
 export function FormInput({
   name,
   label,
   description,
+  clearable = false,
   className,
   onInput,
   ...props
-}: FieldProps & React.ComponentProps<"input">) {
+}: FieldProps & { clearable?: boolean } & React.ComponentProps<"input">) {
   const { values, errors } = use(FormStateContext);
   const [empty, setEmpty] = useState(!values[name]);
+  const ref = useRef<HTMLInputElement>(null);
+  const input = (
+    <Input
+      ref={ref}
+      id={name}
+      name={name}
+      defaultValue={values[name]}
+      aria-invalid={errors[name] ? true : undefined}
+      // Styled date and time inputs in WebKit show the current time when empty, in full colour unless muted here.
+      data-empty={empty ? true : undefined}
+      onInput={(event) => {
+        setEmpty(!event.currentTarget.value);
+        onInput?.(event);
+      }}
+      className={cn("data-empty:text-muted-foreground", className)}
+      {...props}
+    />
+  );
+
   return (
     <FormField name={name} label={label} description={description}>
-      <Input
-        id={name}
-        name={name}
-        defaultValue={values[name]}
-        aria-invalid={errors[name] ? true : undefined}
-        // Styled date and time inputs in WebKit show the current time when empty, in full colour unless muted here.
-        data-empty={empty ? true : undefined}
-        onInput={(event) => {
-          setEmpty(!event.currentTarget.value);
-          onInput?.(event);
-        }}
-        className={cn("data-empty:text-muted-foreground", className)}
-        {...props}
-      />
+      {clearable ? (
+        <div className="flex gap-1">
+          {input}
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            aria-label={`Clear ${label}`}
+            disabled={empty}
+            onClick={() => {
+              ref.current!.value = "";
+              setEmpty(true);
+            }}
+          >
+            <X />
+          </Button>
+        </div>
+      ) : (
+        input
+      )}
     </FormField>
   );
 }

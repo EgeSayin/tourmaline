@@ -15,6 +15,7 @@ export function TaskFields({ repeating }: { repeating: boolean }) {
       />
       <FormInput
         name="earliestStart"
+        clearable
         label="Not before"
         type="datetime-local"
         description={repeating ? "The first one; each is due when the next one starts." : "Leave empty to start now."}
@@ -23,11 +24,12 @@ export function TaskFields({ repeating }: { repeating: boolean }) {
       <div className="grid grid-cols-2 gap-4">
         <FormInput
           name="preferredFrom"
+          clearable
           label="Preferred from"
           type="time"
           description="Leave both empty for any time."
         />
-        <FormInput name="preferredUntil" label="Preferred to" type="time" />
+        <FormInput name="preferredUntil" clearable label="Preferred to" type="time" />
       </div>
       <div className="grid grid-cols-2 gap-4">
         <FormInput

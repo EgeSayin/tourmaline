@@ -28,7 +28,7 @@ export function RepeatFields({ repeat, onRepeatChange }: { repeat: Repeat; onRep
             max={99}
             placeholder="1"
           />
-          <FormInput name="until" label="Until" type="date" description="Leave empty to repeat forever." />
+          <FormInput name="until" clearable label="Until" type="date" description="Leave empty to repeat forever." />
         </div>
       )}
     </>

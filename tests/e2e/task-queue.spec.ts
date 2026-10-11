@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 import { isPhone, itemPanel, localDateTime, openAddItemForm } from "./helpers";
 
 test.describe("task queue", () => {
-  test("lists a task that can't fit, opens it with its values and drops it once deleted", async ({
+  test("lists a task that can't fit, opens it with its values, clears its preferred time and drops it once deleted", async ({
     page,
   }, testInfo) => {
     const title = `E2E all-nighter (${testInfo.project.name})`;
@@ -10,8 +10,8 @@ test.describe("task queue", () => {
     await form.getByLabel("Title").fill(title);
     await form.getByLabel("Duration (min)").fill(String(24 * 60)); // longer than any free stretch
     await form.getByLabel("Due").fill(localDateTime(2, "20:00"));
-    await form.getByLabel("Preferred from").fill("12:00");
-    await form.getByLabel("Preferred to").fill("14:00");
+    await form.getByLabel("Preferred from", { exact: true }).fill("12:00");
+    await form.getByLabel("Preferred to", { exact: true }).fill("14:00");
     // 30-minute chunks with breaks between need about two days of free time on their own.
     await form.getByLabel("Chunks from (min)").fill("30");
     await form.getByLabel("Chunks to (min)").fill("30");
@@ -27,10 +27,19 @@ test.describe("task queue", () => {
     const panel = itemPanel(page, testInfo, "Edit item");
     await expect(panel.getByLabel("Title")).toHaveValue(title);
     await expect(panel.getByLabel("Duration (min)")).toHaveValue(String(24 * 60));
-    await expect(panel.getByLabel("Preferred from")).toHaveValue("12:00");
-    await expect(panel.getByLabel("Preferred to")).toHaveValue("14:00");
+    await expect(panel.getByLabel("Preferred from", { exact: true })).toHaveValue("12:00");
+    await expect(panel.getByLabel("Preferred to", { exact: true })).toHaveValue("14:00");
     await expect(panel.getByLabel("Chunks from (min)")).toHaveValue("30");
     await expect(panel.getByLabel("Chunks to (min)")).toHaveValue("30");
+
+    await panel.getByRole("button", { name: "Clear Preferred from" }).click();
+    await panel.getByRole("button", { name: "Clear Preferred to" }).click();
+    await expect(panel.getByRole("button", { name: "Clear Preferred to" })).toBeDisabled();
+    await panel.getByRole("button", { name: "Save changes" }).click();
+    await expect(panel).toBeHidden();
+    await entry.click();
+    await expect(panel.getByLabel("Preferred from", { exact: true })).toHaveValue("");
+    await expect(panel.getByLabel("Preferred to", { exact: true })).toHaveValue("");
 
     await panel.getByRole("button", { name: "Delete" }).click();
     await panel.getByRole("button", { name: "Confirm delete" }).click();

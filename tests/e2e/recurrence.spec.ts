@@ -25,7 +25,7 @@ test.describe("recurring items", () => {
     await expect(form.getByText("Choose at least one day")).toBeVisible();
 
     for (const days of [-1, 0, 1]) await form.getByRole("button", { name: weekdayLabel(days), exact: true }).click();
-    await form.getByLabel("Until").fill(String(localDate(1)));
+    await form.getByLabel("Until", { exact: true }).fill(String(localDate(1)));
     await form.getByRole("button", { name: "Add item" }).click();
     await expect(form).toBeHidden();
 
@@ -43,7 +43,7 @@ test.describe("recurring items", () => {
     const ended = Temporal.PlainTime.compare(Temporal.Now.plainTimeISO(TIME_ZONE), slot.end) >= 0;
     await expect(panel.getByLabel("Starts")).toHaveValue(localDateTime(ended ? 1 : 0, slot.start));
     await expect(panel.getByLabel("Repeat")).toHaveValue("weekly");
-    await expect(panel.getByLabel("Until")).toHaveValue(String(localDate(1)));
+    await expect(panel.getByLabel("Until", { exact: true })).toHaveValue(String(localDate(1)));
     await expect(panel.getByRole("button", { name: weekdayLabel(0), exact: true })).toHaveAttribute(
       "aria-pressed",
       "true",
@@ -77,7 +77,7 @@ test.describe("recurring items", () => {
     await form.getByLabel("Repeat").selectOption("daily");
     await expect(form.getByLabel("Due")).toHaveCount(0);
     // From yesterday, so one occurrence always covers now.
-    await form.getByLabel("Not before").fill(localDateTime(-1, "10:00"));
+    await form.getByLabel("Not before", { exact: true }).fill(localDateTime(-1, "10:00"));
     await form.getByRole("button", { name: "Add item" }).click();
     await expect(form).toBeHidden();
 
