@@ -27,7 +27,6 @@ const PRIORITY_LABELS = {
 
 const PRIORITY_OPTIONS = PRIORITIES.map((value) => ({ value, label: PRIORITY_LABELS[value] }));
 
-/** Adds a new item, or edits `item` when given. */
 export function ItemForm({
   item,
   categories,

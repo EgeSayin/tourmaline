@@ -17,7 +17,7 @@ export function useCategoryFilter() {
   return use(FilterContext);
 }
 
-/** Picks the filter among `categories`; a filter on a category that's gone goes back to showing everything. */
+/** A filter on a category that has since been deleted falls back to showing everything. */
 export function CategoryFilterSelect({ categories }: { categories: Category[] }) {
   const [filter, setFilter] = useCategoryFilter();
   const picked = categories.find((category) => category.id === filter);

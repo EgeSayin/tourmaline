@@ -18,7 +18,6 @@ export function CalendarGrid({
   loads,
   timeZone,
 }: {
-  /** Local date of now, highlighted when shown. */
   today: string;
   weekDates: string[];
   dayDates: string[];
@@ -81,7 +80,6 @@ export function CalendarGrid({
   );
 }
 
-/** A capped day's filled time against its cap, amber once it's over. */
 function LoadLine({ load }: { load: DayLoad | undefined }) {
   if (!load || load.capMin === null) return null;
   const over = load.usedMin > load.capMin;

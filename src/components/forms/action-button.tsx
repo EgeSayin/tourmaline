@@ -1,7 +1,6 @@
 import { useTransition } from "react";
 import { Button } from "@/components/ui/button";
 
-/** A button that runs `action`, disabled while it runs, then calls `onDone`. */
 export function ActionButton({
   action,
   onDone,

@@ -4,7 +4,6 @@ import { formatDateTime, formatDuration, formatLocalDate } from "@/lib/time/form
 import type { TimeZone } from "@/lib/time/time-zone";
 import type { QueueEntry } from "@/server/calendar";
 
-/** The tasks that don't fit before their deadline; an occurrence of a recurring task shows its date. */
 export function TaskQueue({ entries, timeZone }: { entries: QueueEntry[]; timeZone: TimeZone }) {
   return entries.length === 0 ? (
     <p className="flex items-center gap-2 rounded-lg border border-dashed px-3 py-4 text-sm text-muted-foreground">

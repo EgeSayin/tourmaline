@@ -33,7 +33,6 @@ const STATUS_STYLES = {
   past: "text-muted-foreground",
 } satisfies Record<TaskStatus, string>;
 
-/** Every item you've added, filtered by status and category; each opens its editor. */
 export function TaskList({
   entries,
   categories,

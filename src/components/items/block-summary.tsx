@@ -4,7 +4,6 @@ import { toLocal } from "@/lib/time/local-time";
 import type { TimeZone } from "@/lib/time/time-zone";
 import { PLACEMENT_STATE_LABELS } from "./placement-state";
 
-/** A block's date and time and, for a scheduled block, its state. */
 export function BlockSummary({
   block: { start, end, placement },
   timeZone,

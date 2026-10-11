@@ -9,7 +9,6 @@ export type FocusCaps = readonly (number | null)[];
 
 export const NO_FOCUS_CAPS: FocusCaps = [null, null, null, null, null, null, null];
 
-/** The settings form field holding ISO weekday `weekday`'s focus cap, in hours. */
 export const focusCapField = (weekday: number) => `cap${weekday}`;
 
 export interface SchedulerSettings {
@@ -30,5 +29,4 @@ export const RECURRENCE_LOOKAHEAD_DAYS = 28;
 /** The least time between two chunks of the same task, so a split task's chunks don't run together. */
 export const CHUNK_BREAK_MIN = 30;
 
-/** How many upcoming occurrences a series' editor lists. */
 export const OCCURRENCES_SHOWN = 7;

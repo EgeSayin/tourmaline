@@ -67,7 +67,6 @@ const flexibleForm = z
     timing: z.literal("flexible"),
     durationMin: z.preprocess(toNumber, taskMinutes),
     earliestStart: z.preprocess(emptyToUndefined, localDateTime.optional()),
-    /** Not asked for a recurring task: each occurrence is due when the next one starts. */
     deadline: z.preprocess(emptyToUndefined, localDateTime.optional()),
     minChunkMin: z.preprocess(toNumber, taskMinutes.optional()),
     maxChunkMin: z.preprocess(toNumber, taskMinutes.optional()),
@@ -99,7 +98,6 @@ const flexibleForm = z
 
 export const itemFormSchema = z.discriminatedUnion("timing", [fixedForm, flexibleForm]);
 
-/** The form field values that describe `item`, with times shown in `timeZone`. */
 export function itemToFormValues(item: Item, timeZone: TimeZone): Record<string, string> {
   const local = (date: Date) => toDateTimeInputValue(date, timeZone);
   const { recurrence } = item;

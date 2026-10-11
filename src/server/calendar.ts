@@ -35,7 +35,6 @@ export interface QueueEntry {
   target: EditTarget;
 }
 
-/** A past block waiting to be checked off or marked missed. */
 export interface ReviewEntry {
   /** Unique among the entries. */
   key: string;
@@ -58,28 +57,20 @@ export interface Calendar {
   weekDates: string[];
   /** Local dates of the `PHONE_DAY_COUNT` days starting on the shown date. */
   dayDates: string[];
-  /** Local date of `now`. */
   today: string;
   navigation: { week: WeekNavigation; days: DayNavigation };
-  /** Fixed items, fixed occurrences and placements overlapping the week or the days. */
   blocks: CalendarBlock[];
-  /** Each date of the week and the days, by local date. */
   loads: Record<string, DayLoad>;
   focusCaps: FocusCaps;
   /** Planned tasks due after now whose remaining time doesn't fit before their deadline. */
   queue: QueueEntry[];
   /** Every past block still to review, oldest first. */
   review: ReviewEntry[];
-  /** Every item, for the task list. */
   tasks: TaskEntry[];
-  /** Every category, by name, with its item count. */
   categories: CategoryEntry[];
 }
 
-/**
- * Brings the plan up to date (see `syncPlan`) and returns the week and the `PHONE_DAY_COUNT` days from `shownDate`
- * (default: today), with their saved placements, the lists and every item.
- */
+/** Plans (see `syncPlan`), then loads the week and the phone days from `shownDate` (default: today). */
 export async function loadCalendar(executor: Executor, now: Date, shownDate?: Temporal.PlainDate): Promise<Calendar> {
   const [settings, items, categories] = await Promise.all([
     loadSettings(executor),
@@ -144,7 +135,6 @@ export async function loadCalendar(executor: Executor, now: Date, shownDate?: Te
   };
 }
 
-/** Finds the edit target for an item or occurrence id among `items`. */
 export function editTargets(items: Item[], now: Date, timeZone: TimeZone): (id: string) => EditTarget | undefined {
   const editable = new Map(
     items.map((item) => {

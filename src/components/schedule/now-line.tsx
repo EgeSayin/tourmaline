@@ -6,7 +6,6 @@ import { toTimeInputValue } from "@/lib/time/time-of-day";
 import type { TimeZone } from "@/lib/time/time-zone";
 import type { TimeScale } from "./time-scale";
 
-/** A line across the column of local `date` at the current time, while it's `date` and the time is on `scale`. */
 export function NowLine({ date, scale, timeZone }: { date: string; scale: TimeScale; timeZone: TimeZone }) {
   const now = useCurrentMinute();
   if (!now) return null;

@@ -20,14 +20,7 @@ export interface Plan {
   unplaced: Task[];
 }
 
-/**
- * Re-plans from `now` around the saved placements and saves the plan if it changed. The plan runs to the latest
- * one-off item date; recurring items don't extend it, but a task occurrence overlapping it, within
- * `RECURRENCE_LOOKAHEAD_DAYS`, is planned up to its deadline. Every placement but missed ones counts toward its task's
- * time, including past ones waiting for review, so only marking one missed plans its time again.
- * Tasks and occurrences marked done aren't planned. Re-planning an unchanged plan changes nothing, so repeated
- * calls don't write.
- */
+/** Plans from `now` (see `replan`) and saves the plan if it changed. The plan runs to the latest one-off date; task occurrences within `RECURRENCE_LOOKAHEAD_DAYS` are planned up to their deadline. */
 export async function syncPlan(
   executor: Executor,
   items: Item[],
@@ -65,7 +58,6 @@ export async function syncPlan(
   return { tasks, placements, unplaced };
 }
 
-/** Whether both lists, each sorted by start, hold the same placements. */
 function samePlacements(a: Placement[], b: Placement[]): boolean {
   const key = (p: Placement) => `${p.taskId}|${p.start.getTime()}|${p.end.getTime()}|${p.pinned}|${p.status}`;
   return a.length === b.length && a.every((placement, i) => key(placement) === key(b[i]));

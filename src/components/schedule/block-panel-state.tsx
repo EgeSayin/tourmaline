@@ -21,7 +21,6 @@ export function useBlockPanel() {
   return context;
 }
 
-/** Which block the panel shows, if any; shared by the calendar, the lists and the panel. */
 export function BlockPanelProvider({ timeZone, children }: { timeZone: TimeZone; children: React.ReactNode }) {
   const [block, setBlock] = useState<OpenedBlock | null>(null);
   const state: PanelState = { block, timeZone, open: setBlock, close: () => setBlock(null) };

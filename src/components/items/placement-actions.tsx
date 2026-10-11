@@ -4,10 +4,7 @@ import type { BlockPlacement } from "@/lib/calendar-blocks";
 import type { PlacementStatus } from "@/lib/placements";
 import { setPlacementPinnedAction, setPlacementStatusAction } from "@/server/items/actions";
 
-/**
- * What a block's state allows: check it off (early, before it starts), mark it missed once started, pin or unpin it
- * until it ends, and undo a check-off or a miss.
- */
+/** Done early before a block starts, missed once started, pin until it ends, and undo done or missed. */
 export function PlacementActions({ placement, onDone }: { placement: BlockPlacement; onDone?: () => void }) {
   const { ref, state, pinned } = placement;
   const setStatus = (status: PlacementStatus) => () => setPlacementStatusAction(ref, status);

@@ -3,7 +3,6 @@ import Link from "next/link";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-/** Previous, Today and Next links stepping by `unit`; links are `?date=` local dates. */
 export function DateNavigator({
   unit,
   previous,

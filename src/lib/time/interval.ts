@@ -12,7 +12,6 @@ declare const normalized: unique symbol;
  */
 export type IntervalSet = readonly Interval[] & { readonly [normalized]: true };
 
-/** Returns the intervals sorted by start, with overlapping or touching ones merged. */
 export function mergeIntervals(intervals: readonly Interval[]): IntervalSet {
   const sorted = [...intervals].sort((a, b) => a.start.getTime() - b.start.getTime());
   const merged: Interval[] = [];
@@ -28,7 +27,6 @@ export function mergeIntervals(intervals: readonly Interval[]): IntervalSet {
   return merged as unknown as IntervalSet;
 }
 
-/** Returns the parts of `free` not covered by `busy`, sorted by start. */
 export function subtractIntervals(free: readonly Interval[], busy: readonly Interval[]): IntervalSet {
   const blocks = mergeIntervals(busy);
   const result: Interval[] = [];
@@ -59,7 +57,6 @@ export function overlaps(a: Interval, b: Interval): boolean {
   return a.start < b.end && b.start < a.end;
 }
 
-/** The parts of `intervals` inside `window`, in their order, leaving out those that fall outside it. */
 export function clipIntervals(intervals: readonly Interval[], window: Interval): Interval[] {
   return intervals
     .map((interval) => ({ start: later(interval.start, window.start), end: earlier(interval.end, window.end) }))

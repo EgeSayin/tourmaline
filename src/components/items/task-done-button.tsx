@@ -4,10 +4,7 @@ import type { Task } from "@/lib/items";
 import { formatLocalDate } from "@/lib/time/format";
 import { setTaskDoneAction } from "@/server/items/actions";
 
-/**
- * Marks `task`, or with `date` its occurrence on that local date, done as a whole, or reopens it. `compact` is small
- * and leaves the date out of the visible label, for where the date is already shown.
- */
+/** `compact` leaves the date out of the label, for where it is already shown. */
 export function TaskDoneButton({
   task,
   date,

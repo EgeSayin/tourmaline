@@ -47,7 +47,6 @@ function PanelContent({ block }: { block: OpenedBlock }) {
   );
 }
 
-/** The block clicked on the calendar or in the lists: the side section on tablets and up, a bottom sheet on phones. */
 export function BlockPanel() {
   const { block, close } = useBlockPanel();
   const isDesktop = useMediaQuery(DESKTOP_QUERY);

@@ -3,7 +3,6 @@
 import { useSyncExternalStore } from "react";
 
 const MS_PER_MINUTE = 60_000;
-/** How often the minute is checked, so a new one shows within this long. */
 const TICK_MS = 10_000;
 
 const subscribe = (onChange: () => void) => {

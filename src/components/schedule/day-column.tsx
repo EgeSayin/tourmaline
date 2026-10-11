@@ -13,9 +13,7 @@ export function DayColumn({
   label,
   className = "",
 }: {
-  /** Local `YYYY-MM-DD`. */
   date: string;
-  /** The day, as screen readers announce the column. */
   label: string;
   blocks: CalendarBlock[];
   scale: TimeScale;

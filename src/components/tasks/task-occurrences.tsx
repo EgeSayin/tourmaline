@@ -7,7 +7,6 @@ import type { TimeZone } from "@/lib/time/time-zone";
 import type { OccurrenceEntry } from "@/server/tasks";
 import { BlockList } from "./task-blocks";
 
-/** A series' upcoming occurrences: a task's with their blocks, each to mark done or skip. */
 export function TaskOccurrences({
   item,
   occurrences,

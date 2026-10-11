@@ -8,13 +8,13 @@ export async function insertItem(executor: Executor, item: NewItem): Promise<str
   return id;
 }
 
-/** Replaces the item's own fields, including switching between fixed and flexible. Returns `false` if no item has `id`. */
+/** Returns `false` if no item has `id`. */
 export async function updateItem(executor: Executor, id: string, item: NewItem): Promise<boolean> {
   const updated = await executor.update(items).set(toRow(item)).where(eq(items.id, id)).returning({ id: items.id });
   return updated.length > 0;
 }
 
-/** Deletes the item and, through the cascade, its details. Returns `false` if no item has this `id`. */
+/** Returns `false` if no item has `id`. */
 export async function deleteItem(executor: Executor, id: string): Promise<boolean> {
   const deleted = await executor.delete(items).where(eq(items.id, id)).returning({ id: items.id });
   return deleted.length > 0;
@@ -24,18 +24,15 @@ export function loadItems(executor: Executor): Promise<Item[]> {
   return findItems(executor);
 }
 
-/** The item with this `id`, or `undefined` if there is none. */
 export async function loadItem(executor: Executor, id: string): Promise<Item | undefined> {
   const [item] = await findItems(executor, eq(items.id, id));
   return item;
 }
 
-/** Marks the one-off item `id` done or not done. */
 export async function setItemDone(executor: Executor, id: string, done: boolean): Promise<void> {
   await executor.update(items).set({ done }).where(eq(items.id, id));
 }
 
-/** Marks the occurrence of `itemId` on local date `date` done or not done. */
 export async function setOccurrenceDone(
   executor: Executor,
   itemId: string,
@@ -48,7 +45,6 @@ export async function setOccurrenceDone(
     .onConflictDoUpdate({ target: [occurrenceOverrides.itemId, occurrenceOverrides.occurrenceDate], set: { done } });
 }
 
-/** Marks the occurrence of `itemId` on local date `date` as skipped. */
 export async function skipOccurrence(executor: Executor, itemId: string, date: string): Promise<void> {
   await executor
     .insert(occurrenceOverrides)

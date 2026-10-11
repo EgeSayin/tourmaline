@@ -8,7 +8,6 @@ import { WEEKDAY_NAMES } from "@/lib/time/format";
 import { useFormAction } from "@/hooks/use-form-action";
 import { saveFocusCapsAction } from "@/server/settings/actions";
 
-/** Edits the most time to fill each weekday with, in hours. */
 export function FocusCapForm({ focusCaps }: { focusCaps: FocusCaps }) {
   const { state, values, errors, pending, onSubmit } = useFormAction(
     saveFocusCapsAction,

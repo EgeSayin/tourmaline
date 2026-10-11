@@ -11,13 +11,11 @@ const MINUTES_PER_DAY = 24 * 60;
 export interface EditTarget {
   /** The stored item: a series at its next occurrence (as saved once it has ended), under the series' id. */
   item: Item;
-  /** The occurrence's local date (`YYYY-MM-DD`), or `null` for a one-off item. */
   occurrenceDate: string | null;
 }
 
 export type BlockStyle = "fixed" | "fixed-optional" | "scheduled" | "to-review" | "done" | "missed";
 
-/** A scheduled block's own placement, as it stands at the time the blocks were built. */
 export interface BlockPlacement {
   ref: PlacementRef;
   state: PlacementState;
@@ -33,35 +31,24 @@ export function toBlockPlacement(placement: Placement, now: Date): BlockPlacemen
 }
 
 export interface CalendarBlock {
-  /** Unique among the blocks. */
   key: string;
   title: string;
   start: Date;
   end: Date;
   style: BlockStyle;
-  /** Its item's category's colour, or `null` without a category. */
   color: CategoryColor | null;
-  /** Local `YYYY-MM-DD` of the block's start. */
   date: string;
   startMinute: number;
   endMinute: number;
-  /** Which of `lanes` side-by-side columns it takes (see `withLanes`). */
   lane: number;
   lanes: number;
   target: EditTarget;
-  /** `null` for a fixed item. */
   placement: BlockPlacement | null;
-  /** A fixed item that overlaps another of the fixed items given: both stay, and it's up to you to sort out. */
+  /** A fixed item overlapping another one. */
   conflict: boolean;
 }
 
-/**
- * Positions fixed items and placements on their local day, each with the edit target `targetFor` finds for its item
- * or occurrence id; a placement without one, whose item is gone, is skipped. A block running past midnight is cut
- * off at the end of the day it starts on. Scheduled blocks are styled by their placement's state at `now`, and every
- * block is coloured by its item's category among `categories`. Fixed items that overlap each other are marked as
- * conflicts.
- */
+/** Positions blocks on the local day they start, cut off at midnight. Placements whose item is gone are skipped. */
 export function toCalendarBlocks(
   fixedItems: FixedItem[],
   placements: Placement[],
@@ -108,18 +95,13 @@ export function toCalendarBlocks(
   );
 }
 
-/** Where a block sits on its day. */
 export interface DaySpan {
   date: string;
   startMinute: number;
   endMinute: number;
 }
 
-/**
- * `spans` in their order, each with a lane: overlapping spans on the same date get different lanes, and each span's
- * `lanes` counts the lanes its group of overlapping spans needs, so every lane index is below it. Spans that only
- * touch don't overlap.
- */
+/** Overlapping spans on a date get different lanes, and all of a group share its lane count. */
 export function withLanes<T extends DaySpan>(spans: T[]): (T & { lane: number; lanes: number })[] {
   const laid = spans.map((span) => ({ ...span, lane: 0, lanes: 1 }));
   const order = [...laid].sort(

@@ -3,7 +3,6 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { ActionButton } from "./action-button";
 
-/** Asks for confirmation, then runs `onDelete` and, once it's done, `onDeleted`. */
 export function DeleteButton({ onDelete, onDeleted }: { onDelete: () => Promise<void>; onDeleted: () => void }) {
   const [confirming, setConfirming] = useState(false);
 

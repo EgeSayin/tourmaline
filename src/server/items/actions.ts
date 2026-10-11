@@ -92,7 +92,6 @@ export async function setPlacementPinnedAction(ref: PlacementRef, pinned: boolea
   refresh();
 }
 
-/** Marks the one-off task `id`, or with `date` its occurrence on that local date, done or not done. */
 export async function setTaskDoneAction(id: string, date: string | null, done: boolean): Promise<void> {
   const validId = itemId.parse(id);
   const validDate = z.iso.date().nullable().parse(date);

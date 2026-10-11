@@ -19,7 +19,6 @@ const NEW_CATEGORY_COLOR: CategoryColor = "blue";
 
 const isColor = (value: string | undefined): value is CategoryColor => CATEGORY_COLORS.includes(value as CategoryColor);
 
-/** Edits `category`, or adds a new one without it; closing, saving or deleting goes back to the list. */
 export function CategoryEditor({ category }: { category: CategoryEntry | null }) {
   const router = useRouter();
   const close = () => router.push("/categories");

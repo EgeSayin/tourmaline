@@ -8,7 +8,6 @@ import type { TimeZone } from "@/lib/time/time-zone";
 import type { ReviewEntry } from "@/server/calendar";
 import { useBlockPanel } from "./block-panel-state";
 
-/** Past blocks waiting to be checked off or marked missed; until then they keep counting toward their task. */
 export function ReviewList({ entries, timeZone }: { entries: ReviewEntry[]; timeZone: TimeZone }) {
   const { open } = useBlockPanel();
 

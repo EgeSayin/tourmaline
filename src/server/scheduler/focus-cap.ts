@@ -6,7 +6,6 @@ import { localDate, toDate } from "@/server/time/temporal";
 
 /** A local day with its focus cap and the minutes already filled. */
 export interface FocusDay extends Interval {
-  /** Local `YYYY-MM-DD`. */
   date: string;
   capMin: number | null;
   usedMin: number;

@@ -18,7 +18,6 @@ interface BaseItem {
   recurrence: Recurrence | null;
   /** At most one per occurrence date, sorted by date; empty for a one-off item. */
   overrides: OccurrenceOverride[];
-  /** The `Category` it belongs to, if any. */
   categoryId: string | null;
 }
 
@@ -31,7 +30,6 @@ export interface FixedItem extends BaseItem {
   bufferAfterMin: number;
 }
 
-/** How long each chunk of a split task may be. */
 export interface ChunkSizes {
   minChunkMin: number;
   maxChunkMin: number;
@@ -43,7 +41,6 @@ export interface Task extends BaseItem {
   earliestStart: Date;
   /** For a recurring task, the first occurrence's; each occurrence's window ends where the rule next occurs. */
   deadline: Date;
-  /** `null` means the item must be placed as a single block. */
   split: ChunkSizes | null;
   spread: SpreadStrategy;
   /** Marked done as a whole, so it isn't planned. An occurrence's comes from its override. */
@@ -71,7 +68,6 @@ export function itemSpan(item: NewItem): Interval {
     : { start: item.earliestStart, end: item.deadline };
 }
 
-/** `item` moved to happen within `span`, as `itemSpan` reads it. */
 export function withSpan<T extends NewItem>(item: T, span: Interval): T {
   return item.timing === "fixed"
     ? { ...item, start: span.start, end: span.end }

@@ -5,7 +5,6 @@ import { CategoryDot } from "@/components/categories/category-dot";
 import { FormSelect, useFormValue } from "@/components/forms/form-fields";
 import type { Category } from "@/lib/categories";
 
-/** Picks the item's category, or none, showing the picked one's colour beside the field. */
 export function CategorySelect({ categories }: { categories: Category[] }) {
   const [picked, setPicked] = useState(useFormValue("category") ?? "");
   const color = categories.find((category) => category.id === picked)?.color;

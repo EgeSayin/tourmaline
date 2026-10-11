@@ -4,7 +4,6 @@ import { PlacementActions } from "@/components/items/placement-actions";
 import type { TimeZone } from "@/lib/time/time-zone";
 import type { TaskBlock } from "@/server/tasks";
 
-/** Every block of a task, past and planned, each with what can be done with it. */
 export function TaskBlocks({ blocks, timeZone }: { blocks: TaskBlock[]; timeZone: TimeZone }) {
   return (
     <FormSection title="Blocks">

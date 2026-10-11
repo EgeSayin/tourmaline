@@ -16,7 +16,6 @@ interface FormState {
 
 const FormStateContext = createContext<FormState>({ values: {}, errors: {} });
 
-/** The submitted or initial value of field `name`. */
 export function useFormValue(name: string): string | undefined {
   return use(FormStateContext).values[name];
 }
@@ -25,7 +24,6 @@ export function FormStateProvider({ children, ...state }: FormState & { children
   return <FormStateContext value={state}>{children}</FormStateContext>;
 }
 
-/** A titled group of fields, set off by a rule. */
 export function FormSection({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <FieldSet>
@@ -149,7 +147,7 @@ export function FormSelect({
   );
 }
 
-/** Toggle buttons for picking any of `options`; the picked values are submitted comma-separated. */
+/** Picks any of `options`, submitted comma-separated. */
 export function FormToggleGroup({
   name,
   label,

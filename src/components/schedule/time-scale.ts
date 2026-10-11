@@ -4,7 +4,6 @@ import { SLOT_MIN } from "@/lib/placements";
 /** A one-slot block, less its 2px gap, holds one 12px line of text. */
 const PX_PER_SLOT = 14;
 const PX_PER_HOUR = (60 / SLOT_MIN) * PX_PER_SLOT;
-/** Hours shown when there are no blocks to fit. */
 const EMPTY_DAY_HOURS = { first: 8, last: 18 };
 
 export interface TimeScale {
@@ -12,7 +11,6 @@ export interface TimeScale {
   hours: number[];
   height: number;
   hourHeight: number;
-  /** Vertical position in pixels of a local minute of the day. */
   top: (minuteOfDay: number) => number;
 }
 

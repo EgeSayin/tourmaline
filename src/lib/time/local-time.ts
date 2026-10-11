@@ -28,7 +28,6 @@ export function toLocal(date: Date, timeZone: TimeZone): LocalDateTime {
   };
 }
 
-/** The exact time as a `datetime-local` input value in `timeZone`, e.g. "2026-10-05T11:00". */
 export function toDateTimeInputValue(date: Date, timeZone: TimeZone): string {
   const { date: day, minuteOfDay } = toLocal(date, timeZone);
   return `${day}T${toTimeInputValue(minuteOfDay)}`;

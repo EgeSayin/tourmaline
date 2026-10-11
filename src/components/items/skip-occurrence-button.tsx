@@ -3,7 +3,6 @@ import { ActionButton } from "@/components/forms/action-button";
 import { formatLocalDate } from "@/lib/time/format";
 import { skipOccurrenceAction } from "@/server/items/actions";
 
-/** Skips the occurrence of series `itemId` on local date `date`; `compact` as in `TaskDoneButton`. */
 export function SkipOccurrenceButton({
   itemId,
   date,

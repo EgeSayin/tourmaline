@@ -9,10 +9,6 @@ function weekLabel(weeksFromToday: number): string {
   return weeksFromToday > 0 ? `In ${weeksFromToday} weeks` : `${-weeksFromToday} weeks ago`;
 }
 
-/**
- * Steps by week with the week's dates on tablets and up; by `dayDates.length` days with those dates on phones, labelled
- * only when they start today.
- */
 export function CalendarHeader({
   weekDates,
   dayDates,

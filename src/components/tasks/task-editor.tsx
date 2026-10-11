@@ -11,7 +11,6 @@ import type { ItemSchedule, TaskEntry } from "@/server/tasks";
 import { TaskBlocks } from "./task-blocks";
 import { TaskOccurrences } from "./task-occurrences";
 
-/** Edits `task` with its `schedule`, or adds a new item without one; closing or saving goes back to the list. */
 export function TaskEditor({
   task,
   schedule,

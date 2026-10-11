@@ -6,7 +6,6 @@ export interface DailyWindow {
 
 const pad = (value: number) => String(value).padStart(2, "0");
 
-/** A `time` input value such as "09:05". */
 export function toTimeInputValue(minuteOfDay: number): string {
   return `${pad(Math.floor(minuteOfDay / 60))}:${pad(minuteOfDay % 60)}`;
 }

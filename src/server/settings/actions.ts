@@ -8,7 +8,6 @@ import { inPlanTransaction } from "@/server/db/plan-lock";
 import { saveFocusCaps } from "@/server/db/settings-repository";
 import { parseFocusCaps } from "./parse-focus-caps";
 
-/** Saves each weekday's focus cap and plans every block that can move again under the new caps. */
 export async function saveFocusCapsAction(_previous: FormState, formData: FormData): Promise<FormState> {
   const fields = formFields(formData);
   const parsed = parseFocusCaps(fields);

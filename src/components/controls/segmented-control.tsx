@@ -8,10 +8,7 @@ export interface Segment<T extends string> {
   content?: React.ReactNode;
 }
 
-/**
- * Buttons picking exactly one of `options`, as a radio group, framed and styled as ghost buttons of `size`. A custom
- * `optionClassName` replaces that style; style the picked option with `aria-checked:`. With no `value`, none is picked.
- */
+/** A radio group of buttons, framed ghost buttons of `size` unless `optionClassName` replaces their style. */
 export function SegmentedControl<T extends string>({
   label,
   options,

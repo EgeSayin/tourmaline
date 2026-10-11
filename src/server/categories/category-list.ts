@@ -5,7 +5,6 @@ export interface CategoryEntry extends Category {
   itemCount: number;
 }
 
-/** `categories` in their order, each with how many of `items` belong to it. */
 export function listCategories(categories: Category[], items: Item[]): CategoryEntry[] {
   const counts = new Map<string, number>();
   for (const { categoryId } of items) {

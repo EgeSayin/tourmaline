@@ -5,7 +5,6 @@ import { cn } from "@/lib/utils";
 import type { CategoryEntry } from "@/server/categories/category-list";
 import { CategoryDot } from "./category-dot";
 
-/** Every category, each opening its editor, and a link to add one. */
 export function CategoryList({ entries, selectedId }: { entries: CategoryEntry[]; selectedId: string | null }) {
   return (
     <>

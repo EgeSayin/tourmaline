@@ -34,7 +34,6 @@ export function ScheduleBlock({
   const label = `${block.title} ${formatTimeRange(block.start, block.end, timeZone)}${notes.length > 0 ? ` (${notes.join(", ")})` : ""}`;
 
   return (
-    // Overlapping blocks share the column side by side, one lane each.
     <div
       className="absolute px-0.5 md:px-1"
       style={{

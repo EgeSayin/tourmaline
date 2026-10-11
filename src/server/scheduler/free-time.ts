@@ -15,7 +15,6 @@ export function freeTimeMap(range: Interval, fixedItems: FixedItem[], settings: 
   return subtractIntervals([range], [...dailyIntervals(range, settings.downtime, settings.timeZone), ...busy]);
 }
 
-/** Returns each day's `window` within `range` as exact times, sorted by start. */
 export function dailyIntervals(range: Interval, window: DailyWindow, timeZone: TimeZone): Interval[] {
   const wrapsMidnight = window.endMinute < window.startMinute;
 

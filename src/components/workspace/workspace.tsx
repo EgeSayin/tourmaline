@@ -16,11 +16,7 @@ type List = "review" | "queue";
 const PHONE_TAB =
   "flex flex-col items-center gap-1 py-2 text-xs font-medium text-muted-foreground aria-[current=page]:text-foreground aria-pressed:text-foreground";
 
-/**
- * What every page shows around its middle: the lists on the left (blocks to review and the queue, opening on the
- * review while it has any) and, on the right, `editor` when given, or else the panel for the block clicked.
- * Phones switch pages and the lists at the bottom; an open editor takes the screen until the lists are shown.
- */
+/** Lists on the left (opening on review while it has any), the page in the middle, and `editor` or the block panel on the right. */
 export function Workspace(props: WorkspaceProps) {
   return (
     <BlockPanelProvider timeZone={props.calendar.timeZone}>
@@ -44,7 +40,6 @@ function WorkspaceShell({ page, calendar, main, editor = null }: WorkspaceProps)
   const [phoneView, setPhoneView] = useState<"main" | "lists">("main");
   const [list, setList] = useState<List>(review.length > 0 ? "review" : "queue");
   const panelOpen = useBlockPanel().block !== null;
-  // The phone tab holds both lists.
   const waiting = queue.length + review.length;
 
   return (
@@ -130,12 +125,10 @@ function WorkspaceShell({ page, calendar, main, editor = null }: WorkspaceProps)
   );
 }
 
-/** The name, with how many need attention, for screen readers. */
 function counted(name: string, count: number) {
   return count > 0 ? `${name} (${count})` : name;
 }
 
-/** An amber count, shown only while there's something to resolve. */
 function Count({ n, className = "" }: { n: number; className?: string }) {
   return (
     n > 0 && (

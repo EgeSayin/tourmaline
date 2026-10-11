@@ -9,10 +9,7 @@ const categoryFormSchema = z.object({
   color: z.enum(CATEGORY_COLORS, "Pick a colour"),
 });
 
-/**
- * Validates submitted fields for the category `id` (`null` for a new one). Its trimmed name must differ, ignoring
- * case, from every other category's in `existing`.
- */
+/** The name must differ, ignoring case, from every other category's. */
 export function parseCategoryForm(
   fields: Record<string, unknown>,
   existing: Category[],

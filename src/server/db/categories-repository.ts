@@ -27,7 +27,6 @@ export async function updateCategory(executor: Executor, id: string, category: N
   return updated.length > 0;
 }
 
-/** Its items are kept, without a category. Returns `false` if no category has `id`. */
 export async function deleteCategory(executor: Executor, id: string): Promise<boolean> {
   const deleted = await executor.delete(categories).where(eq(categories.id, id)).returning({ id: categories.id });
   return deleted.length > 0;

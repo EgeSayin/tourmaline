@@ -3,10 +3,7 @@
 import { startTransition, useActionState } from "react";
 import type { FormState } from "@/lib/form-state";
 
-/**
- * Submits a form to `action`, calling `onSaved` once it saves. Field values are the submitted ones after a failed
- * submission, `initialValues` before.
- */
+/** Fields show the submitted values after a failed submission, `initialValues` before. */
 export function useFormAction(
   action: (previous: FormState, formData: FormData) => Promise<FormState>,
   initialValues: Record<string, string>,

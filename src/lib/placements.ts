@@ -1,15 +1,13 @@
-/** `planned` until checked off as `done` or marked `missed`. */
 export const PLACEMENT_STATUSES = ["planned", "done", "missed"] as const;
 
 export type PlacementStatus = (typeof PLACEMENT_STATUSES)[number];
 
-/** Where (part of) a flexible task is scheduled. Fixed items have no placements; their own times are final. */
+/** Where (part of) a task is scheduled. */
 export interface Placement {
   /** The task's id, or the occurrence's (see `occurrenceId`) for a recurring task. */
   taskId: string;
   start: Date;
   end: Date;
-  /** Pinned placements are never moved by the scheduler. */
   pinned: boolean;
   status: PlacementStatus;
 }

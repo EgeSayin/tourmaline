@@ -9,7 +9,6 @@ import { parseCategoryForm } from "./parse-category-form";
 
 const categoryId = z.uuid();
 
-/** Adds a category, or with `id` renames and recolours that one. */
 export async function saveCategoryAction(
   id: string | null,
   _previous: FormState,
@@ -28,7 +27,6 @@ export async function saveCategoryAction(
   return state;
 }
 
-/** Deletes the category; its items stay, without one. */
 export async function deleteCategoryAction(id: string): Promise<void> {
   const validId = categoryId.parse(id);
   if (!(await deleteCategory(db, validId))) throw new Error(`Category ${validId} not found`);

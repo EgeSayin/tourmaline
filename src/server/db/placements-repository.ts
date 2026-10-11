@@ -31,7 +31,6 @@ export async function loadTaskPlacements(executor: Executor, taskId: string): Pr
   return rows.map(toPlacement);
 }
 
-/** The placement `ref` points to, or `undefined` if there is none. */
 export async function loadPlacement(executor: Executor, ref: PlacementRef): Promise<Placement | undefined> {
   const [row] = await executor.select().from(placements).where(matching(ref));
   return row && toPlacement(row);

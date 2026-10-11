@@ -23,7 +23,6 @@ export interface TaskEntry {
   /** A task's deadline or an event's start: for a series, its next occurrence's. */
   when: Date;
   status: TaskStatus;
-  /** Opens the item, a series at its next occurrence. */
   target: EditTarget;
 }
 
@@ -60,7 +59,6 @@ export interface TaskBlock {
   placement: BlockPlacement;
 }
 
-/** The blocks of a task, or of an occurrence by its id, sorted by start, in their state at `now`. */
 export async function loadTaskBlocks(executor: Executor, taskId: string, now: Date): Promise<TaskBlock[]> {
   return (await loadTaskPlacements(executor, taskId)).map((placement) => ({
     start: placement.start,
@@ -69,18 +67,14 @@ export async function loadTaskBlocks(executor: Executor, taskId: string, now: Da
   }));
 }
 
-/** One upcoming occurrence of a series. */
 export interface OccurrenceEntry {
-  /** Local `YYYY-MM-DD`. */
   date: string;
   start: Date;
   /** A fixed occurrence's end, or a task occurrence's deadline. */
   end: Date;
-  /** A task occurrence's blocks; none for a fixed one. */
   blocks: TaskBlock[];
 }
 
-/** What an item's editor lists: a one-off task's blocks, or a series' upcoming occurrences. */
 export interface ItemSchedule {
   blocks: TaskBlock[];
   occurrences: OccurrenceEntry[];

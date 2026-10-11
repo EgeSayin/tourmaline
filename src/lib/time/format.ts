@@ -19,20 +19,16 @@ export function formatTimeRange(start: Date, end: Date, timeZone: TimeZone): str
   return `${time(timeZone).format(start)}–${time(timeZone).format(end)}`;
 }
 
-/** Short weekday names in ISO order, Monday first. */
 export const WEEKDAY_NAMES = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] as const;
 
-/** A `YYYY-MM-DD` local date's weekday, e.g. "Mon". */
 export function formatLocalWeekday(date: string): string {
   return WEEKDAY_NAMES[(noon(date).getUTCDay() + 6) % 7];
 }
 
-/** A `YYYY-MM-DD` local date with its weekday, e.g. "Wed, Oct 7". */
 export function formatLocalDate(date: string): string {
   return day("UTC").format(noon(date));
 }
 
-/** Two `YYYY-MM-DD` local dates as a range, e.g. "Oct 5 – 11, 2026". */
 export function formatLocalDateRange(first: string, last: string): string {
   return formatter({ timeZone: "UTC", month: "short", day: "numeric", year: "numeric" }).formatRange(
     noon(first),
