@@ -1,0 +1,1 @@
+ALTER TABLE "placements" ADD COLUMN "done" boolean DEFAULT false NOT NULL;

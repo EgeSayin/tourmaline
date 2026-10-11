@@ -144,6 +144,7 @@ export const placements = pgTable(
     endAt: timestamptz("end_at").notNull(),
     source: placementSourceEnum("source").notNull().default("auto"),
     pinned: boolean("pinned").notNull().default(false),
+    done: boolean("done").notNull().default(false),
     createdAt: timestamptz("created_at").notNull().defaultNow(),
   },
   (t) => [

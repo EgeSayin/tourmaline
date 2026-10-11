@@ -27,7 +27,13 @@ function existingArb(tasks: Task[]): fc.Arbitrary<Placement[]> {
   return fc.array(
     fc
       .tuple(fc.integer({ min: 0, max: tasks.length - 1 }), intervalArb(120), fc.boolean())
-      .map(([i, times, pinned]): Placement => ({ taskId: tasks[i].id, ...times, source: "manual", pinned })),
+      .map(([i, times, pinned]): Placement => ({
+        taskId: tasks[i].id,
+        ...times,
+        source: "manual",
+        pinned,
+        done: false,
+      })),
     { maxLength: 6 },
   );
 }
@@ -55,6 +61,7 @@ describe("replan", { tags: ["unit", "critical"] }, () => {
       ...times,
       source: "auto",
       pinned,
+      done: false,
     });
 
     const pastEssay = placement("Essay", utc("2026-10-05T10:00", "2026-10-05T11:00"));
@@ -91,6 +98,7 @@ describe("replan", { tags: ["unit", "critical"] }, () => {
       ...utc("2026-10-05T11:00", "2026-10-05T12:00"),
       source: "auto",
       pinned: false,
+      done: false,
     };
 
     const result = replan({
@@ -102,8 +110,14 @@ describe("replan", { tags: ["unit", "critical"] }, () => {
     });
 
     expect(result.placements).toEqual([
-      { taskId: "Exam prep", ...utc("2026-10-05T10:00", "2026-10-05T13:00"), source: "auto", pinned: false },
-      { taskId: "Reading", ...utc("2026-10-05T13:00", "2026-10-05T14:00"), source: "auto", pinned: false },
+      {
+        taskId: "Exam prep",
+        ...utc("2026-10-05T10:00", "2026-10-05T13:00"),
+        source: "auto",
+        pinned: false,
+        done: false,
+      },
+      { taskId: "Reading", ...utc("2026-10-05T13:00", "2026-10-05T14:00"), source: "auto", pinned: false, done: false },
     ]);
     expect(result.unplaced).toEqual([]);
   });
@@ -119,6 +133,7 @@ describe("replan", { tags: ["unit", "critical"] }, () => {
       ...utc("2026-10-05T10:00", "2026-10-05T10:45"),
       source: "auto",
       pinned: false,
+      done: false,
     };
 
     const result = replan({
@@ -131,7 +146,7 @@ describe("replan", { tags: ["unit", "critical"] }, () => {
 
     expect(result.placements).toEqual([
       done,
-      { taskId: "Thesis", ...utc("2026-10-05T11:15", "2026-10-05T12:00"), source: "auto", pinned: false },
+      { taskId: "Thesis", ...utc("2026-10-05T11:15", "2026-10-05T12:00"), source: "auto", pinned: false, done: false },
     ]);
   });
 

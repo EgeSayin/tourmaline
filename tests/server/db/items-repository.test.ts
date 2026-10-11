@@ -80,6 +80,7 @@ describe("items repository", { tags: ["integration", "critical"] }, () => {
       end: essay.deadline,
       source: "auto" as const,
       pinned: false,
+      done: false,
     };
     await insertPlacements(tx, [slot]);
     await expect(tx.transaction((inner) => updateItem(inner, id, lecture))).rejects.toThrow();

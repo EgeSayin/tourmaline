@@ -25,6 +25,7 @@ const auto = (taskId: string, times: { start: Date; end: Date }): Placement => (
   ...times,
   source: "auto",
   pinned: false,
+  done: false,
 });
 const plan = async (tx: Transaction, now: Date) => syncPlan(tx, await loadItems(tx), settings, now);
 

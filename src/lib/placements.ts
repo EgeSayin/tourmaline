@@ -12,6 +12,8 @@ export interface Placement {
   source: PlacementSource;
   /** Pinned placements are never moved by the scheduler. */
   pinned: boolean;
+  /** Checked off as done. */
+  done: boolean;
 }
 
 /** Placements start on multiples of this many minutes, and task durations are multiples of it. */

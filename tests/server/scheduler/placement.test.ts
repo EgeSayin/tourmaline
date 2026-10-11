@@ -34,9 +34,15 @@ describe("placeTasks", { tags: ["unit", "critical"] }, () => {
     const result = placeTasks(tasks, freeTimeMap(range, fixedItems, settings));
 
     expect(result.placements).toEqual([
-      { taskId: "Lunch", ...utc("2026-10-05T16:30", "2026-10-05T17:15"), source: "auto", pinned: false }, // 12:30
-      { taskId: "Problem set", ...utc("2026-10-05T17:15", "2026-10-05T20:15"), source: "auto", pinned: false }, // 13:15
-      { taskId: "Essay", ...utc("2026-10-05T20:15", "2026-10-05T21:45"), source: "auto", pinned: false }, // 16:15
+      { taskId: "Lunch", ...utc("2026-10-05T16:30", "2026-10-05T17:15"), source: "auto", pinned: false, done: false }, // 12:30
+      {
+        taskId: "Problem set",
+        ...utc("2026-10-05T17:15", "2026-10-05T20:15"),
+        source: "auto",
+        pinned: false,
+        done: false,
+      }, // 13:15
+      { taskId: "Essay", ...utc("2026-10-05T20:15", "2026-10-05T21:45"), source: "auto", pinned: false, done: false }, // 16:15
     ]);
     // Most urgent, but after lunch only 4h45m is free before 18:00.
     expect(result.unplaced.map((task) => task.id)).toEqual(["Lab report"]);
@@ -93,7 +99,7 @@ describe("placeTasks", { tags: ["unit", "critical"] }, () => {
     // Its centre is 10:15, and nothing fits from there on, so it goes in the earliest fit.
     const tight = mergeIntervals([iv("10:00", "11:00"), iv("11:30", "12:00")]);
     expect(placeTasks([{ ...flexible("Call", 60, iv("00:00", "23:59")), spread: "even" }], tight).placements).toEqual([
-      { taskId: "Call", ...iv("10:00", "11:00"), source: "auto", pinned: false },
+      { taskId: "Call", ...iv("10:00", "11:00"), source: "auto", pinned: false, done: false },
     ]);
   });
 

@@ -20,6 +20,7 @@ export async function loadPlacements(executor: Database | Transaction, range: In
     end: row.endAt,
     source: row.source,
     pinned: row.pinned,
+    done: row.done,
   }));
 }
 
@@ -35,6 +36,7 @@ export async function insertPlacements(executor: Database | Transaction, toInser
         endAt: placement.end,
         source: placement.source,
         pinned: placement.pinned,
+        done: placement.done,
       };
     }),
   );

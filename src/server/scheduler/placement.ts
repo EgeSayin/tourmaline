@@ -38,7 +38,7 @@ export function placeTasks(tasks: Task[], free: IntervalSet, placed: readonly Pl
       findBlocks(task, "asap", remaining, placed);
     if (blocks) {
       placements.push(
-        ...blocks.map((block) => ({ taskId: task.id, ...block, source: "auto" as const, pinned: false })),
+        ...blocks.map((block) => ({ taskId: task.id, ...block, source: "auto" as const, pinned: false, done: false })),
       );
       remaining = subtractIntervals(remaining, blocks);
     } else {

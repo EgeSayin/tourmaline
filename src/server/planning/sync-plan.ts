@@ -62,6 +62,6 @@ export async function syncPlan(
 
 /** Whether both lists, each sorted by start, hold the same placements. */
 function samePlacements(a: Placement[], b: Placement[]): boolean {
-  const key = (p: Placement) => `${p.taskId}|${p.start.getTime()}|${p.end.getTime()}|${p.source}|${p.pinned}`;
+  const key = (p: Placement) => `${p.taskId}|${p.start.getTime()}|${p.end.getTime()}|${p.source}|${p.pinned}|${p.done}`;
   return a.length === b.length && a.every((placement, i) => key(placement) === key(b[i]));
 }

@@ -57,6 +57,13 @@
       "when": 1791691295650,
       "tag": "0007_task_minutes_on_slot_grid",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1791692252784,
+      "tag": "0008_placements_done",
+      "breakpoints": true
     }
   ]
 }

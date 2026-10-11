@@ -123,6 +123,7 @@ describe("editing in place", { tags: ["integration", "critical"] }, () => {
       ...utc(start, end),
       source: "auto" as const,
       pinned,
+      done: false,
     });
     const started = placed("2026-10-07T15:00", "2026-10-07T17:00");
     const pinned = placed("2026-10-08T14:00", "2026-10-08T15:00", true);
