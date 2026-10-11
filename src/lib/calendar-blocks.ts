@@ -44,6 +44,9 @@ export interface CalendarBlock {
   date: string;
   startMinute: number;
   endMinute: number;
+  /** Which of `lanes` side-by-side columns it takes (see `withLanes`). */
+  lane: number;
+  lanes: number;
   target: EditTarget;
   /** `null` for a fixed item. */
   placement: BlockPlacement | null;
@@ -75,7 +78,7 @@ export function toCalendarBlocks(
     })),
   ];
 
-  return unpositioned.flatMap(({ id, ...block }) => {
+  const positioned = unpositioned.flatMap(({ id, ...block }) => {
     const target = targetFor(id);
     if (!target) return [];
     const { item } = target;
@@ -92,6 +95,45 @@ export function toCalendarBlocks(
       target,
     };
   });
+  return withLanes(positioned);
+}
+
+/** Where a block sits on its day. */
+export interface DaySpan {
+  date: string;
+  startMinute: number;
+  endMinute: number;
+}
+
+/**
+ * `spans` in their order, each with a lane: overlapping spans on the same date get different lanes, and each span's
+ * `lanes` counts the lanes its group of overlapping spans needs, so every lane index is below it. Spans that only
+ * touch don't overlap.
+ */
+export function withLanes<T extends DaySpan>(spans: T[]): (T & { lane: number; lanes: number })[] {
+  const laid = spans.map((span) => ({ ...span, lane: 0, lanes: 1 }));
+  const order = [...laid].sort(
+    (a, b) => a.date.localeCompare(b.date) || a.startMinute - b.startMinute || b.endMinute - a.endMinute,
+  );
+
+  // Within a group of spans linked by overlaps, each span takes the first lane free at its start.
+  let group: typeof laid = [];
+  let laneEnds: number[] = [];
+  const closeGroup = () => group.forEach((span) => (span.lanes = laneEnds.length));
+  for (const span of order) {
+    const groupEnd = Math.max(...laneEnds);
+    if (group.length > 0 && (span.date !== group[0].date || span.startMinute >= groupEnd)) {
+      closeGroup();
+      group = [];
+      laneEnds = [];
+    }
+    const free = laneEnds.findIndex((end) => end <= span.startMinute);
+    span.lane = free === -1 ? laneEnds.length : free;
+    laneEnds[span.lane] = span.endMinute;
+    group.push(span);
+  }
+  closeGroup();
+  return laid;
 }
 
 function blockStyle(item: Item, placement: BlockPlacement | null): BlockStyle {

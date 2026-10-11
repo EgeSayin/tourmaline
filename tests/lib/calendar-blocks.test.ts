@@ -1,5 +1,6 @@
+import fc from "fast-check";
 import { describe, expect, it } from "vitest";
-import { type EditTarget, toCalendarBlocks } from "@/lib/calendar-blocks";
+import { type DaySpan, type EditTarget, toCalendarBlocks, withLanes } from "@/lib/calendar-blocks";
 import type { Item } from "@/lib/items";
 import type { Placement } from "@/lib/placements";
 import { utc } from "../support/intervals";
@@ -52,6 +53,8 @@ describe("toCalendarBlocks", { tags: ["unit"] }, () => {
         date: "2026-10-05",
         startMinute: 11 * 60,
         endMinute: 12 * 60 + 15,
+        lane: 0,
+        lanes: 1,
         target: { item: lecture, occurrenceDate: null },
         placement: null,
       },
@@ -65,6 +68,8 @@ describe("toCalendarBlocks", { tags: ["unit"] }, () => {
         date: "2026-10-05",
         startMinute: 22 * 60 + 30,
         endMinute: 24 * 60, // cut off at midnight
+        lane: 0,
+        lanes: 1,
         target: { item: party, occurrenceDate: null },
         placement: null,
       },
@@ -83,9 +88,65 @@ describe("toCalendarBlocks", { tags: ["unit"] }, () => {
         date: "2026-10-05",
         startMinute,
         endMinute,
+        lane: 0,
+        lanes: 1,
         target: { item: reading, occurrenceDate: "2026-10-05" },
         placement: { ref: { taskId, start }, state, pinned },
       })),
     ]);
   });
+});
+
+describe("withLanes", { tags: ["unit"] }, () => {
+  const span = (date: string, from: number, to: number): DaySpan => ({
+    date,
+    startMinute: from * 60,
+    endMinute: to * 60,
+  });
+  const lanesOf = (spans: DaySpan[]) => withLanes(spans).map(({ lane, lanes }) => `${lane}/${lanes}`);
+
+  it("puts overlapping blocks side by side, reusing a lane once it's free, and keeps the rest full width", () => {
+    expect(
+      lanesOf([
+        span("2026-10-05", 10, 12), // overlaps both its neighbours
+        span("2026-10-05", 9, 11),
+        span("2026-10-05", 11, 13), // takes the 9:00 block's lane once it ends
+        span("2026-10-05", 13, 14), // only touches the one before
+        span("2026-10-06", 10, 11), // same time, another day
+        span("2026-10-05", 15, 18),
+        span("2026-10-05", 15.5, 16),
+        span("2026-10-05", 16.5, 17), // beside the long block, in the lane the short one left
+      ]),
+    ).toEqual(["1/2", "0/2", "0/2", "0/1", "0/1", "0/2", "1/2", "1/2"]);
+  });
+
+  it("never puts overlapping blocks in one lane, and gives them the same lane count", { tags: ["property"] }, () =>
+    fc.assert(
+      fc.property(
+        fc.array(
+          fc
+            .tuple(
+              fc.constantFrom("2026-10-05", "2026-10-06"),
+              fc.integer({ min: 0, max: 1435 }),
+              fc.integer({ min: 5, max: 300 }),
+            )
+            .map(([date, start, length]) => ({ date, startMinute: start, endMinute: Math.min(start + length, 1440) })),
+          { maxLength: 15 },
+        ),
+        (spans) => {
+          const laid = withLanes(spans);
+          expect(laid.map(({ lane, lanes, ...span }) => span)).toEqual(spans);
+          for (const a of laid) {
+            expect(a.lane).toBeLessThan(a.lanes);
+            for (const b of laid) {
+              if (a !== b && a.date === b.date && a.startMinute < b.endMinute && b.startMinute < a.endMinute) {
+                expect(a.lane).not.toBe(b.lane);
+                expect(a.lanes).toBe(b.lanes);
+              }
+            }
+          }
+        },
+      ),
+    ),
+  );
 });
