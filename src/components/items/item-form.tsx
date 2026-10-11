@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { FieldGroup } from "@/components/ui/field";
 import type { EditTarget } from "@/lib/calendar-blocks";
 import { itemToFormValues, type Repeat } from "@/lib/item-form";
-import { type Item, PRIORITIES, type Priority } from "@/lib/items";
+import { isTask, type Item, PRIORITIES, type Priority } from "@/lib/items";
 import type { TimeZone } from "@/lib/time/time-zone";
 import { createItemAction, type ItemFormState, updateItemAction } from "@/server/items/actions";
 import { DeleteItemButton } from "./delete-item-button";
@@ -14,6 +14,7 @@ import { FixedItemFields } from "./fixed-item-fields";
 import { TaskFields } from "./task-fields";
 import { RepeatFields } from "./repeat-fields";
 import { SkipOccurrenceButton } from "./skip-occurrence-button";
+import { TaskDoneButton } from "./task-done-button";
 import { TimingSwitch } from "./timing-switch";
 
 const PRIORITY_LABELS = {
@@ -86,6 +87,7 @@ export function ItemForm({
         <Button type="submit" disabled={pending} className="flex-1">
           {pending ? "Saving…" : item ? "Save changes" : "Add item"}
         </Button>
+        {item && isTask(item) && <TaskDoneButton task={item} date={target.occurrenceDate} onChanged={onDone} />}
         {item && target.occurrenceDate && (
           <SkipOccurrenceButton itemId={item.id} date={target.occurrenceDate} onSkipped={onDone} />
         )}

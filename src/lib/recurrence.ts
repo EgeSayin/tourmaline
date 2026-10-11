@@ -23,6 +23,8 @@ export interface OccurrenceOverride {
   /** The occurrence's local date, `YYYY-MM-DD`. */
   date: string;
   skipped: boolean;
+  /** For a task's occurrence: marked done as a whole. */
+  done: boolean;
 }
 
 const OCCURRENCE_SEPARATOR = "@";

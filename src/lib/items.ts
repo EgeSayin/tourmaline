@@ -44,14 +44,19 @@ export interface Task extends BaseItem {
   /** `null` means the item must be placed as a single block. */
   split: ChunkSizes | null;
   spread: SpreadStrategy;
+  /** Marked done as a whole, so it isn't planned. An occurrence's comes from its override. */
+  done: boolean;
 }
 
 export type Item = FixedItem | Task;
 
-/** An item as created or edited: the database assigns its `id`, and occurrences are overridden separately. */
+/**
+ * An item as created or edited: the database assigns its `id`, occurrences are overridden separately, and a task is
+ * marked done separately.
+ */
 export type NewItem = Omit<FixedItem, "id" | "overrides"> | NewTask;
 
-export type NewTask = Omit<Task, "id" | "overrides">;
+export type NewTask = Omit<Task, "id" | "overrides" | "done">;
 
 export const isFixed = <T extends NewItem>(item: T): item is Extract<T, { timing: "fixed" }> => item.timing === "fixed";
 export const isTask = <T extends NewItem>(item: T): item is Extract<T, { timing: "flexible" }> =>

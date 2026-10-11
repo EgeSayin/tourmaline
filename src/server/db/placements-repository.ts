@@ -43,13 +43,24 @@ export async function updatePlacement(
   await executor.update(placements).set(changes).where(matching(ref));
 }
 
-function matching({ taskId, start }: PlacementRef) {
+/** Checks off the task's placements still to review as of `now`: planned and ended. */
+export async function checkOffToReview(executor: Database | Transaction, taskId: string, now: Date): Promise<void> {
+  await executor
+    .update(placements)
+    .set({ status: "done" })
+    .where(and(ofTask(taskId), eq(placements.status, "planned"), lte(placements.endAt, now)));
+}
+
+function ofTask(taskId: string) {
   const { itemId, date } = parseOccurrenceId(taskId);
   return and(
     eq(placements.itemId, itemId),
     date ? eq(placements.occurrenceDate, date) : isNull(placements.occurrenceDate),
-    eq(placements.startAt, start),
   );
+}
+
+function matching({ taskId, start }: PlacementRef) {
+  return and(ofTask(taskId), eq(placements.startAt, start));
 }
 
 function toPlacement(row: typeof placements.$inferSelect): Placement {

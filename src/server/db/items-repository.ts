@@ -79,6 +79,24 @@ export async function loadItem(executor: Database | Transaction, id: string): Pr
   return item;
 }
 
+/** Marks the one-off item `id` done or not done. */
+export async function setItemDone(executor: Database | Transaction, id: string, done: boolean): Promise<void> {
+  await executor.update(items).set({ done }).where(eq(items.id, id));
+}
+
+/** Marks the occurrence of `itemId` on local date `date` done or not done. */
+export async function setOccurrenceDone(
+  executor: Database | Transaction,
+  itemId: string,
+  date: string,
+  done: boolean,
+): Promise<void> {
+  await executor
+    .insert(occurrenceOverrides)
+    .values({ itemId, occurrenceDate: date, done })
+    .onConflictDoUpdate({ target: [occurrenceOverrides.itemId, occurrenceOverrides.occurrenceDate], set: { done } });
+}
+
 /** Marks the occurrence of `itemId` on local date `date` as skipped. */
 export async function skipOccurrence(executor: Database | Transaction, itemId: string, date: string): Promise<void> {
   await executor
@@ -112,40 +130,43 @@ async function findItems(executor: Database | Transaction, where?: SQL): Promise
     },
   });
 
-  return rows.map(({ id, title, priority, timing, recurrence, overrides, fixedDetails, flexibleDetails }): Item => {
-    const shared = {
-      id,
-      title,
-      priority,
-      recurrence,
-      overrides: overrides.map(({ occurrenceDate, skipped }) => ({ date: occurrenceDate, skipped })),
-    };
-    if (timing === "fixed") {
-      if (!fixedDetails) throw new Error(`Fixed item ${id} has no details row`);
+  return rows.map(
+    ({ id, title, priority, timing, recurrence, done, overrides, fixedDetails, flexibleDetails }): Item => {
+      const shared = {
+        id,
+        title,
+        priority,
+        recurrence,
+        overrides: overrides.map(({ occurrenceDate, skipped, done }) => ({ date: occurrenceDate, skipped, done })),
+      };
+      if (timing === "fixed") {
+        if (!fixedDetails) throw new Error(`Fixed item ${id} has no details row`);
+        return {
+          ...shared,
+          timing,
+          start: fixedDetails.startAt,
+          end: fixedDetails.endAt,
+          location: fixedDetails.location,
+          bufferBeforeMin: fixedDetails.bufferBeforeMin,
+          bufferAfterMin: fixedDetails.bufferAfterMin,
+        };
+      }
+
+      if (!flexibleDetails) throw new Error(`Flexible item ${id} has no details row`);
+      const { splitMinChunkMin, splitMaxChunkMin } = flexibleDetails;
       return {
         ...shared,
         timing,
-        start: fixedDetails.startAt,
-        end: fixedDetails.endAt,
-        location: fixedDetails.location,
-        bufferBeforeMin: fixedDetails.bufferBeforeMin,
-        bufferAfterMin: fixedDetails.bufferAfterMin,
+        durationMin: flexibleDetails.durationMin,
+        earliestStart: flexibleDetails.earliestStart,
+        deadline: flexibleDetails.deadline,
+        split:
+          splitMinChunkMin !== null && splitMaxChunkMin !== null
+            ? { minChunkMin: splitMinChunkMin, maxChunkMin: splitMaxChunkMin }
+            : null,
+        spread: flexibleDetails.spread,
+        done,
       };
-    }
-
-    if (!flexibleDetails) throw new Error(`Flexible item ${id} has no details row`);
-    const { splitMinChunkMin, splitMaxChunkMin } = flexibleDetails;
-    return {
-      ...shared,
-      timing,
-      durationMin: flexibleDetails.durationMin,
-      earliestStart: flexibleDetails.earliestStart,
-      deadline: flexibleDetails.deadline,
-      split:
-        splitMinChunkMin !== null && splitMaxChunkMin !== null
-          ? { minChunkMin: splitMinChunkMin, maxChunkMin: splitMaxChunkMin }
-          : null,
-      spread: flexibleDetails.spread,
-    };
-  });
+    },
+  );
 }

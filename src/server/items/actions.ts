@@ -14,6 +14,7 @@ import {
   removeItem,
   setPlacementPinned,
   setPlacementStatus,
+  setTaskDone,
   skipOccurrence,
 } from "./item-commands";
 import { type ItemFormErrors, type ParsedItemForm, parseItemForm } from "./parse-item-form";
@@ -103,5 +104,16 @@ export async function setPlacementPinnedAction(ref: PlacementRef, pinned: boolea
     setPlacementPinned(tx, validRef, z.boolean().parse(pinned), new Date()),
   );
   if (!found) throw new Error(`Placement of ${validRef.taskId} at ${validRef.start.toISOString()} not found`);
+  refresh();
+}
+
+/** Marks the one-off task `id`, or with `date` its occurrence on that local date, done or not done. */
+export async function setTaskDoneAction(id: string, date: string | null, done: boolean): Promise<void> {
+  const validId = itemId.parse(id);
+  const validDate = z.iso.date().nullable().parse(date);
+  const found = await inPlanTransaction(db, (tx) =>
+    setTaskDone(tx, validId, validDate, z.boolean().parse(done), new Date()),
+  );
+  if (!found) throw new Error(`Task ${validId} not found`);
   refresh();
 }

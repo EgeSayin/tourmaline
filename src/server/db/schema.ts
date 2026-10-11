@@ -71,6 +71,8 @@ export const items = pgTable(
     priority: priorityEnum("priority").notNull().default("normal"),
     timing: timingEnum("timing").notNull(),
     recurrence: jsonb("recurrence").$type<Recurrence>(),
+    /** A one-off task marked done; occurrences use their override. Not part of the item's own fields. */
+    done: boolean("done").notNull().default(false),
     ...auditColumns,
   },
   (t) => [unique("items_id_timing").on(t.id, t.timing)],
@@ -128,6 +130,7 @@ export const occurrenceOverrides = pgTable(
       .references(() => items.id, { onDelete: "cascade" }),
     occurrenceDate: date("occurrence_date").notNull(),
     skipped: boolean("skipped").notNull().default(false),
+    done: boolean("done").notNull().default(false),
   },
   (t) => [primaryKey({ columns: [t.itemId, t.occurrenceDate] })],
 );

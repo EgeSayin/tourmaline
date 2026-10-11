@@ -4,7 +4,7 @@ import type { Placement, PlacementStatus } from "@/lib/placements";
 import type { Recurrence } from "@/lib/recurrence";
 import { RECURRENCE_LOOKAHEAD_DAYS, type SchedulerSettings } from "@/lib/settings";
 import type { Transaction } from "@/server/db/connection";
-import { insertItem, loadItems } from "@/server/db/items-repository";
+import { insertItem, loadItems, setItemDone, setOccurrenceDone } from "@/server/db/items-repository";
 import { insertPlacements, loadPlacements } from "@/server/db/placements-repository";
 import { placements } from "@/server/db/schema";
 import { syncPlan } from "@/server/planning/sync-plan";
@@ -91,6 +91,29 @@ describe("syncPlan", { tags: ["integration", "critical"] }, () => {
     expect(await loadPlacements(tx, utc("2026-10-12T04:00", "2026-10-19T04:00"))).toEqual([
       auto(projectId, utc("2026-10-12T14:00", "2026-10-12T15:00")),
     ]);
+  });
+
+  it("doesn't plan tasks or occurrences marked done, dropping their pending placements", async ({ tx }) => {
+    const essayId = await insertItem(tx, flexible("Essay", 60, utc("2026-10-05T04:00", "2026-10-09T21:00")));
+    // Due Fri, so the plan reaches Friday's gym.
+    const reportId = await insertItem(tx, flexible("Report", 30, utc("2026-10-05T04:00", "2026-10-09T21:00")));
+    const gymId = await insertItem(tx, {
+      ...flexible("Gym", 60, utc("2026-10-07T14:00", "2026-10-08T14:00")), // daily from Wed 10:00
+      recurrence: daily,
+    });
+    await plan(tx, wednesdayNoon);
+    await setItemDone(tx, essayId, true);
+    await setOccurrenceDone(tx, gymId, "2026-10-08", true);
+
+    const result = await plan(tx, wednesdayNoon);
+
+    const planned = [reportId, `${gymId}@2026-10-07`, `${gymId}@2026-10-09`];
+    expect(result.tasks.map((task) => task.id).sort()).toEqual(planned.sort());
+    expect((await loadPlacements(tx, week)).map((p) => p.taskId).sort()).toEqual(planned.sort());
+
+    // With the report done too, nothing reaches past now, so only today's gym is planned.
+    await setItemDone(tx, reportId, true);
+    expect((await plan(tx, wednesdayNoon)).tasks.map((task) => task.id)).toEqual([`${gymId}@2026-10-07`]);
   });
 
   it("plans recurring tasks only while they overlap the plan, around recurring fixed items", async ({ tx }) => {

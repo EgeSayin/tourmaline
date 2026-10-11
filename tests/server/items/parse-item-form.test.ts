@@ -232,9 +232,11 @@ describe("parseItemForm", { tags: ["unit", "critical"] }, () => {
       recurrence: { frequency: "daily", interval: 1, until: null } satisfies Recurrence,
     };
 
-    for (const item of [lecture, essay, weeklyLecture, dailyGym]) {
-      const parsed = parseItemForm(itemToFormValues(item, tz), tz, now);
-      expect(parsed.ok && { id: item.id, overrides: item.overrides, ...parsed.item }).toEqual(item);
+    // The form leaves out what's stored apart from the item's own fields: its id, overrides and whether it's done.
+    for (const { id, overrides, ...item } of [lecture, essay, weeklyLecture, dailyGym]) {
+      const parsed = parseItemForm(itemToFormValues({ id, overrides, ...item }, tz), tz, now);
+      const { done: _, ...fields } = { done: false, ...item };
+      expect(parsed.ok && parsed.item).toEqual(fields);
     }
   });
 });

@@ -10,6 +10,7 @@ import {
   removeItem,
   setPlacementPinned,
   setPlacementStatus,
+  setTaskDone,
   skipOccurrence,
 } from "@/server/items/item-commands";
 import { dbTest as it } from "../../support/database";
@@ -46,12 +47,12 @@ describe("editItem", { tags: ["integration", "critical"] }, () => {
       id,
       ...lecture,
       recurrence: { ...lecture.recurrence, until: "2026-10-11" },
-      overrides: [{ date: "2026-09-14", skipped: true }],
+      overrides: [{ date: "2026-09-14", skipped: true, done: false }],
     });
     expect(await loadItem(tx, newId!)).toEqual({
       id: newId,
       ...edited,
-      overrides: [{ date: "2026-10-19", skipped: true }],
+      overrides: [{ date: "2026-10-19", skipped: true, done: false }],
     });
   });
 
@@ -196,5 +197,45 @@ describe("placement commands", { tags: ["integration", "critical"] }, () => {
     const nowhere = { taskId: essayId, start: new Date("2026-10-08T09:00Z") };
     expect(await setPlacementStatus(tx, nowhere, "done", now)).toBe(false);
     expect(await setPlacementPinned(tx, nowhere, true, now)).toBe(false);
+  });
+});
+
+describe("setTaskDone", { tags: ["integration", "critical"] }, () => {
+  it("marks a task or an occurrence done, checking off its blocks to review, and reopens it", async ({ tx }) => {
+    const essayId = await insertItem(tx, flexible("Essay", 120, utc("2026-10-05T04:00", "2026-10-09T21:00")));
+    const block = (start: string, end: string): Placement => ({
+      taskId: essayId,
+      ...utc(start, end),
+      source: "auto",
+      pinned: false,
+      status: "planned",
+    });
+    const past = block("2026-10-07T14:00", "2026-10-07T15:00");
+    const future = block("2026-10-08T14:00", "2026-10-08T15:00");
+    await insertPlacements(tx, [past, future]);
+
+    expect(await setTaskDone(tx, essayId, null, true, now)).toBe(true);
+    expect(await loadItem(tx, essayId)).toMatchObject({ done: true });
+    // The past block is checked off; the future one is left for re-planning to drop.
+    expect(await loadPlacements(tx, utc("2026-10-05T04:00", "2026-10-12T04:00"))).toEqual([
+      { ...past, status: "done" },
+      future,
+    ]);
+    expect(await setTaskDone(tx, essayId, null, false, now)).toBe(true);
+    expect(await loadItem(tx, essayId)).toMatchObject({ done: false });
+
+    const gymId = await insertItem(tx, {
+      ...unsaved(flexible("Gym", 60, utc("2026-10-07T14:00", "2026-10-08T14:00"))),
+      recurrence: { frequency: "daily", interval: 1, until: null },
+    });
+    expect(await setTaskDone(tx, gymId, "2026-10-08", true, now)).toBe(true);
+    expect((await loadItem(tx, gymId))?.overrides).toEqual([{ date: "2026-10-08", skipped: false, done: true }]);
+
+    // A one-off task has no occurrences, a series is only done one occurrence at a time, and a fixed item never.
+    const lectureId = await insertItem(tx, lecture);
+    expect(await setTaskDone(tx, essayId, "2026-10-08", true, now)).toBe(false);
+    expect(await setTaskDone(tx, gymId, null, true, now)).toBe(false);
+    expect(await setTaskDone(tx, lectureId, null, true, now)).toBe(false);
+    expect(await setTaskDone(tx, "00000000-0000-4000-8000-000000000000", null, true, now)).toBe(false);
   });
 });

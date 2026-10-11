@@ -85,6 +85,13 @@
       "when": 1791694104940,
       "tag": "0011_placements_unique_task_start",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1791695319007,
+      "tag": "0012_task_done",
+      "breakpoints": true
     }
   ]
 }

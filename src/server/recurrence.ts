@@ -1,6 +1,6 @@
 import "server-only";
 import { addMinutes, minutesBetween } from "@/lib/time/duration";
-import { isFixed, type Item, itemSpan, type NewItem, type NewTask, withSpan } from "@/lib/items";
+import { isFixed, isTask, type Item, itemSpan, type NewItem, type NewTask, withSpan } from "@/lib/items";
 import { occurrenceId, type Recurrence } from "@/lib/recurrence";
 import type { TimeZone } from "@/lib/time/time-zone";
 import type { Interval } from "@/lib/time/interval";
@@ -47,7 +47,8 @@ export function occurrenceDates(
  * The occurrences of `item` that overlap `range`, in order, each with its occurrence id and times; a one-off item
  * as it is. Occurrences keep the first one's local start time; fixed ones also keep its length, so a clock change
  * moves their end instead of inverting them. A recurring task's window runs from its earliest
- * start to the same time on the date the rule next occurs, even past `until` or a skipped date.
+ * start to the same time on the date the rule next occurs, even past `until` or a skipped date, and it's done if
+ * its override says so.
  */
 export function expandOccurrences<T extends Item>(item: T, range: Interval, timeZone: TimeZone): T[] {
   if (!item.recurrence) return [item];
@@ -70,6 +71,7 @@ export function expandOccurrences<T extends Item>(item: T, range: Interval, time
   // The last date only bounds the window before it: dates run a full period past `range`, so it starts after it.
   const { until } = item.recurrence;
   const skipped = new Set(item.overrides.filter((override) => override.skipped).map((override) => override.date));
+  const done = new Set(item.overrides.filter((override) => override.done).map((override) => override.date));
   const occurrences: T[] = [];
   for (const [i, date] of dates.slice(0, -1).entries()) {
     const day = date.toString();
@@ -79,14 +81,18 @@ export function expandOccurrences<T extends Item>(item: T, range: Interval, time
     const end = isFixed(item) ? addMinutes(start, lengthMin) : startOn(dates[i + 1]);
     if (start >= range.end || end <= range.start) continue;
 
-    occurrences.push({ ...withSpan(item, { start, end }), id: occurrenceId(item.id, day) });
+    const occurrence = { ...withSpan(item, { start, end }), id: occurrenceId(item.id, day) };
+    occurrences.push(isTask(occurrence) ? { ...occurrence, done: done.has(day) } : occurrence);
   }
   return occurrences;
 }
 
 /** The first occurrence of a recurring `item`, or `undefined` if it ends before occurring. */
 export function firstOccurrence(item: NewItem, timeZone: TimeZone): Item | undefined {
-  return nextOccurrence({ ...item, id: "", overrides: [] }, itemSpan(item).start, timeZone);
+  const stored: Item = isTask(item)
+    ? { ...item, id: "", overrides: [], done: false }
+    : { ...item, id: "", overrides: [] };
+  return nextOccurrence(stored, itemSpan(item).start, timeZone);
 }
 
 /**

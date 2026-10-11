@@ -1,7 +1,7 @@
 import "server-only";
-import { isFixed, type Item, itemSpan, type NewItem } from "@/lib/items";
+import { isFixed, isTask, type Item, itemSpan, type NewItem } from "@/lib/items";
 import type { PlacementRef, PlacementStatus } from "@/lib/placements";
-import { parseOccurrenceId } from "@/lib/recurrence";
+import { occurrenceId, parseOccurrenceId } from "@/lib/recurrence";
 import type { TimeZone } from "@/lib/time/time-zone";
 import type { Transaction } from "@/server/db/connection";
 import {
@@ -10,10 +10,12 @@ import {
   insertItem,
   loadItem,
   moveOverrides,
+  setItemDone,
+  setOccurrenceDone,
   skipOccurrence as saveSkip,
   updateItem,
 } from "@/server/db/items-repository";
-import { deletePlacements, loadPlacement, updatePlacement } from "@/server/db/placements-repository";
+import { checkOffToReview, deletePlacements, loadPlacement, updatePlacement } from "@/server/db/placements-repository";
 import { firstOccurrence } from "@/server/recurrence";
 import { localDate } from "@/server/time/temporal";
 
@@ -66,6 +68,27 @@ export async function skipOccurrence(tx: Transaction, itemId: string, date: stri
   if (!item?.recurrence) return false;
 
   await saveSkip(tx, itemId, date);
+  return true;
+}
+
+/**
+ * Marks the one-off task `itemId`, or with `date` its series' occurrence on that local date, done or not done.
+ * Marking it done also checks off its placements still to review as of `now`. Returns `false` if there is no such
+ * task.
+ */
+export async function setTaskDone(
+  tx: Transaction,
+  itemId: string,
+  date: string | null,
+  done: boolean,
+  now: Date,
+): Promise<boolean> {
+  const item = await loadItem(tx, itemId);
+  if (!item || !isTask(item) || (date !== null) !== (item.recurrence !== null)) return false;
+
+  if (date) await setOccurrenceDone(tx, itemId, date, done);
+  else await setItemDone(tx, itemId, done);
+  if (done) await checkOffToReview(tx, date ? occurrenceId(itemId, date) : itemId, now);
   return true;
 }
 

@@ -26,7 +26,8 @@ export interface Plan {
  * one-off item date; recurring items don't extend it, but a task occurrence overlapping it, within
  * `RECURRENCE_LOOKAHEAD_DAYS`, is planned up to its deadline. Every placement but missed ones counts toward its task's
  * time, including past ones waiting for review, so only marking one missed plans its time again.
- * Re-planning an unchanged plan changes nothing, so repeated calls don't write.
+ * Tasks and occurrences marked done aren't planned. Re-planning an unchanged plan changes nothing, so repeated
+ * calls don't write.
  */
 export async function syncPlan(
   executor: Database | Transaction,
@@ -37,10 +38,13 @@ export async function syncPlan(
   const expand = <T extends Item>(list: T[], range: { start: Date; end: Date }) =>
     list.flatMap((item) => expandOccurrences(item, range, settings.timeZone));
 
-  const oneOffs = items.filter((item) => !item.recurrence);
+  // A one-off task marked done doesn't extend the plan.
+  const oneOffs = items.filter((item) => !item.recurrence && !(isTask(item) && item.done));
   const oneOffEnd = planningHorizon(now, oneOffs).end;
   const lookaheadEnd = addMinutes(now, RECURRENCE_LOOKAHEAD_DAYS * MINUTES_PER_DAY);
-  const tasks = expand(items.filter(isTask), { start: now, end: earlier(oneOffEnd, lookaheadEnd) });
+  const tasks = expand(items.filter(isTask), { start: now, end: earlier(oneOffEnd, lookaheadEnd) }).filter(
+    (task) => !task.done,
+  );
   const horizon = planningHorizon(now, [...oneOffs, ...tasks]);
 
   // Earlier placements matter only as time already spent on a planned task.

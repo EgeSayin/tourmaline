@@ -100,8 +100,8 @@ describe("expandOccurrences", { tags: ["unit", "critical"] }, () => {
       ...fixed("Lecture", utc("2026-10-26T15:00", "2026-10-26T16:15")), // Mon 11:00 EDT
       recurrence: { frequency: "weekly", interval: 1, weekdays: [1, 3], until: "2026-11-09" } satisfies Recurrence,
       overrides: [
-        { date: "2026-10-28", skipped: true },
-        { date: "2026-11-02", skipped: false }, // still occurs
+        { date: "2026-10-28", skipped: true, done: false },
+        { date: "2026-11-02", skipped: false, done: false }, // still occurs
       ],
     };
     const times = (start: string, end: string) => ({ ...lecture, ...utc(start, end) });
@@ -138,11 +138,14 @@ describe("expandOccurrences", { tags: ["unit", "critical"] }, () => {
     ]);
   });
 
-  it("gives each task occurrence a window that runs until the rule next occurs", () => {
+  it("gives each task occurrence a window that runs until the rule next occurs, done if its override says so", () => {
     const gym = {
       ...flexible("Gym", 60, utc("2026-10-05T14:00", "2026-10-09T14:00")), // Mon 10:00 EDT to Fri 10:00
       recurrence: { frequency: "weekly", interval: 1, weekdays: [1, 5], until: "2026-10-16" } satisfies Recurrence,
-      overrides: [{ date: "2026-10-12", skipped: true }],
+      overrides: [
+        { date: "2026-10-12", skipped: true, done: false },
+        { date: "2026-10-16", skipped: false, done: true },
+      ],
     };
     const window = (start: string, end: string) => {
       const { start: earliestStart, end: deadline } = utc(start, end);
@@ -154,7 +157,7 @@ describe("expandOccurrences", { tags: ["unit", "critical"] }, () => {
       // Ends where the skipped Monday would have started.
       { ...window("2026-10-09T14:00", "2026-10-12T14:00"), id: "Gym@2026-10-09" },
       // The last one still runs until the Monday after `until`.
-      { ...window("2026-10-16T14:00", "2026-10-19T14:00"), id: "Gym@2026-10-16" },
+      { ...window("2026-10-16T14:00", "2026-10-19T14:00"), id: "Gym@2026-10-16", done: true },
     ]);
     // A Saturday is inside Friday's window.
     expect(ids(expandOccurrences(gym, utc("2026-10-10T04:00", "2026-10-11T04:00"), tz))).toEqual(["Gym@2026-10-09"]);
@@ -184,8 +187,8 @@ describe("nextOccurrence", { tags: ["unit", "critical"] }, () => {
     const skipping = {
       ...seminar,
       overrides: [
-        { date: "2026-10-19", skipped: true },
-        { date: "2026-11-02", skipped: true },
+        { date: "2026-10-19", skipped: true, done: false },
+        { date: "2026-11-02", skipped: true, done: false },
       ],
     };
     expect(next(skipping, "2026-10-05T16:15Z")).toBe("Seminar@2026-11-16");

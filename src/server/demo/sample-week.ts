@@ -54,6 +54,7 @@ function flexible(
     deadline,
     split: null,
     spread: "asap",
+    done: false,
   };
 }
 

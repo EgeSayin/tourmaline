@@ -34,4 +34,24 @@ test.describe("task queue", () => {
     await expect(panel).toBeHidden();
     await expect(page.getByText(title)).toHaveCount(0);
   });
+
+  test("marks a task done from the queue, taking it off", async ({ page }, testInfo) => {
+    const title = `E2E impossible essay (${testInfo.project.name})`;
+    const form = await openAddItemForm(page, testInfo);
+    await form.getByLabel("Title").fill(title);
+    await form.getByLabel("Duration (min)").fill(String(24 * 60)); // longer than any free stretch
+    await form.getByLabel("Due").fill(localDateTime(2, "20:00"));
+    await form.getByRole("button", { name: "Add item" }).click();
+    await expect(form).toBeHidden();
+
+    const entry = (await showQueue(page, testInfo)).getByRole("button", {
+      name: new RegExp(`^${RegExp.escape(title)}`),
+    });
+    await entry.click();
+    const panel = itemPanel(page, testInfo, "Edit item");
+    await panel.getByRole("button", { name: "Mark done" }).click();
+
+    await expect(panel).toBeHidden();
+    await expect(page.getByText(title)).toHaveCount(0);
+  });
 });
