@@ -93,7 +93,12 @@ export function WeekSettingsForm({ downtime, focusCaps }: Pick<SchedulerSettings
             className="grid overflow-hidden rounded-xl border bg-card [--axis:2.75rem] md:[--axis:3.5rem]"
             style={{ gridTemplateColumns: "var(--axis) repeat(7, minmax(0, 1fr))" }}
           >
-            <div className="border-b" />
+            <div
+              aria-hidden
+              className="flex items-end justify-end border-b pr-1 pb-2 text-right text-[11px] leading-tight text-muted-foreground md:pr-2 md:pb-3"
+            >
+              Focus cap (h)
+            </div>
             {WEEKDAYS.map((weekday) => (
               <div key={weekday} className="border-b border-l p-1 text-center md:p-2">
                 <FormInput
