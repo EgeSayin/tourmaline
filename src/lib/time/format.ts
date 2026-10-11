@@ -30,17 +30,14 @@ export function formatLocalDateRange(first: string, last: string): string {
   }).formatRange(new Date(`${first}T12:00:00Z`), new Date(`${last}T12:00:00Z`));
 }
 
-/** Its local weekday, date and 24-hour time. */
+/**
+ * Its local weekday, date and 24-hour time, e.g. "Wed, Oct 7, 21:00". Joined by hand: engines join the parts
+ * differently (Safari says "at"), which breaks hydration.
+ */
 export function formatDateTime(date: Date, timeZone: TimeZone): string {
-  return new Intl.DateTimeFormat("en-US", {
-    timeZone,
-    weekday: "short",
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-    hourCycle: "h23",
-  }).format(date);
+  const day = new Intl.DateTimeFormat("en-US", { timeZone, weekday: "short", month: "short", day: "numeric" });
+  const time = new Intl.DateTimeFormat("en-US", { timeZone, hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
+  return `${day.format(date)}, ${time.format(date)}`;
 }
 
 export function formatDuration(minutes: number): string {
