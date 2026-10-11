@@ -36,7 +36,10 @@ test.describe("adding items", () => {
   test("adds a fixed item at its time, defaulting to mandatory", async ({ page }, testInfo) => {
     const title = `E2E office hours (${testInfo.project.name})`;
     const form = await openAddItemForm(page, testInfo);
+    await expect(form.getByRole("radio", { name: "Find time for it" })).toBeChecked();
     await form.getByRole("radio", { name: "At a set time" }).click();
+    await expect(form.getByRole("radio", { name: "At a set time" })).toBeChecked();
+    await expect(form.getByRole("radio", { name: "Find time for it" })).not.toBeChecked();
     await expect(form.getByLabel("Priority")).toHaveValue("mandatory");
     await form.getByRole("button", { name: "Close" }).click();
 

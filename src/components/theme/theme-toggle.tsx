@@ -2,14 +2,16 @@
 
 import { Monitor, Moon, Sun } from "lucide-react";
 import { useTheme } from "next-themes";
-import { Button } from "@/components/ui/button";
+import { type Segment, SegmentedControl } from "@/components/controls/segmented-control";
+import { buttonVariants } from "@/components/ui/button";
 import { useIsClient } from "@/hooks/use-is-client";
+import { cn } from "@/lib/utils";
 
 const OPTIONS = [
-  { value: "light", label: "Light theme", Icon: Sun },
-  { value: "dark", label: "Dark theme", Icon: Moon },
-  { value: "system", label: "System theme", Icon: Monitor },
-] as const;
+  { value: "light", label: "Light theme", content: <Sun /> },
+  { value: "dark", label: "Dark theme", content: <Moon /> },
+  { value: "system", label: "System theme", content: <Monitor /> },
+] as const satisfies Segment<string>[];
 
 export function ThemeToggle() {
   const { theme, setTheme } = useTheme();
@@ -17,23 +19,16 @@ export function ThemeToggle() {
   const isClient = useIsClient();
 
   return (
-    <div role="group" aria-label="Theme" className="inline-flex gap-0.5 rounded-lg border bg-card p-0.5">
-      {OPTIONS.map(({ value, label, Icon }) => {
-        const active = isClient && theme === value;
-        return (
-          <Button
-            key={value}
-            variant="ghost"
-            size="icon-sm"
-            aria-label={label}
-            aria-pressed={active}
-            className={active ? "bg-muted text-foreground" : "text-muted-foreground"}
-            onClick={() => setTheme(value)}
-          >
-            <Icon />
-          </Button>
-        );
-      })}
-    </div>
+    <SegmentedControl
+      label="Theme"
+      options={OPTIONS}
+      value={isClient ? OPTIONS.find((option) => option.value === theme)?.value : undefined}
+      onChange={setTheme}
+      className="inline-flex gap-0.5 rounded-lg border bg-card p-0.5"
+      optionClassName={cn(
+        buttonVariants({ variant: "ghost", size: "icon-sm" }),
+        "text-muted-foreground aria-checked:bg-muted aria-checked:text-foreground",
+      )}
+    />
   );
 }

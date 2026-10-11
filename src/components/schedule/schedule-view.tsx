@@ -2,6 +2,7 @@
 
 import { CalendarDays, Hourglass } from "lucide-react";
 import { useState } from "react";
+import { SegmentedControl } from "@/components/controls/segmented-control";
 import { AddItemButton, ItemPanel } from "@/components/items/item-panel";
 import { useItemPanel } from "@/components/items/item-panel-state";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
@@ -54,39 +55,42 @@ export function ScheduleView({
       </section>
       <ItemPanel />
 
-      <nav
-        aria-label="View"
+      <SegmentedControl
+        label="View"
+        value={view}
+        onChange={setView}
+        options={[
+          {
+            value: "calendar",
+            label: "Calendar",
+            content: (
+              <>
+                <CalendarDays className="size-5" />
+                Calendar
+              </>
+            ),
+          },
+          {
+            value: "queue",
+            label: queueCount > 0 ? `Queue (${queueCount})` : "Queue",
+            content: (
+              <>
+                <span className="relative">
+                  <Hourglass className="size-5" />
+                  {queueCount > 0 && (
+                    <span className="absolute -top-1.5 -right-2.5 min-w-4 rounded-full bg-amber-500 px-1 text-center text-[10px] leading-4 font-semibold text-white tabular-nums">
+                      {queueCount}
+                    </span>
+                  )}
+                </span>
+                Queue
+              </>
+            ),
+          },
+        ]}
         className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-2 border-t bg-background/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden"
-      >
-        <TabButton active={view === "calendar"} onClick={() => setView("calendar")}>
-          <CalendarDays className="size-5" />
-          Calendar
-        </TabButton>
-        <TabButton active={view === "queue"} onClick={() => setView("queue")}>
-          <span className="relative">
-            <Hourglass className="size-5" />
-            {queueCount > 0 && (
-              <span className="absolute -top-1.5 -right-2.5 min-w-4 rounded-full bg-amber-500 px-1 text-center text-[10px] leading-4 font-semibold text-white tabular-nums">
-                {queueCount}
-              </span>
-            )}
-          </span>
-          Queue
-        </TabButton>
-      </nav>
+        optionClassName="flex flex-col items-center gap-1 py-2 text-xs font-medium text-muted-foreground aria-checked:text-foreground"
+      />
     </div>
-  );
-}
-
-function TabButton({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
-  return (
-    <button
-      type="button"
-      aria-pressed={active}
-      onClick={onClick}
-      className={`flex flex-col items-center gap-1 py-2 text-xs font-medium ${active ? "text-foreground" : "text-muted-foreground"}`}
-    >
-      {children}
-    </button>
   );
 }

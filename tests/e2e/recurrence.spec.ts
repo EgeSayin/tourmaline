@@ -81,7 +81,7 @@ test.describe("recurring items", () => {
     await form.getByRole("button", { name: "Add item" }).click();
     await expect(form).toBeHidden();
 
-    if (isPhone(testInfo)) await page.getByRole("button", { name: "Queue" }).click();
+    if (isPhone(testInfo)) await page.getByRole("radio", { name: "Queue" }).click();
     const queue = page.getByRole("region", { name: "Task queue" });
     const entries = queue.getByRole("button", { name: new RegExp(`^${RegExp.escape(title)} · \\w{3}, \\w{3} \\d+`) });
     await expect(entries.first()).toContainText("15h left");
