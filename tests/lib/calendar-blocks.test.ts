@@ -8,10 +8,14 @@ import { fixed, flexible } from "../support/items";
 const tz = "America/New_York";
 
 describe("toCalendarBlocks", { tags: ["unit"] }, () => {
-  it("places blocks on their local day with a style per kind and state and their edit target, skipping items that are gone", () => {
-    const lecture = fixed("Lecture", utc("2026-10-05T15:00", "2026-10-05T16:15")); // Mon 11:00–12:15 EDT
+  it("places blocks on their local day with a style per kind and state, their category's colour and their edit target, skipping items that are gone", () => {
+    const cs = { id: "cs", name: "CSC 101", color: "green" } as const;
+    const lecture = { ...fixed("Lecture", utc("2026-10-05T15:00", "2026-10-05T16:15")), categoryId: cs.id }; // Mon 11:00–12:15 EDT
     const party = { ...fixed("Party", utc("2026-10-06T02:30", "2026-10-06T05:00")), priority: "normal" as const }; // Mon 22:30–01:00
-    const reading = flexible("Reading", 60, utc("2026-10-05T04:00", "2026-10-09T04:00"), "low");
+    const reading = {
+      ...flexible("Reading", 60, utc("2026-10-05T04:00", "2026-10-09T04:00"), "low"),
+      categoryId: cs.id,
+    };
     const placement = (
       taskId: string,
       times: { start: Date; end: Date },
@@ -35,7 +39,7 @@ describe("toCalendarBlocks", { tags: ["unit"] }, () => {
       return item && { item, occurrenceDate: date };
     };
 
-    const blocks = toCalendarBlocks([lecture, party], [placed, placedAgain, deleted], tz, targetFor, placed.end);
+    const blocks = toCalendarBlocks([lecture, party], [placed, placedAgain, deleted], tz, targetFor, [cs], placed.end);
     expect(new Set(blocks.map((block) => block.key)).size).toBe(blocks.length);
     expect(blocks).toEqual([
       {
@@ -45,6 +49,7 @@ describe("toCalendarBlocks", { tags: ["unit"] }, () => {
         end: lecture.end,
         style: "fixed",
         faded: false,
+        color: "green",
         date: "2026-10-05",
         startMinute: 11 * 60,
         endMinute: 12 * 60 + 15,
@@ -58,6 +63,7 @@ describe("toCalendarBlocks", { tags: ["unit"] }, () => {
         end: party.end,
         style: "fixed-optional",
         faded: false,
+        color: null,
         date: "2026-10-05",
         startMinute: 22 * 60 + 30,
         endMinute: 24 * 60, // cut off at midnight
@@ -76,6 +82,7 @@ describe("toCalendarBlocks", { tags: ["unit"] }, () => {
         end,
         style,
         faded: true, // low priority
+        color: "green",
         date: "2026-10-05",
         startMinute,
         endMinute,

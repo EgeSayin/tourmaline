@@ -4,6 +4,7 @@ import { isFixed } from "@/lib/items";
 import type { PlacementRef } from "@/lib/placements";
 import { later } from "@/lib/time/interval";
 import type { TimeZone } from "@/lib/time/time-zone";
+import { loadCategories } from "@/server/db/categories-repository";
 import type { Database, Transaction } from "@/server/db/connection";
 import { loadItems } from "@/server/db/items-repository";
 import { loadPlacements, loadPlacementsToReview } from "@/server/db/placements-repository";
@@ -92,7 +93,14 @@ export async function loadCalendar(
       week: weekNavigation(week.dates[0], today.toString()),
       days: dayNavigation(days.dates[0], PHONE_DAY_COUNT),
     },
-    blocks: toCalendarBlocks(fixedItems, await loadPlacements(executor, shown), timeZone, targetFor, now),
+    blocks: toCalendarBlocks(
+      fixedItems,
+      await loadPlacements(executor, shown),
+      timeZone,
+      targetFor,
+      await loadCategories(executor),
+      now,
+    ),
     queue: plan.unplaced
       .filter((task) => task.deadline > now)
       .map((task) => ({
