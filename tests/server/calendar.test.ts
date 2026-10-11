@@ -3,7 +3,7 @@ import type { Placement } from "@/lib/placements";
 import type { Recurrence } from "@/lib/recurrence";
 import { type Calendar, loadCalendar } from "@/server/calendar";
 import type { Transaction } from "@/server/db/connection";
-import { insertItem } from "@/server/db/items-repository";
+import { insertItem, setItemBumped, setOccurrenceBumped } from "@/server/db/items-repository";
 import { insertPlacements } from "@/server/db/placements-repository";
 import { settings } from "@/server/db/schema";
 import { dbTest as it } from "../support/database";
@@ -60,6 +60,7 @@ describe("loadCalendar", { tags: ["integration", "critical"] }, () => {
     // The late reading doesn't fit either, but its deadline has passed, so it's hidden.
     expect(calendar?.queue).toEqual([
       {
+        kind: "task",
         key: marathonId,
         title: "Marathon",
         remainingMin: 24 * 60,
@@ -173,5 +174,52 @@ describe("loadCalendar", { tags: ["integration", "critical"] }, () => {
       ...oldClub,
       id: oldClubId,
     });
+  });
+
+  it("leaves bumped items off the calendar, plans over them and queues them until they end", async ({ tx }) => {
+    await saveSettings(tx);
+    // Today 13:00–15:00 and yesterday, optional and bumped; a daily standup at 16:00, bumped tomorrow.
+    const optional = { priority: "normal" as const };
+    const clubId = await insertItem(tx, { ...fixed("Club", utc("2026-10-07T17:00", "2026-10-07T19:00")), ...optional });
+    const pastId = await insertItem(tx, {
+      ...fixed("Old club", utc("2026-10-06T17:00", "2026-10-06T19:00")),
+      ...optional,
+    });
+    const standup = { ...fixed("Standup", utc("2026-10-05T20:00", "2026-10-05T20:30")), recurrence: daily };
+    const standupId = await insertItem(tx, standup);
+    await setItemBumped(tx, clubId, true);
+    await setItemBumped(tx, pastId, true);
+    await setOccurrenceBumped(tx, standupId, "2026-10-08", true);
+    // Only fits in the club's time.
+    await insertItem(tx, flexible("Essay", 120, utc("2026-10-07T17:00", "2026-10-07T19:00")));
+
+    const calendar = await loadCalendar(tx, wednesdayNoon);
+
+    expect(show(calendar).filter((block) => !block.startsWith("Standup"))).toEqual(["Essay 2026-10-07 13"]);
+    expect(calendar?.blocks.filter((block) => block.title === "Standup").map((block) => block.date)).toEqual([
+      "2026-10-05",
+      "2026-10-06",
+      "2026-10-07",
+      "2026-10-09",
+      "2026-10-10",
+      "2026-10-11",
+    ]);
+    expect(calendar?.queue).toMatchObject([
+      { kind: "bumped", key: clubId, title: "Club", target: { item: { id: clubId }, occurrenceDate: null } },
+      {
+        kind: "bumped",
+        key: `${standupId}@2026-10-08`,
+        title: "Standup",
+        start: new Date("2026-10-08T20:00Z"),
+        target: { item: { id: standupId }, occurrenceDate: "2026-10-08" },
+      },
+    ]);
+    expect(calendar?.queue).toHaveLength(2);
+    expect(calendar?.tasks.map(({ title, status }) => `${title}: ${status}`)).toEqual([
+      "Old club: past",
+      "Club: bumped",
+      "Essay: scheduled",
+      "Standup: scheduled",
+    ]);
   });
 });

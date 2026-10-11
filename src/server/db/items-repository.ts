@@ -37,6 +37,8 @@ export async function updateItem(tx: Transaction, id: string, item: NewItem): Pr
       timing: item.timing,
       recurrence: item.recurrence,
       categoryId: item.categoryId,
+      // Only a fixed item can be bumped, so one that becomes a task never comes back bumped.
+      ...(item.timing === "flexible" && { bumped: false }),
     })
     .where(eq(items.id, id))
     .returning({ id: items.id });
@@ -104,6 +106,24 @@ export async function setOccurrenceDone(
     .onConflictDoUpdate({ target: [occurrenceOverrides.itemId, occurrenceOverrides.occurrenceDate], set: { done } });
 }
 
+/** Bumps or restores the one-off fixed item `id`. */
+export async function setItemBumped(executor: Database | Transaction, id: string, bumped: boolean): Promise<void> {
+  await executor.update(items).set({ bumped }).where(eq(items.id, id));
+}
+
+/** Bumps or restores the occurrence of fixed series `itemId` on local date `date`. */
+export async function setOccurrenceBumped(
+  executor: Database | Transaction,
+  itemId: string,
+  date: string,
+  bumped: boolean,
+): Promise<void> {
+  await executor
+    .insert(occurrenceOverrides)
+    .values({ itemId, occurrenceDate: date, bumped })
+    .onConflictDoUpdate({ target: [occurrenceOverrides.itemId, occurrenceOverrides.occurrenceDate], set: { bumped } });
+}
+
 /** Marks the occurrence of `itemId` on local date `date` as skipped. */
 export async function skipOccurrence(executor: Database | Transaction, itemId: string, date: string): Promise<void> {
   await executor
@@ -138,14 +158,31 @@ async function findItems(executor: Database | Transaction, where?: SQL): Promise
   });
 
   return rows.map(
-    ({ id, title, priority, timing, recurrence, categoryId, done, overrides, fixedDetails, flexibleDetails }): Item => {
+    ({
+      id,
+      title,
+      priority,
+      timing,
+      recurrence,
+      categoryId,
+      done,
+      bumped,
+      overrides,
+      fixedDetails,
+      flexibleDetails,
+    }): Item => {
       const shared = {
         id,
         title,
         priority,
         recurrence,
         categoryId,
-        overrides: overrides.map(({ occurrenceDate, skipped, done }) => ({ date: occurrenceDate, skipped, done })),
+        overrides: overrides.map(({ occurrenceDate, skipped, done, bumped }) => ({
+          date: occurrenceDate,
+          skipped,
+          done,
+          bumped,
+        })),
       };
       if (timing === "fixed") {
         if (!fixedDetails) throw new Error(`Fixed item ${id} has no details row`);
@@ -157,6 +194,7 @@ async function findItems(executor: Database | Transaction, where?: SQL): Promise
           location: fixedDetails.location,
           bufferBeforeMin: fixedDetails.bufferBeforeMin,
           bufferAfterMin: fixedDetails.bufferAfterMin,
+          bumped,
         };
       }
 

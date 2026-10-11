@@ -1,6 +1,6 @@
 import "server-only";
 import { type CalendarBlock, type EditTarget, toCalendarBlocks } from "@/lib/calendar-blocks";
-import { isFixed } from "@/lib/items";
+import { type FixedItem, isFixed, type Item } from "@/lib/items";
 import type { PlacementRef } from "@/lib/placements";
 import { later } from "@/lib/time/interval";
 import type { TimeZone } from "@/lib/time/time-zone";
@@ -11,7 +11,7 @@ import { loadItems } from "@/server/db/items-repository";
 import { loadPlacements, loadPlacementsToReview } from "@/server/db/placements-repository";
 import { loadSettings } from "@/server/db/settings-repository";
 import { syncPlan } from "@/server/planning/sync-plan";
-import { expandOccurrences } from "@/server/recurrence";
+import { expandOccurrences, occurrenceOn } from "@/server/recurrence";
 import { editTargets } from "@/server/edit-targets";
 import { listTasks, type TaskEntry } from "@/server/tasks";
 import {
@@ -25,14 +25,13 @@ import {
 } from "@/server/time/days";
 import { localDate } from "@/server/time/temporal";
 
-export interface QueueEntry {
+/** A task that doesn't fit before its deadline, or a fixed item that was bumped. */
+export type QueueEntry = {
   /** Unique among the entries. */
   key: string;
   title: string;
-  remainingMin: number;
-  deadline: Date;
   target: EditTarget;
-}
+} & ({ kind: "task"; remainingMin: number; deadline: Date } | { kind: "bumped"; start: Date; end: Date });
 
 /** A past block waiting to be checked off or marked missed. */
 export interface ReviewEntry {
@@ -56,7 +55,10 @@ export interface Calendar {
   navigation: { week: WeekNavigation; days: DayNavigation };
   /** Fixed items, fixed occurrences and placements overlapping the week or the days. */
   blocks: CalendarBlock[];
-  /** Planned tasks due after now whose remaining time doesn't fit before their deadline. */
+  /**
+   * Planned tasks due after now whose remaining time doesn't fit before their deadline, then the bumped fixed items
+   * and occurrences that haven't ended, by start.
+   */
   queue: QueueEntry[];
   /** Every past block still to review, oldest first. */
   review: ReviewEntry[];
@@ -88,7 +90,10 @@ export async function loadCalendar(
   const week = weekOf(shownDate ?? today, timeZone);
   const days = daysFrom(shownDate ?? today, PHONE_DAY_COUNT, timeZone);
   const shown = { start: week.range.start, end: later(days.range.end, week.range.end) };
-  const fixedItems = items.filter(isFixed).flatMap((item) => expandOccurrences(item, shown, timeZone));
+  const fixedItems = items
+    .filter(isFixed)
+    .flatMap((item) => expandOccurrences(item, shown, timeZone))
+    .filter((item) => !item.bumped);
   const targetFor = editTargets(items, now, timeZone);
 
   return {
@@ -101,15 +106,26 @@ export async function loadCalendar(
       days: dayNavigation(days.dates[0], PHONE_DAY_COUNT),
     },
     blocks: toCalendarBlocks(fixedItems, await loadPlacements(executor, shown), timeZone, targetFor, categories, now),
-    queue: plan.unplaced
-      .filter((task) => task.deadline > now)
-      .map((task) => ({
-        key: task.id,
-        title: task.title,
-        remainingMin: task.durationMin,
-        deadline: task.deadline,
-        target: targetFor(task.id)!,
+    queue: [
+      ...plan.unplaced
+        .filter((task) => task.deadline > now)
+        .map((task) => ({
+          kind: "task" as const,
+          key: task.id,
+          title: task.title,
+          remainingMin: task.durationMin,
+          deadline: task.deadline,
+          target: targetFor(task.id)!,
+        })),
+      ...bumpedOccurrences(items, now, timeZone).map(({ id, title, start, end }) => ({
+        kind: "bumped" as const,
+        key: id,
+        title,
+        start,
+        end,
+        target: targetFor(id)!,
       })),
+    ],
     review: (await loadPlacementsToReview(executor, now)).flatMap(({ taskId, start, end }) => {
       const target = targetFor(taskId);
       return target
@@ -128,4 +144,19 @@ export async function loadCalendar(
     tasks: listTasks(items, plan.unplaced, targetFor, now),
     categories: listCategories(categories, items),
   };
+}
+
+/** The bumped one-off fixed items and occurrences that end after `now`, by start. */
+function bumpedOccurrences(items: Item[], now: Date, timeZone: TimeZone): FixedItem[] {
+  return items
+    .filter(isFixed)
+    .flatMap((item) =>
+      item.recurrence
+        ? item.overrides
+            .filter((override) => override.bumped)
+            .flatMap((override) => occurrenceOn(item, override.date, timeZone) ?? [])
+        : [item],
+    )
+    .filter((item) => item.bumped && item.end > now)
+    .sort((a, b) => a.start.getTime() - b.start.getTime());
 }

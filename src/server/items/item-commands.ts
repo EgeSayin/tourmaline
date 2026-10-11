@@ -9,8 +9,11 @@ import {
   deleteOverrides,
   insertItem,
   loadItem,
+  loadItems,
   moveOverrides,
+  setItemBumped,
   setItemDone,
+  setOccurrenceBumped,
   setOccurrenceDone,
   skipOccurrence as saveSkip,
   updateItem,
@@ -18,9 +21,63 @@ import {
 import { checkOffToReview, deletePlacements, loadPlacement, updatePlacement } from "@/server/db/placements-repository";
 import { firstOccurrence } from "@/server/recurrence";
 import { localDate } from "@/server/time/temporal";
+import { type Clash, findClashes } from "./clashes";
 
-export function createItem(tx: Transaction, item: NewItem): Promise<string> {
-  return insertItem(tx, item);
+/**
+ * What to do when a fixed item being saved clashes with others: report the clashes and save nothing, save anyway, or
+ * bump the optional items it clashes with and save.
+ */
+export type ClashResolution = "ask" | "keep" | "bump";
+
+/**
+ * Saves `item` as a new item, or over the stored item `id` (see `editItem`), once its clashes (see `findClashes`) are
+ * resolved as `resolution` says. An edited item keeps whatever of it is bumped. Returns the clashes without saving
+ * when there are any and `resolution` is `ask`; `undefined` if no item has `id`.
+ */
+export async function saveItem(
+  tx: Transaction,
+  id: string | null,
+  item: NewItem,
+  resolution: ClashResolution,
+  now: Date,
+  timeZone: TimeZone,
+): Promise<{ id: string } | { clashes: Clash[] } | undefined> {
+  const existing = id === null ? null : await loadItem(tx, id);
+  if (existing === undefined) return undefined;
+
+  if (isFixed(item)) {
+    const kept = existing && isFixed(existing) ? existing : null;
+    const stored = { ...item, id: id ?? "", overrides: kept?.overrides ?? [], bumped: kept?.bumped ?? false };
+    const clashes = findClashes(stored, await loadItems(tx), now, timeZone);
+    if (clashes.length > 0 && resolution === "ask") return { clashes };
+    if (resolution === "bump") {
+      for (const clash of clashes.filter((clash) => !clash.mandatory)) {
+        const { itemId, date } = parseOccurrenceId(clash.id);
+        await setBumped(tx, itemId, date, true);
+      }
+    }
+  }
+
+  const savedId = id === null ? await insertItem(tx, item) : await editItem(tx, id, item, now, timeZone);
+  return { id: savedId! };
+}
+
+/**
+ * Bumps or restores the one-off fixed item `itemId`, or with `date` its series' occurrence on that local date.
+ * Returns `false` if there is no such fixed item.
+ */
+export async function setBumped(
+  tx: Transaction,
+  itemId: string,
+  date: string | null,
+  bumped: boolean,
+): Promise<boolean> {
+  const item = await loadItem(tx, itemId);
+  if (!item || !isFixed(item) || (date !== null) !== (item.recurrence !== null)) return false;
+
+  if (date) await setOccurrenceBumped(tx, itemId, date, bumped);
+  else await setItemBumped(tx, itemId, bumped);
+  return true;
 }
 
 /**

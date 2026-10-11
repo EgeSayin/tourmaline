@@ -1,6 +1,6 @@
 import "server-only";
 import { type BlockPlacement, type EditTarget, toBlockPlacement } from "@/lib/calendar-blocks";
-import { isTask, type Item, itemSpan, type Task } from "@/lib/items";
+import { isFixed, isTask, type Item, itemSpan, type Task } from "@/lib/items";
 import { parseOccurrenceId } from "@/lib/recurrence";
 import { OCCURRENCES_SHOWN } from "@/lib/settings";
 import type { TimeZone } from "@/lib/time/time-zone";
@@ -11,9 +11,10 @@ import { upcomingOccurrences } from "@/server/recurrence";
 
 /**
  * `queued`: planned, but its remaining time, or an occurrence's, doesn't fit before its deadline. `done`: marked done.
- * `past`: its deadline or end has passed. Otherwise `scheduled`.
+ * `bumped`: a fixed item, or a series' next occurrence, that was bumped. `past`: its deadline or end has passed.
+ * Otherwise `scheduled`.
  */
-export type TaskStatus = "scheduled" | "queued" | "done" | "past";
+export type TaskStatus = "scheduled" | "queued" | "done" | "bumped" | "past";
 
 /** One item you've added: a task, or a fixed item, which is a task with a single block. */
 export interface TaskEntry {
@@ -42,13 +43,23 @@ export function listTasks(
     const target = targetFor(item.id)!;
     const span = itemSpan(target.item);
     const task = isTask(item);
+    const status: TaskStatus =
+      task && item.done
+        ? "done"
+        : queued.has(item.id)
+          ? "queued"
+          : span.end <= now
+            ? "past"
+            : isFixed(target.item) && target.item.bumped
+              ? "bumped"
+              : "scheduled";
     return {
       id: item.id,
       title: item.title,
       kind: task ? "task" : "event",
       recurring: item.recurrence !== null,
       when: task ? span.end : span.start,
-      status: task && item.done ? "done" : queued.has(item.id) ? "queued" : span.end <= now ? "past" : "scheduled",
+      status,
       target,
     };
   });

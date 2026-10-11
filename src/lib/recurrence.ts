@@ -25,6 +25,8 @@ export interface OccurrenceOverride {
   skipped: boolean;
   /** For a task's occurrence: marked done as a whole. */
   done: boolean;
+  /** For a fixed occurrence: bumped (see `FixedItem.bumped`). */
+  bumped: boolean;
 }
 
 const OCCURRENCE_SEPARATOR = "@";

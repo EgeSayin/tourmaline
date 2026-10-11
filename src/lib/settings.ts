@@ -16,5 +16,8 @@ export const RECURRENCE_LOOKAHEAD_DAYS = 28;
 /** The least time between two chunks of the same task, so a split task's chunks don't run together. */
 export const CHUNK_BREAK_MIN = 30;
 
+/** How many clashes the item form lists before summing up the rest. */
+export const CLASHES_SHOWN = 5;
+
 /** How many upcoming occurrences a series' editor lists. */
 export const OCCURRENCES_SHOWN = 7;

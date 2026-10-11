@@ -83,6 +83,8 @@ export const items = pgTable(
     categoryId: uuid("category_id").references(() => categories.id, { onDelete: "set null" }),
     /** A one-off task marked done; occurrences use their override. Not part of the item's own fields. */
     done: boolean("done").notNull().default(false),
+    /** A one-off fixed item bumped; occurrences use their override. Not part of the item's own fields. */
+    bumped: boolean("bumped").notNull().default(false),
     ...auditColumns,
   },
   (t) => [unique("items_id_timing").on(t.id, t.timing)],
@@ -141,6 +143,7 @@ export const occurrenceOverrides = pgTable(
     occurrenceDate: date("occurrence_date").notNull(),
     skipped: boolean("skipped").notNull().default(false),
     done: boolean("done").notNull().default(false),
+    bumped: boolean("bumped").notNull().default(false),
   },
   (t) => [primaryKey({ columns: [t.itemId, t.occurrenceDate] })],
 );

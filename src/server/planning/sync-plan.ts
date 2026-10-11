@@ -26,7 +26,7 @@ export interface Plan {
  * one-off item date; recurring items don't extend it, but a task occurrence overlapping it, within
  * `RECURRENCE_LOOKAHEAD_DAYS`, is planned up to its deadline. Every placement but missed ones counts toward its task's
  * time, including past ones waiting for review, so only marking one missed plans its time again.
- * Tasks and occurrences marked done aren't planned. Re-planning an unchanged plan changes nothing, so repeated
+ * Tasks and occurrences marked done aren't planned, and bumped fixed items don't take up time. Re-planning an unchanged plan changes nothing, so repeated
  * calls don't write.
  */
 export async function syncPlan(
@@ -52,7 +52,7 @@ export async function syncPlan(
   const existing = await loadPlacements(executor, { start: historyStart, end: horizon.end });
   const { placements, unplaced } = replan({
     horizon,
-    fixedItems: expand(items.filter(isFixed), horizon),
+    fixedItems: expand(items.filter(isFixed), horizon).filter((item) => !item.bumped),
     tasks,
     existing,
     settings,
