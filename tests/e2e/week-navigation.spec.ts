@@ -14,6 +14,7 @@ test.describe("calendar navigation", () => {
     await expect(page).toHaveURL(/\?date=\d{4}-\d{2}-\d{2}$/);
 
     await page.getByRole("link", { name: "Previous week" }).click();
+    await expect(label("This week")).toBeVisible(); // the second click must start from here
     await page.getByRole("link", { name: "Previous week" }).click();
     await expect(label("Last week")).toBeVisible();
 
@@ -39,6 +40,7 @@ test.describe("calendar navigation", () => {
     await expect(heading).toHaveText(firstRange!);
 
     await page.getByRole("link", { name: "Next days" }).click();
+    await expect(heading).not.toHaveText(firstRange!); // Today only works once we've left today
     await page.getByRole("link", { name: "Today" }).click();
     await expect(page).toHaveURL(/\/$/);
     await expect(heading).toHaveText(firstRange!);
