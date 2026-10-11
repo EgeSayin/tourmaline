@@ -1,6 +1,7 @@
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import Link from "next/link";
 import { buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 /** Previous, Today and Next links stepping by `unit`; links are `?date=` local dates. */
 export function DateNavigator({
@@ -21,21 +22,24 @@ export function DateNavigator({
       <Link
         href={`/?date=${previous}`}
         aria-label={`Previous ${unit}`}
-        className={buttonVariants({ variant: "outline", size: "icon" })}
+        className={cn(buttonVariants({ variant: "outline", size: "icon" }))}
       >
         <ChevronLeft />
       </Link>
       <Link
         href="/"
         aria-disabled={atToday}
-        className={`${buttonVariants({ variant: "outline" })} aria-disabled:pointer-events-none aria-disabled:opacity-50`}
+        className={cn(
+          buttonVariants({ variant: "outline" }),
+          "aria-disabled:pointer-events-none aria-disabled:opacity-50",
+        )}
       >
         Today
       </Link>
       <Link
         href={`/?date=${next}`}
         aria-label={`Next ${unit}`}
-        className={buttonVariants({ variant: "outline", size: "icon" })}
+        className={cn(buttonVariants({ variant: "outline", size: "icon" }))}
       >
         <ChevronRight />
       </Link>
