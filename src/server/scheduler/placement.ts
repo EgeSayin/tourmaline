@@ -12,6 +12,7 @@ import {
   findLatestChunks,
   findLatestSlot,
 } from "./search";
+import { type FocusDay, fill, full, overCap } from "./focus-cap";
 import { orderByUrgency } from "./urgency";
 
 export interface PlacementResult {
@@ -26,17 +27,38 @@ export interface PlacementResult {
  * `asap` when that finds no room. A task goes in one block, or for a split task in chunks (see
  * `findEarliestChunks`) at least `CHUNK_BREAK_MIN` apart, also from its chunks in `placed`. It is placed whole or
  * not at all.
+ *
+ * With focus `days`, which count what's already filled, a task first leaves out the days that are full, and each
+ * day its blocks would fill past its cap, searching again until its blocks fit under every cap. Only if that finds
+ * no room does it go over the caps.
  */
-export function placeTasks(tasks: Task[], free: IntervalSet, placed: readonly Placement[] = []): PlacementResult {
+export function placeTasks(
+  tasks: Task[],
+  free: IntervalSet,
+  placed: readonly Placement[] = [],
+  days: FocusDay[] = [],
+): PlacementResult {
   let remaining = free;
+  let focus = days;
   const placements: Placement[] = [];
   const unplaced: Task[] = [];
 
   for (const task of orderByUrgency(tasks, remaining)) {
-    const blocks =
-      (task.spread === "asap" ? null : findBlocks(task, task.spread, remaining, placed)) ??
-      findBlocks(task, "asap", remaining, placed);
+    const place = (open: IntervalSet) =>
+      (task.spread === "asap" ? null : findBlocks(task, task.spread, open, placed)) ??
+      findBlocks(task, "asap", open, placed);
+
+    let underCaps: Interval[] | null = null;
+    for (let open = subtractIntervals(remaining, full(focus)); !underCaps;) {
+      const found = place(open);
+      if (!found) break;
+      const over = overCap(focus, found);
+      if (over.length === 0) underCaps = found;
+      else open = subtractIntervals(open, over);
+    }
+    const blocks = underCaps ?? place(remaining);
     if (blocks) {
+      focus = fill(focus, blocks);
       placements.push(
         ...blocks.map((block) => ({
           taskId: task.id,

@@ -8,6 +8,7 @@ import type { Database, Transaction } from "@/server/db/connection";
 import { loadPlacements, replacePendingPlacements } from "@/server/db/placements-repository";
 import { expandOccurrences } from "@/server/recurrence";
 import { replan } from "@/server/scheduler/replan";
+import { localDate, toDate } from "@/server/time/temporal";
 import { planningHorizon } from "./horizon";
 
 const MINUTES_PER_DAY = 24 * 60;
@@ -47,12 +48,13 @@ export async function syncPlan(
   );
   const horizon = planningHorizon(now, [...oneOffs, ...tasks]);
 
-  // Earlier placements matter only as time already spent on a planned task.
-  const historyStart = tasks.reduce((start, task) => earlier(start, task.earliestStart), now);
+  // Earlier placements matter as time already spent on a planned task, and today's toward today's focus cap.
+  const todayStart = toDate(localDate(now, settings.timeZone).toZonedDateTime(settings.timeZone));
+  const historyStart = tasks.reduce((start, task) => earlier(start, task.earliestStart), todayStart);
   const existing = await loadPlacements(executor, { start: historyStart, end: horizon.end });
   const { placements, unplaced } = replan({
     horizon,
-    fixedItems: expand(items.filter(isFixed), horizon),
+    fixedItems: expand(items.filter(isFixed), { start: todayStart, end: horizon.end }),
     tasks,
     existing,
     settings,

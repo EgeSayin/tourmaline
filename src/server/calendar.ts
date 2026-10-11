@@ -2,6 +2,7 @@ import "server-only";
 import { type CalendarBlock, type EditTarget, toCalendarBlocks } from "@/lib/calendar-blocks";
 import { isFixed } from "@/lib/items";
 import type { PlacementRef } from "@/lib/placements";
+import type { FocusCaps } from "@/lib/settings";
 import { later } from "@/lib/time/interval";
 import type { TimeZone } from "@/lib/time/time-zone";
 import { type CategoryEntry, listCategories } from "@/server/categories/category-list";
@@ -11,6 +12,7 @@ import { loadItems } from "@/server/db/items-repository";
 import { loadPlacements, loadPlacementsToReview } from "@/server/db/placements-repository";
 import { loadSettings } from "@/server/db/settings-repository";
 import { syncPlan } from "@/server/planning/sync-plan";
+import { focusDays } from "@/server/scheduler/focus-cap";
 import { expandOccurrences } from "@/server/recurrence";
 import { editTargets } from "@/server/edit-targets";
 import { listTasks, type TaskEntry } from "@/server/tasks";
@@ -45,6 +47,12 @@ export interface ReviewEntry {
   target: EditTarget;
 }
 
+/** How much of a day its fixed items and blocks fill, missed ones aside, against its focus cap. */
+export interface DayLoad {
+  usedMin: number;
+  capMin: number | null;
+}
+
 export interface Calendar {
   timeZone: TimeZone;
   /** Local dates of the week containing the shown date, Monday first. */
@@ -56,6 +64,9 @@ export interface Calendar {
   navigation: { week: WeekNavigation; days: DayNavigation };
   /** Fixed items, fixed occurrences and placements overlapping the week or the days. */
   blocks: CalendarBlock[];
+  /** Each date of the week and the days, by local date. */
+  loads: Record<string, DayLoad>;
+  focusCaps: FocusCaps;
   /** Planned tasks due after now whose remaining time doesn't fit before their deadline. */
   queue: QueueEntry[];
   /** Every past block still to review, oldest first. */
@@ -90,6 +101,8 @@ export async function loadCalendar(
   const shown = { start: week.range.start, end: later(days.range.end, week.range.end) };
   const fixedItems = items.filter(isFixed).flatMap((item) => expandOccurrences(item, shown, timeZone));
   const targetFor = editTargets(items, now, timeZone);
+  const placements = await loadPlacements(executor, shown);
+  const busy = [...fixedItems, ...placements.filter((placement) => placement.status !== "missed")];
 
   return {
     timeZone,
@@ -100,7 +113,14 @@ export async function loadCalendar(
       week: weekNavigation(week.dates[0], today.toString()),
       days: dayNavigation(days.dates[0], PHONE_DAY_COUNT),
     },
-    blocks: toCalendarBlocks(fixedItems, await loadPlacements(executor, shown), timeZone, targetFor, categories, now),
+    blocks: toCalendarBlocks(fixedItems, placements, timeZone, targetFor, categories, now),
+    loads: Object.fromEntries(
+      focusDays(shown, busy, settings.focusCaps, timeZone).map(({ date, usedMin, capMin }) => [
+        date,
+        { usedMin, capMin },
+      ]),
+    ),
+    focusCaps: settings.focusCaps,
     queue: plan.unplaced
       .filter((task) => task.deadline > now)
       .map((task) => ({

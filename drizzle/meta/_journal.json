@@ -113,6 +113,13 @@
       "when": 1791743023907,
       "tag": "0015_drop_bumped",
       "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1791745560121,
+      "tag": "0016_settings_focus_caps",
+      "breakpoints": true
     }
   ]
 }

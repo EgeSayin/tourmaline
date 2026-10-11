@@ -22,6 +22,7 @@ async function seed() {
     timeZone: sample.settings.timeZone,
     downtimeStartMinute: sample.settings.downtime.startMinute,
     downtimeEndMinute: sample.settings.downtime.endMinute,
+    focusCapsMin: sample.settings.focusCaps,
   };
 
   const plan = await inPlanTransaction(db, async (tx) => {

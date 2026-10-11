@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { minutesBetween } from "@/lib/time/duration";
 import type { Task } from "@/lib/items";
 import { isPending, PLACEMENT_STATUSES, type Placement } from "@/lib/placements";
-import { CHUNK_BREAK_MIN, type SchedulerSettings } from "@/lib/settings";
+import { CHUNK_BREAK_MIN, type SchedulerSettings, NO_FOCUS_CAPS } from "@/lib/settings";
 import { freeTimeMap } from "@/server/scheduler/free-time";
 import { subtractIntervals } from "@/lib/time/interval";
 import { replan } from "@/server/scheduler/replan";
@@ -51,7 +51,11 @@ const minutesFor = (placements: Placement[], taskId: string) =>
 
 describe("replan", { tags: ["unit", "critical"] }, () => {
   it("keeps done, pinned, in-progress, unreviewed and still-valid placements, and places the rest from now", () => {
-    const settings: SchedulerSettings = { timeZone: "UTC", downtime: { startMinute: 23 * 60, endMinute: 10 * 60 } };
+    const settings: SchedulerSettings = {
+      timeZone: "UTC",
+      downtime: { startMinute: 23 * 60, endMinute: 10 * 60 },
+      focusCaps: NO_FOCUS_CAPS,
+    };
     const horizon = utc("2026-10-05T15:00", "2026-10-07T00:00"); // Mon 15:00 to the end of Tue
     const window = utc("2026-10-05T00:00", "2026-10-06T23:00");
     const lecture = fixed("Lecture", utc("2026-10-05T16:00", "2026-10-05T17:00"));
@@ -105,7 +109,11 @@ describe("replan", { tags: ["unit", "critical"] }, () => {
 
   it("moves existing placements when a task can't fit around them", () => {
     // Free only 10:00–14:00.
-    const settings: SchedulerSettings = { timeZone: "UTC", downtime: { startMinute: 14 * 60, endMinute: 10 * 60 } };
+    const settings: SchedulerSettings = {
+      timeZone: "UTC",
+      downtime: { startMinute: 14 * 60, endMinute: 10 * 60 },
+      focusCaps: NO_FOCUS_CAPS,
+    };
     const day = utc("2026-10-05T00:00", "2026-10-06T00:00");
     const reading = flexible("Reading", 60, day);
     const examPrep = flexible("Exam prep", 180, utc("2026-10-05T00:00", "2026-10-05T14:00"));
@@ -146,7 +154,11 @@ describe("replan", { tags: ["unit", "critical"] }, () => {
 
   it("bumps less important tasks for a mandatory one, planning them again where they still fit", () => {
     // Free only 10:00–14:00, filled with an essay and some reading before the exam prep comes in.
-    const settings: SchedulerSettings = { timeZone: "UTC", downtime: { startMinute: 14 * 60, endMinute: 10 * 60 } };
+    const settings: SchedulerSettings = {
+      timeZone: "UTC",
+      downtime: { startMinute: 14 * 60, endMinute: 10 * 60 },
+      focusCaps: NO_FOCUS_CAPS,
+    };
     const day = utc("2026-10-05T00:00", "2026-10-06T00:00");
     const essay = flexible("Essay", 120, day);
     const reading = flexible("Reading", 60, day, "low");
@@ -190,7 +202,11 @@ describe("replan", { tags: ["unit", "critical"] }, () => {
   });
 
   it("keeps a break between a split task's new chunks and its earlier ones", () => {
-    const settings: SchedulerSettings = { timeZone: "UTC", downtime: { startMinute: 22 * 60, endMinute: 10 * 60 } };
+    const settings: SchedulerSettings = {
+      timeZone: "UTC",
+      downtime: { startMinute: 22 * 60, endMinute: 10 * 60 },
+      focusCaps: NO_FOCUS_CAPS,
+    };
     const thesis = {
       ...flexible("Thesis", 90, utc("2026-10-05T10:00", "2026-10-05T22:00")),
       split: { minChunkMin: 30, maxChunkMin: 45 },

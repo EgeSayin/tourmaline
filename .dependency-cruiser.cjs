@@ -23,7 +23,7 @@ module.exports = {
       from: { path: "^src/(components|hooks)/" },
       to: {
         path: "^src/server/",
-        pathNot: "^src/server/(items|categories)/actions\\.ts$",
+        pathNot: "^src/server/(items|categories|settings)/actions\\.ts$",
         dependencyTypesNot: ["type-only"],
       },
     },
@@ -32,7 +32,7 @@ module.exports = {
       severity: "error",
       comment: "The data layer depends on the domain and the database, never on the layers that use it.",
       from: { path: "^src/server/db/" },
-      to: { path: "^src/server/(calendar|items|planning|recurrence|scheduler|demo)" },
+      to: { path: "^src/server/(calendar|items|planning|recurrence|scheduler|settings|demo)" },
     },
     {
       name: "scheduler-is-pure",

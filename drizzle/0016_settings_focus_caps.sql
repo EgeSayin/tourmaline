@@ -1,0 +1,2 @@
+ALTER TABLE "settings" ADD COLUMN "focus_caps_min" jsonb DEFAULT '[null, null, null, null, null, null, null]'::jsonb NOT NULL;--> statement-breakpoint
+ALTER TABLE "settings" ADD CONSTRAINT "settings_focus_caps_week" CHECK (jsonb_array_length("settings"."focus_caps_min") = 7);

@@ -1,5 +1,5 @@
 import fc from "fast-check";
-import type { SchedulerSettings } from "@/lib/settings";
+import { NO_FOCUS_CAPS, type SchedulerSettings } from "@/lib/settings";
 
 const MINUTES_PER_DAY = 24 * 60;
 
@@ -10,4 +10,8 @@ export const utcSettingsArb: fc.Arbitrary<SchedulerSettings> = fc.record({
     startMinute: fc.integer({ min: 0, max: MINUTES_PER_DAY - 1 }),
     endMinute: fc.integer({ min: 0, max: MINUTES_PER_DAY - 1 }),
   }),
+  focusCaps: fc.oneof(
+    fc.constant(NO_FOCUS_CAPS),
+    fc.array(fc.option(fc.integer({ min: 0, max: MINUTES_PER_DAY }), { nil: null }), { minLength: 7, maxLength: 7 }),
+  ),
 });

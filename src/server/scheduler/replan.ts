@@ -5,6 +5,7 @@ import { isPending, type Placement } from "@/lib/placements";
 import type { SchedulerSettings } from "@/lib/settings";
 import { freeTimeMap } from "./free-time";
 import { type Interval, type IntervalSet, later, mergeIntervals, subtractIntervals } from "@/lib/time/interval";
+import { type FocusDay, focusDays } from "./focus-cap";
 import { placeTasks } from "./placement";
 
 export interface ReplanInput {
@@ -34,6 +35,9 @@ export interface ReplanResult {
  * dropped in turn, least important first, and everything not kept is placed again. The plan that leaves the fewest
  * tasks unplaced at the most important level wins, then at the next level, and so on; a tie goes to the plan that
  * keeps more. So tasks never leave a more important task unplaced through their pending placements.
+ *
+ * New blocks keep each local day's fixed items and blocks under its focus cap where they can (see `placeTasks`);
+ * `fixedItems` and `existing` should cover all of today for today's to count.
  */
 export function replan({ horizon, fixedItems, tasks, existing, settings }: ReplanInput): ReplanResult {
   const now = horizon.start;
@@ -47,17 +51,17 @@ export function replan({ horizon, fixedItems, tasks, existing, settings }: Repla
     earliestStart: later(task.earliestStart, now),
   }));
 
-  const stable = fillAround(startingNow, kept, movable, free);
+  const fixedTimes = fixedItems.map(({ start, end }) => ({ start, end }));
+  const daysAround = (placements: Placement[]) =>
+    focusDays(horizon, [...fixedTimes, ...placements], settings.focusCaps, settings.timeZone);
+  const fillAround = (saved: Placement[]) => fillAroundKept(startingNow, kept, saved, free, daysAround);
+
+  const stable = fillAround(movable);
   if (stable.unplaced.length === 0) return stable;
 
   const priorityOf = new Map(tasks.map((task) => [task.id, PRIORITIES.indexOf(task.priority)]));
   const keepingAbove = (level: number) =>
-    fillAround(
-      startingNow,
-      kept,
-      movable.filter((placement) => (priorityOf.get(placement.taskId) ?? PRIORITIES.length) < level),
-      free,
-    );
+    fillAround(movable.filter((placement) => (priorityOf.get(placement.taskId) ?? PRIORITIES.length) < level));
   const bumped = PRIORITIES.map((_, level) => keepingAbove(level)).reverse();
   return bumped.reduce((best, plan) => (fewerUnplaced(plan, best) ? plan : best), stable);
 }
@@ -71,8 +75,17 @@ function fewerUnplaced(a: ReplanResult, b: ReplanResult): boolean {
   return level !== -1 && countsA[level] < countsB[level];
 }
 
-/** Keeps `kept`, keeps each of `saved` that still fits, then places every task's remaining time. */
-function fillAround(tasks: Task[], kept: Placement[], saved: Placement[], free: IntervalSet): ReplanResult {
+/**
+ * Keeps `kept`, keeps each of `saved` that still fits, then places every task's remaining time under the focus caps
+ * of `daysAround` what's kept.
+ */
+function fillAroundKept(
+  tasks: Task[],
+  kept: Placement[],
+  saved: Placement[],
+  free: IntervalSet,
+  daysAround: (placements: Placement[]) => FocusDay[],
+): ReplanResult {
   const tasksById = new Map(tasks.map((task) => [task.id, task]));
   const placedMinutes = new Map<string, number>();
   const countPlaced = (placement: Placement) =>
@@ -103,7 +116,8 @@ function fillAround(tasks: Task[], kept: Placement[], saved: Placement[], free: 
   const remainingTasks = tasks
     .map((task) => ({ ...task, durationMin: task.durationMin - (placedMinutes.get(task.id) ?? 0) }))
     .filter((task) => task.durationMin > 0);
-  const { placements: added, unplaced } = placeTasks(remainingTasks, open, [...kept, ...preserved]);
+  const placed = [...kept, ...preserved];
+  const { placements: added, unplaced } = placeTasks(remainingTasks, open, placed, daysAround(placed));
 
   const placements = [...kept, ...preserved, ...added].sort((a, b) => a.start.getTime() - b.start.getTime());
   const order = new Map(tasks.map((task, i) => [task.id, i]));

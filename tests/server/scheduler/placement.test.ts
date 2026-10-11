@@ -1,7 +1,7 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import type { ChunkSizes, SpreadStrategy } from "@/lib/items";
-import { CHUNK_BREAK_MIN, type SchedulerSettings } from "@/lib/settings";
+import { CHUNK_BREAK_MIN, NO_FOCUS_CAPS, type SchedulerSettings } from "@/lib/settings";
 import { minutesBetween } from "@/lib/time/duration";
 import { mergeIntervals, subtractIntervals } from "@/lib/time/interval";
 import { freeTimeMap } from "@/server/scheduler/free-time";
@@ -16,6 +16,7 @@ describe("placeTasks", { tags: ["unit", "critical"] }, () => {
     const settings: SchedulerSettings = {
       timeZone: "America/New_York",
       downtime: { startMinute: 23 * 60, endMinute: 10 * 60 },
+      focusCaps: NO_FOCUS_CAPS,
     };
     // Mon Oct 5 2026, 00:00–24:00 EDT (UTC-4). Free: 10:00–10:45, 12:30–18:00, 19:00–22:30.
     const range = utc("2026-10-05T04:00", "2026-10-06T04:00");
@@ -61,7 +62,11 @@ describe("placeTasks", { tags: ["unit", "critical"] }, () => {
   });
 
   it("places a split task whole as chunks with breaks, or not at all", () => {
-    const settings: SchedulerSettings = { timeZone: "UTC", downtime: { startMinute: 22 * 60, endMinute: 10 * 60 } };
+    const settings: SchedulerSettings = {
+      timeZone: "UTC",
+      downtime: { startMinute: 22 * 60, endMinute: 10 * 60 },
+      focusCaps: NO_FOCUS_CAPS,
+    };
     const day = iv("00:00", "23:59");
     const free = freeTimeMap(day, [fixed("Seminar", iv("12:00", "13:00"))], settings);
     const tasks = [
@@ -81,7 +86,11 @@ describe("placeTasks", { tags: ["unit", "critical"] }, () => {
   });
 
   it("follows each task's spread, falling back to asap when it finds no room", () => {
-    const settings: SchedulerSettings = { timeZone: "UTC", downtime: { startMinute: 22 * 60, endMinute: 10 * 60 } };
+    const settings: SchedulerSettings = {
+      timeZone: "UTC",
+      downtime: { startMinute: 22 * 60, endMinute: 10 * 60 },
+      focusCaps: NO_FOCUS_CAPS,
+    };
     const threeDays = utc("2026-10-05T00:00", "2026-10-08T00:00"); // free 10:00–22:00 each day
     const task = (id: string, durationMin: number, spread: SpreadStrategy, split: ChunkSizes | null = null) => ({
       ...flexible(id, durationMin, threeDays),

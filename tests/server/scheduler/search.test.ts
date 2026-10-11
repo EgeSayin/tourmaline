@@ -1,7 +1,7 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import { SLOT_MIN } from "@/lib/placements";
-import type { SchedulerSettings } from "@/lib/settings";
+import { NO_FOCUS_CAPS, type SchedulerSettings } from "@/lib/settings";
 import { minutesBetween } from "@/lib/time/duration";
 import { type Interval, mergeIntervals, subtractIntervals } from "@/lib/time/interval";
 import { freeTimeMap } from "@/server/scheduler/free-time";
@@ -88,7 +88,11 @@ describe("findEarliestChunks", { tags: ["unit", "critical"] }, () => {
 });
 
 describe("evenTargets", { tags: ["unit", "critical"] }, () => {
-  const settings: SchedulerSettings = { timeZone: "UTC", downtime: { startMinute: 22 * 60, endMinute: 10 * 60 } };
+  const settings: SchedulerSettings = {
+    timeZone: "UTC",
+    downtime: { startMinute: 22 * 60, endMinute: 10 * 60 },
+    focusCaps: NO_FOCUS_CAPS,
+  };
   const threeDays = utc("2026-10-05T00:00", "2026-10-08T00:00"); // free 10:00–22:00 each day
 
   it("centres each block in an equal share of the free time, skipping busy stretches", () => {
@@ -119,7 +123,11 @@ describe("evenTargets", { tags: ["unit", "critical"] }, () => {
 });
 
 describe("findEvenChunks", { tags: ["unit", "critical"] }, () => {
-  const settings: SchedulerSettings = { timeZone: "UTC", downtime: { startMinute: 22 * 60, endMinute: 10 * 60 } };
+  const settings: SchedulerSettings = {
+    timeZone: "UTC",
+    downtime: { startMinute: 22 * 60, endMinute: 10 * 60 },
+    focusCaps: NO_FOCUS_CAPS,
+  };
   const fiveDays = utc("2026-10-05T00:00", "2026-10-10T00:00"); // free 10:00–22:00 each day
   const split = { minChunkMin: 60, maxChunkMin: 120 };
 

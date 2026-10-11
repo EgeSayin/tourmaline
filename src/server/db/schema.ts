@@ -20,6 +20,7 @@ import { CATEGORY_COLORS } from "@/lib/categories";
 import { type Item, PRIORITIES, SPREAD_STRATEGIES } from "@/lib/items";
 import { PLACEMENT_SOURCES, PLACEMENT_STATUSES, SLOT_MIN } from "@/lib/placements";
 import type { Recurrence } from "@/lib/recurrence";
+import type { FocusCaps } from "@/lib/settings";
 import type { TimeZone } from "@/lib/time/time-zone";
 
 export const priorityEnum = pgEnum("priority", PRIORITIES);
@@ -50,10 +51,15 @@ export const settings = pgTable(
     timeZone: text("time_zone").$type<TimeZone>().notNull(),
     downtimeStartMinute: integer("downtime_start_minute").notNull(),
     downtimeEndMinute: integer("downtime_end_minute").notNull(),
+    focusCapsMin: jsonb("focus_caps_min")
+      .$type<FocusCaps>()
+      .notNull()
+      .default(sql`'[null, null, null, null, null, null, null]'::jsonb`),
     ...auditColumns,
   },
   (t) => [
     check("settings_single_row", sql`${t.id} = 1`),
+    check("settings_focus_caps_week", sql`jsonb_array_length(${t.focusCapsMin}) = 7`),
     check(
       "settings_downtime_minutes",
       sql`${t.downtimeStartMinute} between 0 and 1439 and ${t.downtimeEndMinute} between 0 and 1439`,

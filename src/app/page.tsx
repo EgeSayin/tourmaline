@@ -46,6 +46,7 @@ export default async function Home({ searchParams }: PageProps<"/">) {
                 weekDates={calendar.weekDates}
                 dayDates={calendar.dayDates}
                 blocks={calendar.blocks}
+                loads={calendar.loads}
                 timeZone={calendar.timeZone}
               />
             </>

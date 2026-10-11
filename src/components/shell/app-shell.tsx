@@ -1,10 +1,10 @@
-import { CalendarDays, ListTodo, Plus, Tags } from "lucide-react";
+import { CalendarDays, ListTodo, Plus, Settings, Tags } from "lucide-react";
 import Link from "next/link";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-export type AppPage = "calendar" | "tasks" | "categories";
+export type AppPage = (typeof PAGES)[number]["page"] | "settings";
 
 /** The one section shown on phones, where the columns don't fit side by side. */
 export type PhoneSection = "left" | "main" | "side";
@@ -12,7 +12,7 @@ export type PhoneSection = "left" | "main" | "side";
 /**
  * Tablet and up: three columns (left, main, side), each a header over a section; the left header is empty. The
  * middle header switches between pages, which change only the middle section, where each page puts its own header;
- * the right one holds the theme toggle and Add item. The main section spans the side column while `sideOpen` is
+ * the right one holds the theme toggle, the settings link and Add item. The main section spans the side column while `sideOpen` is
  * false. `side` places itself, as a column or, on phones, wherever it likes.
  * Phones: only the right header shows on top, then only `phoneSection`; `phoneNav` is a bar at the bottom that also
  * switches pages.
@@ -48,13 +48,16 @@ export function AppShell({
         <AppNav page={page} />
       </header>
       <header className="flex min-h-16 items-center justify-between gap-2 border-b px-4 md:justify-end md:border-l">
-        <ThemeToggle />
+        <div className="flex items-center gap-1">
+          <ThemeToggle />
+          <SettingsLink current={page === "settings"} />
+        </div>
         <AddItemLink />
       </header>
 
       <div className={`space-y-4 overflow-y-auto p-4 md:border-r ${shownOn("left")}`}>{left}</div>
       <section
-        aria-label={PAGES.find((entry) => entry.page === page)!.region}
+        aria-label={page === "settings" ? "Settings" : PAGES.find((entry) => entry.page === page)!.region}
         className={`space-y-3 overflow-y-auto p-4 ${sideOpen ? "" : "md:col-span-2"} ${shownOn("main")}`}
       >
         {main}
@@ -91,6 +94,19 @@ function AppNav({ page }: { page: AppPage }) {
         </Link>
       ))}
     </nav>
+  );
+}
+
+function SettingsLink({ current }: { current: boolean }) {
+  return (
+    <Link
+      href="/settings"
+      aria-label="Settings"
+      aria-current={current ? "page" : undefined}
+      className={cn(buttonVariants({ variant: "ghost", size: "icon" }), "aria-[current=page]:bg-muted")}
+    >
+      <Settings />
+    </Link>
   );
 }
 

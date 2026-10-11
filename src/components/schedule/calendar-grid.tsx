@@ -2,8 +2,9 @@
 
 import { useBlockPanel } from "./block-panel-state";
 import type { CalendarBlock } from "@/lib/calendar-blocks";
-import { formatLocalDate, formatLocalWeekday } from "@/lib/time/format";
+import { formatDuration, formatLocalDate, formatLocalWeekday } from "@/lib/time/format";
 import type { TimeZone } from "@/lib/time/time-zone";
+import type { DayLoad } from "@/server/calendar";
 import { DayColumn } from "./day-column";
 import { HourAxis } from "./hour-axis";
 import { timeScaleFor } from "./time-scale";
@@ -14,6 +15,7 @@ export function CalendarGrid({
   weekDates,
   dayDates,
   blocks,
+  loads,
   timeZone,
 }: {
   /** Local date of now, highlighted when shown. */
@@ -21,6 +23,7 @@ export function CalendarGrid({
   weekDates: string[];
   dayDates: string[];
   blocks: CalendarBlock[];
+  loads: Record<string, DayLoad>;
   timeZone: TimeZone;
 }) {
   const { open } = useBlockPanel();
@@ -56,6 +59,7 @@ export function CalendarGrid({
             >
               {Number(date.slice(8))}
             </div>
+            <LoadLine load={loads[date]} />
           </div>
         ))}
 
@@ -72,6 +76,21 @@ export function CalendarGrid({
           />
         ))}
       </div>
+    </div>
+  );
+}
+
+/** A capped day's filled time against its cap, amber once it's over. */
+function LoadLine({ load }: { load: DayLoad | undefined }) {
+  if (!load || load.capMin === null) return null;
+  const over = load.usedMin > load.capMin;
+  return (
+    <div
+      data-over={over || undefined}
+      className="mt-1 text-[11px] text-muted-foreground tabular-nums data-over:font-medium data-over:text-amber-600 dark:data-over:text-amber-400"
+    >
+      {formatDuration(load.usedMin)} / {formatDuration(load.capMin)}
+      {over && <span className="sr-only">, over the cap</span>}
     </div>
   );
 }
