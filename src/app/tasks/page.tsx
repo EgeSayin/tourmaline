@@ -27,8 +27,12 @@ export default async function Tasks({ searchParams }: PageProps<"/tasks">) {
         <Workspace
           page="tasks"
           calendar={calendar}
-          header={<h1 className="text-lg font-semibold tracking-tight">Tasks</h1>}
-          main={<TaskList entries={calendar.tasks} selectedId={selected?.id ?? null} timeZone={calendar.timeZone} />}
+          main={
+            <>
+              <h1 className="text-lg font-semibold tracking-tight">Tasks</h1>
+              <TaskList entries={calendar.tasks} selectedId={selected?.id ?? null} timeZone={calendar.timeZone} />
+            </>
+          }
           editor={editing ? <TaskEditor task={selected} timeZone={calendar.timeZone} /> : null}
         />
       </main>

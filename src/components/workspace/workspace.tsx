@@ -22,13 +22,12 @@ type List = "review" | "queue";
 export function Workspace({
   page,
   calendar,
-  header,
   main,
   editor = null,
 }: {
   page: AppPage;
   calendar: Calendar;
-  header: React.ReactNode;
+  /** The page's own header first, then its content. */
   main: React.ReactNode;
   editor?: React.ReactNode;
 }) {
@@ -44,7 +43,6 @@ export function Workspace({
   return (
     <AppShell
       page={page}
-      header={header}
       left={
         <>
           <SegmentedControl

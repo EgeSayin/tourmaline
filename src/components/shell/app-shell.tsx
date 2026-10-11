@@ -11,14 +11,13 @@ export type PhoneSection = "left" | "main" | "side";
 
 /**
  * Tablet and up: three columns (left, main, side), each a header over a section; the left header is empty. The
- * middle header starts with the switch between pages, which change only the middle; the right one holds the theme
- * toggle and Add item. The main section spans the side column while `sideOpen` is
+ * middle header switches between pages, which change only the middle section, where each page puts its own header;
+ * the right one holds the theme toggle and Add item. The main section spans the side column while `sideOpen` is
  * false. `side` places itself, as a column or, on phones, wherever it likes.
  * Phones: the headers stack on top, only `phoneSection` is shown, and `phoneNav` is a bar at the bottom.
  */
 export function AppShell({
   page,
-  header,
   left,
   main,
   mainLabel,
@@ -28,7 +27,6 @@ export function AppShell({
   phoneNav,
 }: {
   page: AppPage;
-  header: React.ReactNode;
   left: React.ReactNode;
   main: React.ReactNode;
   mainLabel: string;
@@ -47,12 +45,10 @@ export function AppShell({
       )}
     >
       <header className="hidden min-h-16 border-r border-b md:block" />
-      <header className="flex min-h-16 flex-wrap items-center gap-x-4 border-b px-4">
-        <AppNav page={page} className="hidden md:inline-flex" />
-        {header}
+      <header className="flex min-h-16 items-center border-b px-4">
+        <AppNav page={page} />
       </header>
       <header className="flex min-h-16 items-center justify-between gap-2 border-b px-4 md:justify-end md:border-l">
-        <AppNav page={page} compact className="md:hidden" />
         <ThemeToggle />
         <AddItemLink />
       </header>
@@ -75,10 +71,10 @@ const PAGES = [
   { page: "tasks", href: "/tasks", label: "Tasks", Icon: ListTodo },
 ] as const;
 
-/** Links between the pages, the current one marked; `compact` shows only their icons. */
-function AppNav({ page, compact = false, className = "" }: { page: AppPage; compact?: boolean; className?: string }) {
+/** Links between the pages, the current one marked. */
+function AppNav({ page }: { page: AppPage }) {
   return (
-    <nav aria-label="Pages" className={cn("inline-flex gap-0.5 rounded-lg border bg-card p-0.5", className)}>
+    <nav aria-label="Pages" className="inline-flex gap-0.5 rounded-lg border bg-card p-0.5">
       {PAGES.map(({ page: target, href, label, Icon }) => (
         <Link
           key={target}
@@ -90,7 +86,7 @@ function AppNav({ page, compact = false, className = "" }: { page: AppPage; comp
           )}
         >
           <Icon />
-          <span className={compact ? "sr-only" : undefined}>{label}</span>
+          {label}
         </Link>
       ))}
     </nav>

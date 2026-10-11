@@ -18,7 +18,7 @@ export function CalendarHeader({
 }: Pick<Calendar, "weekDates" | "dayDates" | "today" | "navigation">) {
   const { week, days } = navigation;
   return (
-    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 py-2">
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
       <DateNavigator unit="week" {...week} atToday={week.weeksFromToday === 0} className="hidden md:flex" />
       <DateNavigator unit="days" {...days} atToday={dayDates[0] === today} className="flex md:hidden" />
       <div>

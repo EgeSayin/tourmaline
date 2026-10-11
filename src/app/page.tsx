@@ -28,16 +28,14 @@ export default async function Home({ searchParams }: PageProps<"/">) {
         <Workspace
           page="calendar"
           calendar={calendar}
-          header={
-            <CalendarHeader
-              weekDates={calendar.weekDates}
-              dayDates={calendar.dayDates}
-              today={calendar.today}
-              navigation={calendar.navigation}
-            />
-          }
           main={
             <>
+              <CalendarHeader
+                weekDates={calendar.weekDates}
+                dayDates={calendar.dayDates}
+                today={calendar.today}
+                navigation={calendar.navigation}
+              />
               <ScheduleLegend />
               <CalendarGrid
                 today={calendar.today}
