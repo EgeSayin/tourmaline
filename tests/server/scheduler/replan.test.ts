@@ -279,8 +279,8 @@ describe("replan", () => {
             expect(placedMin).toBe(0);
             expect(unplaced).toBeUndefined();
           } else if (unplaced) {
-            expect(placedMin).toBe(0);
-            expect(unplaced.durationMin).toBe(remaining);
+            // Saved blocks that still fit stay; what's left of the task waits in the queue.
+            expect(placedMin + unplaced.durationMin).toBe(remaining);
             // Only for single blocks: a greedy chunk search can miss chunks that would fit.
             if (!task.split) {
               expect(
