@@ -79,6 +79,7 @@ export function findLatestSlot(free: IntervalSet, durationMin: number, window: I
  * grid and at least `breakMin` after the one before. Chunks are `minChunkMin` to `maxChunkMin` long; only when
  * `durationMin` is less than `minChunkMin` is the single chunk shorter. Returns `null` unless all of it fits.
  * Assumes `durationMin` and the chunk sizes are multiples of `SLOT_MIN`, so every chunk ends on the grid too.
+ * Chunk `i` starts no earlier than `targets[i]`, when given.
  */
 export function findEarliestChunks(
   free: IntervalSet,
@@ -86,10 +87,11 @@ export function findEarliestChunks(
   window: Interval,
   { minChunkMin, maxChunkMin }: NonNullable<Task["split"]>,
   breakMin: number,
+  targets: readonly Date[] = [],
 ): Interval[] | null {
   const chunks: Interval[] = [];
   let remaining = durationMin;
-  let earliest = window.start;
+  let earliest = later(window.start, targets[0]);
 
   for (const slot of free) {
     const end = slot.end < window.end ? slot.end : window.end;
@@ -104,12 +106,41 @@ export function findEarliestChunks(
       const chunk = { start, end: addMinutes(start, length) };
       chunks.push(chunk);
       remaining -= length;
-      earliest = addMinutes(chunk.end, breakMin);
+      earliest = later(addMinutes(chunk.end, breakMin), targets[chunks.length]);
       start = ceilToSlot(earliest);
     }
     if (remaining === 0) return chunks;
   }
   return null;
+}
+
+/**
+ * Start targets that spread `count` blocks, `durationMin` long in total, evenly over the free time in `window`: each
+ * block's target centres it in its equal share of that free time, so busy stretches get fewer blocks.
+ */
+export function evenTargets(free: IntervalSet, window: Interval, durationMin: number, count: number): Date[] {
+  const parts = free
+    .map((slot) => ({ start: later(slot.start, window.start), end: slot.end < window.end ? slot.end : window.end }))
+    .filter((part) => part.start < part.end);
+  const shareMin = parts.reduce((sum, part) => sum + minutesBetween(part.start, part.end), 0) / count;
+  const offsetMin = Math.max(0, (shareMin - durationMin / count) / 2);
+
+  return Array.from({ length: count }, (_, k) => atFreeMinute(parts, k * shareMin + offsetMin) ?? window.start);
+}
+
+/** The time `minute` minutes of free time into `parts`, or `null` when they hold no free time. */
+function atFreeMinute(parts: Interval[], minute: number): Date | null {
+  let left = minute;
+  for (const part of parts) {
+    const length = minutesBetween(part.start, part.end);
+    if (left < length) return addMinutes(part.start, left);
+    left -= length;
+  }
+  return parts.at(-1)?.end ?? null;
+}
+
+function later(date: Date, other: Date | undefined): Date {
+  return other && other > date ? other : date;
 }
 
 /** Like `findEarliestChunks`, but the latest chunks, cut from the end, in time order. */

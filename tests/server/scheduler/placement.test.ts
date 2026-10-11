@@ -6,6 +6,7 @@ import { minutesBetween } from "@/lib/time/duration";
 import { type Interval, mergeIntervals, subtractIntervals } from "@/lib/time/interval";
 import { freeTimeMap } from "@/server/scheduler/free-time";
 import {
+  evenTargets,
   findEarliestChunks,
   findEarliestSlot,
   findLatestChunks,
@@ -101,8 +102,18 @@ describe("findEarliestChunks", { tags: ["unit", "critical"] }, () => {
           splitArb,
           breakArb,
           (free, window, durationMin, split, breakMin) => {
-            for (const find of [findEarliestChunks, findLatestChunks]) {
-              const chunks = find(free, durationMin, window, split, breakMin);
+            const targets = evenTargets(free, window, durationMin, Math.ceil(durationMin / split.maxChunkMin));
+            for (const [i, target] of targets.entries()) {
+              expect(target >= window.start && target <= window.end).toBe(true);
+              if (i > 0) expect(target >= targets[i - 1]).toBe(true);
+            }
+
+            const searches = [
+              findEarliestChunks(free, durationMin, window, split, breakMin),
+              findLatestChunks(free, durationMin, window, split, breakMin),
+              findEarliestChunks(free, durationMin, window, split, breakMin, targets),
+            ];
+            for (const chunks of searches) {
               if (chunks === null) continue;
 
               expect(chunks.reduce((sum, chunk) => sum + minutesBetween(chunk.start, chunk.end), 0)).toBe(durationMin);
@@ -117,11 +128,52 @@ describe("findEarliestChunks", { tags: ["unit", "critical"] }, () => {
                 if (i > 0) expect(minutesBetween(chunks[i - 1].end, chunk.start)).toBeGreaterThanOrEqual(breakMin);
               }
             }
+            searches[2]?.forEach((chunk, i) => i < targets.length && expect(chunk.start >= targets[i]).toBe(true));
           },
         ),
       );
     },
   );
+});
+
+describe("evenTargets", { tags: ["unit", "critical"] }, () => {
+  const settings: SchedulerSettings = { timeZone: "UTC", downtime: { startMinute: 22 * 60, endMinute: 10 * 60 } };
+  const threeDays = utc("2026-10-05T00:00", "2026-10-08T00:00"); // free 10:00–22:00 each day
+
+  it("centres each block in an equal share of the free time, skipping busy stretches", () => {
+    const free = freeTimeMap(threeDays, [], settings);
+    // 12 free hours each, so each 60-minute chunk is centred in a day: 5h30 after 10:00.
+    expect(evenTargets(free, threeDays, 180, 3)).toEqual([
+      new Date("2026-10-05T15:30Z"),
+      new Date("2026-10-06T15:30Z"),
+      new Date("2026-10-07T15:30Z"),
+    ]);
+    const chunks = findEarliestChunks(
+      free,
+      180,
+      threeDays,
+      { minChunkMin: 60, maxChunkMin: 60 },
+      30,
+      evenTargets(free, threeDays, 180, 3),
+    );
+    expect(chunks?.map((chunk) => chunk.start)).toEqual(evenTargets(free, threeDays, 180, 3));
+
+    // Tuesday is full, so two chunks share Monday's and Wednesday's free time.
+    const busyTuesday = freeTimeMap(
+      threeDays,
+      [fixed("Exam day", utc("2026-10-06T10:00", "2026-10-06T22:00"))],
+      settings,
+    );
+    expect(evenTargets(busyTuesday, threeDays, 120, 2)).toEqual([
+      new Date("2026-10-05T15:30Z"),
+      new Date("2026-10-07T15:30Z"),
+    ]);
+
+    // One block sits in the middle of the free time.
+    const monday = utc("2026-10-05T00:00", "2026-10-06T00:00");
+    expect(evenTargets(freeTimeMap(monday, [], settings), monday, 90, 1)).toEqual([new Date("2026-10-05T15:15Z")]);
+    expect(evenTargets(mergeIntervals([]), monday, 90, 2)).toEqual([monday.start, monday.start]);
+  });
 });
 
 describe("findLatestSlot and findLatestChunks", { tags: ["unit", "critical"] }, () => {
