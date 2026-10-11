@@ -6,7 +6,7 @@ test.describe("task queue", () => {
     page,
   }, testInfo) => {
     const title = `E2E all-nighter (${testInfo.project.name})`;
-    const form = await openAddItemForm(page, testInfo);
+    const form = await openAddItemForm(page);
     await form.getByLabel("Title").fill(title);
     await form.getByLabel("Duration (min)").fill(String(24 * 60)); // longer than any free stretch
     await form.getByLabel("Due").fill(localDateTime(2, "20:00"));
@@ -37,7 +37,7 @@ test.describe("task queue", () => {
 
   test("marks a task done from the queue, taking it off", async ({ page }, testInfo) => {
     const title = `E2E impossible essay (${testInfo.project.name})`;
-    const form = await openAddItemForm(page, testInfo);
+    const form = await openAddItemForm(page);
     await form.getByLabel("Title").fill(title);
     await form.getByLabel("Duration (min)").fill(String(24 * 60)); // longer than any free stretch
     await form.getByLabel("Due").fill(localDateTime(2, "20:00"));

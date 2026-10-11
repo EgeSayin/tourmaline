@@ -15,7 +15,7 @@ test.describe("recurring items", () => {
     const slot = earlySlot(testInfo, 3);
     const block = page.getByRole("button", { name: `${title} ${slot.label}` });
 
-    const form = await openAddItemForm(page, testInfo);
+    const form = await openAddItemForm(page);
     await form.getByRole("radio", { name: "At a set time" }).click();
     await form.getByLabel("Title").fill(title);
     await form.getByLabel("Starts").fill(localDateTime(-1, slot.start));
@@ -71,7 +71,7 @@ test.describe("recurring items", () => {
     page,
   }, testInfo) => {
     const title = `E2E night shift (${testInfo.project.name})`;
-    const form = await openAddItemForm(page, testInfo);
+    const form = await openAddItemForm(page);
     await form.getByLabel("Title").fill(title);
     await form.getByLabel("Duration (min)").fill(String(15 * 60)); // longer than any free stretch in a day
     await form.getByLabel("How often").selectOption("daily");

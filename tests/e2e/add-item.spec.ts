@@ -2,8 +2,8 @@ import { expect, test } from "@playwright/test";
 import { addFixedItemToday, earlySlot, localDateTime, openAddItemForm } from "./helpers";
 
 test.describe("adding items", () => {
-  test("shows field errors when required fields are missing", async ({ page }, testInfo) => {
-    const form = await openAddItemForm(page, testInfo);
+  test("shows field errors when required fields are missing", async ({ page }) => {
+    const form = await openAddItemForm(page);
 
     await form.getByRole("button", { name: "Add item" }).click();
 
@@ -14,7 +14,7 @@ test.describe("adding items", () => {
 
   test("schedules a new flexible task, with an optional time cleared again", async ({ page }, testInfo) => {
     const title = `E2E homework (${testInfo.project.name})`;
-    const form = await openAddItemForm(page, testInfo);
+    const form = await openAddItemForm(page);
     const clearNotBefore = form.getByRole("button", { name: "Clear Not before" });
 
     await expect(clearNotBefore).toBeDisabled();
@@ -35,13 +35,13 @@ test.describe("adding items", () => {
 
   test("adds a fixed item at its time, defaulting to mandatory", async ({ page }, testInfo) => {
     const title = `E2E office hours (${testInfo.project.name})`;
-    const form = await openAddItemForm(page, testInfo);
+    const form = await openAddItemForm(page);
     await expect(form.getByRole("radio", { name: "Find time for it" })).toBeChecked();
     await form.getByRole("radio", { name: "At a set time" }).click();
     await expect(form.getByRole("radio", { name: "At a set time" })).toBeChecked();
     await expect(form.getByRole("radio", { name: "Find time for it" })).not.toBeChecked();
     await expect(form.getByLabel("Priority")).toHaveValue("mandatory");
-    await form.getByRole("button", { name: "Close" }).click();
+    await form.getByRole("link", { name: "Close" }).click();
 
     const slot = earlySlot(testInfo, 0);
     await addFixedItemToday(page, testInfo, title, slot);

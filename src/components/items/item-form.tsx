@@ -87,7 +87,10 @@ export function ItemForm({
         <Button type="submit" disabled={pending} className="flex-1">
           {pending ? "Saving…" : item ? "Save changes" : "Add item"}
         </Button>
-        {item && isTask(item) && <TaskDoneButton task={item} date={target.occurrenceDate} onChanged={onDone} />}
+        {/* A series is done one occurrence at a time. */}
+        {item && isTask(item) && (!item.recurrence || target.occurrenceDate) && (
+          <TaskDoneButton task={item} date={target.occurrenceDate} onChanged={onDone} />
+        )}
         {item && target.occurrenceDate && (
           <SkipOccurrenceButton itemId={item.id} date={target.occurrenceDate} onSkipped={onDone} />
         )}

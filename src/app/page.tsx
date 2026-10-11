@@ -2,9 +2,8 @@ import { connection } from "next/server";
 import { ItemPanelProvider } from "@/components/items/item-panel-state";
 import { CalendarGrid } from "@/components/schedule/calendar-grid";
 import { CalendarHeader } from "@/components/schedule/calendar-header";
-import { ScheduleView } from "@/components/schedule/schedule-view";
-import { ReviewList } from "@/components/schedule/review-list";
-import { TaskQueue } from "@/components/schedule/task-queue";
+import { ScheduleLegend } from "@/components/schedule/schedule-legend";
+import { Workspace } from "@/components/workspace/workspace";
 import { loadCalendar } from "@/server/calendar";
 import { parseDateParam } from "@/server/time/days";
 import { db } from "@/server/db/client";
@@ -26,8 +25,10 @@ export default async function Home({ searchParams }: PageProps<"/">) {
   return (
     <ItemPanelProvider timeZone={calendar.timeZone}>
       <main>
-        <ScheduleView
-          calendarHeader={
+        <Workspace
+          page="calendar"
+          calendar={calendar}
+          header={
             <CalendarHeader
               weekDates={calendar.weekDates}
               dayDates={calendar.dayDates}
@@ -35,18 +36,17 @@ export default async function Home({ searchParams }: PageProps<"/">) {
               navigation={calendar.navigation}
             />
           }
-          queue={<TaskQueue entries={calendar.queue} timeZone={calendar.timeZone} />}
-          queueCount={calendar.queue.length}
-          review={<ReviewList entries={calendar.review} timeZone={calendar.timeZone} />}
-          reviewCount={calendar.review.length}
-          calendar={
-            <CalendarGrid
-              today={calendar.today}
-              weekDates={calendar.weekDates}
-              dayDates={calendar.dayDates}
-              blocks={calendar.blocks}
-              timeZone={calendar.timeZone}
-            />
+          main={
+            <>
+              <ScheduleLegend />
+              <CalendarGrid
+                today={calendar.today}
+                weekDates={calendar.weekDates}
+                dayDates={calendar.dayDates}
+                blocks={calendar.blocks}
+                timeZone={calendar.timeZone}
+              />
+            </>
           }
         />
       </main>

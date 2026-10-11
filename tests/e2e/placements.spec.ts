@@ -4,7 +4,7 @@ import { itemPanel, localDate, localDateTime, openAddItemForm } from "./helpers"
 test.describe("scheduled blocks", () => {
   test("pins and unpins a block, checks it off early and undoes that", async ({ page }, testInfo) => {
     const title = `E2E flashcards (${testInfo.project.name})`;
-    const form = await openAddItemForm(page, testInfo);
+    const form = await openAddItemForm(page);
     await form.getByLabel("Title").fill(title);
     await form.getByLabel("Duration (min)").fill("30");
     await form.getByLabel("Not before", { exact: true }).fill(localDateTime(1, "10:00"));

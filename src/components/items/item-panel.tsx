@@ -1,56 +1,38 @@
 "use client";
 
 import { Dialog } from "@base-ui/react/dialog";
-import { Plus, X } from "lucide-react";
+import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { BlockSection } from "./block-section";
 import { ItemForm } from "./item-form";
-import { type PanelMode, useItemPanel } from "./item-panel-state";
+import { type EditMode, useItemPanel } from "./item-panel-state";
 
 // Tailwind's `md` breakpoint, where `ScheduleView` switches to columns.
 const DESKTOP_QUERY = "(min-width: 768px)";
 
-export function AddItemButton() {
-  const { mode, openAdd } = useItemPanel();
-  return (
-    <Button aria-expanded={mode.kind === "add"} onClick={openAdd}>
-      <Plus />
-      Add item
-    </Button>
-  );
-}
-
-function PanelContent({ mode }: { mode: Exclude<PanelMode, { kind: "closed" }> }) {
+function PanelContent({ mode }: { mode: EditMode }) {
   const { timeZone, close } = useItemPanel();
-  const editing = mode.kind === "edit" ? mode : undefined;
 
   return (
     <>
       <div className="flex items-start justify-between gap-2">
-        <div>
-          <h2 className="font-semibold">{editing ? "Edit item" : "Add item"}</h2>
-          {!editing && (
-            <p className="text-sm text-muted-foreground">
-              Fixed items keep their time; flexible ones are scheduled for you.
-            </p>
-          )}
-        </div>
+        <h2 className="font-semibold">Edit item</h2>
         <Button variant="ghost" size="icon-sm" aria-label="Close" onClick={close}>
           <X />
         </Button>
       </div>
-      {editing?.block && <BlockSection block={editing.block} timeZone={timeZone} onDone={close} />}
-      <ItemForm key={editing?.item.id ?? "new"} target={editing} timeZone={timeZone} onDone={close} />
+      {mode.block && <BlockSection block={mode.block} timeZone={timeZone} onDone={close} />}
+      <ItemForm key={mode.item.id} target={mode} timeZone={timeZone} onDone={close} />
     </>
   );
 }
 
-/** The add/edit panel: the tools section on tablets and up, or a bottom sheet on phones. */
+/** The edit panel: the side section on tablets and up, or a bottom sheet on phones. */
 export function ItemPanel() {
   const { mode, close } = useItemPanel();
   const isDesktop = useMediaQuery(DESKTOP_QUERY);
-  const label = mode.kind === "edit" ? "Edit item" : "Add item";
+  const label = "Edit item";
 
   if (isDesktop) {
     return (

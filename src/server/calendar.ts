@@ -1,8 +1,7 @@
 import "server-only";
 import { type CalendarBlock, type EditTarget, toCalendarBlocks } from "@/lib/calendar-blocks";
-import { isFixed, type Item } from "@/lib/items";
+import { isFixed } from "@/lib/items";
 import type { PlacementRef } from "@/lib/placements";
-import { parseOccurrenceId } from "@/lib/recurrence";
 import { later } from "@/lib/time/interval";
 import type { TimeZone } from "@/lib/time/time-zone";
 import type { Database, Transaction } from "@/server/db/connection";
@@ -10,7 +9,9 @@ import { loadItems } from "@/server/db/items-repository";
 import { loadPlacements, loadPlacementsToReview } from "@/server/db/placements-repository";
 import { loadSettings } from "@/server/db/settings-repository";
 import { syncPlan } from "@/server/planning/sync-plan";
-import { expandOccurrences, nextOccurrence } from "@/server/recurrence";
+import { expandOccurrences } from "@/server/recurrence";
+import { editTargets } from "@/server/edit-targets";
+import { listTasks, type TaskEntry } from "@/server/tasks";
 import {
   type DayNavigation,
   dayNavigation,
@@ -57,11 +58,13 @@ export interface Calendar {
   queue: QueueEntry[];
   /** Every past block still to review, oldest first. */
   review: ReviewEntry[];
+  /** Every item, for the task list. */
+  tasks: TaskEntry[];
 }
 
 /**
  * Brings the plan up to date (see `syncPlan`) and returns the week and the `PHONE_DAY_COUNT` days from `shownDate`
- * (default: today), with their saved placements. `null` if no settings are saved yet.
+ * (default: today), with their saved placements, the lists and every item. `null` if no settings are saved yet.
  */
 export async function loadCalendar(
   executor: Database | Transaction,
@@ -114,20 +117,6 @@ export async function loadCalendar(
           ]
         : [];
     }),
-  };
-}
-
-/** Finds the edit target for an item or occurrence id among `items`. */
-function editTargets(items: Item[], now: Date, timeZone: TimeZone): (id: string) => EditTarget | undefined {
-  const editable = new Map(
-    items.map((item) => {
-      const next = nextOccurrence(item, now, timeZone);
-      return [item.id, next ? { ...next, id: item.id } : item];
-    }),
-  );
-  return (id) => {
-    const { itemId, date } = parseOccurrenceId(id);
-    const item = editable.get(itemId);
-    return item && { item, occurrenceDate: date };
+    tasks: listTasks(items, plan.unplaced, targetFor, now),
   };
 }

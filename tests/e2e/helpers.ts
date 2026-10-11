@@ -16,15 +16,16 @@ export function localDateTime(days: number, time: string): string {
   return `${localDate(days)}T${time}`;
 }
 
-/** The add/edit panel: docked beside the calendar on desktop, a bottom sheet on phones. */
-export function itemPanel(page: Page, testInfo: TestInfo, name: "Add item" | "Edit item") {
+/** The calendar's edit panel: docked beside the calendar on desktop, a bottom sheet on phones. */
+export function itemPanel(page: Page, testInfo: TestInfo, name: "Edit item") {
   return page.getByRole(isPhone(testInfo) ? "dialog" : "complementary", { name });
 }
 
-export async function openAddItemForm(page: Page, testInfo: TestInfo) {
+/** Opens the new item form on the tasks page through the toolbar's Add item, from the calendar. */
+export async function openAddItemForm(page: Page) {
   await page.goto("/");
-  await page.getByRole("button", { name: "Add item" }).click();
-  return itemPanel(page, testInfo, "Add item");
+  await page.getByRole("link", { name: "Add item" }).click();
+  return page.getByRole("complementary", { name: "New item" });
 }
 
 /**
@@ -44,13 +45,14 @@ export async function addFixedItemToday(
   title: string,
   slot: { start: string; end: string },
 ) {
-  const form = await openAddItemForm(page, testInfo);
+  const form = await openAddItemForm(page);
   await form.getByRole("radio", { name: "At a set time" }).click();
   await form.getByLabel("Title").fill(title);
   await form.getByLabel("Starts").fill(localDateTime(0, slot.start));
   await form.getByLabel("Ends").fill(localDateTime(0, slot.end));
   await form.getByRole("button", { name: "Add item" }).click();
   await expect(form).toBeHidden();
+  await page.goto("/");
 }
 
 export async function openItemForEditing(page: Page, testInfo: TestInfo, title: string) {
@@ -58,8 +60,9 @@ export async function openItemForEditing(page: Page, testInfo: TestInfo, title: 
   return itemPanel(page, testInfo, "Edit item");
 }
 
-/** Shows the task queue: the lists' Queue tab, behind the bottom tab on phones. */
+/** Shows the calendar's task queue: the lists' Queue tab, behind the bottom tab on phones. */
 export async function showQueue(page: Page, testInfo: TestInfo) {
+  await page.goto("/");
   const tab = (group: string) => page.getByRole("radiogroup", { name: group }).getByRole("radio", { name: /^Queue/ });
   if (isPhone(testInfo)) await tab("View").click();
   await tab("Lists").click();
