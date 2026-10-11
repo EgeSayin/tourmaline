@@ -12,7 +12,7 @@ export function SkipOccurrenceButton({
 }: {
   itemId: string;
   date: string;
-  onSkipped: () => void;
+  onSkipped?: () => void;
 }) {
   const [pending, startTransition] = useTransition();
 
@@ -24,7 +24,7 @@ export function SkipOccurrenceButton({
       onClick={() =>
         startTransition(async () => {
           await skipOccurrenceAction(itemId, date);
-          onSkipped();
+          onSkipped?.();
         })
       }
     >

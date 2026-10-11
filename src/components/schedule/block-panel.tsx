@@ -6,10 +6,8 @@ import Link from "next/link";
 import { BlockSummary } from "@/components/items/block-summary";
 import { PlacementActions } from "@/components/items/placement-actions";
 import { SkipOccurrenceButton } from "@/components/items/skip-occurrence-button";
-import { TaskDoneButton } from "@/components/items/task-done-button";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { useMediaQuery } from "@/hooks/use-media-query";
-import { isTask } from "@/lib/items";
 import { cn } from "@/lib/utils";
 import { type OpenedBlock, useBlockPanel } from "./block-panel-state";
 
@@ -35,7 +33,6 @@ function PanelContent({ block }: { block: OpenedBlock }) {
       {placement && <PlacementActions placement={placement} onDone={close} />}
       {occurrenceDate && (
         <div className="flex flex-wrap gap-2">
-          {isTask(item) && <TaskDoneButton task={item} date={occurrenceDate} onChanged={close} />}
           <SkipOccurrenceButton itemId={item.id} date={occurrenceDate} onSkipped={close} />
         </div>
       )}

@@ -1,7 +1,7 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import { type Recurrence, WEEKDAYS } from "@/lib/recurrence";
-import { expandOccurrences, nextOccurrence, occurrenceDates } from "@/server/recurrence";
+import { expandOccurrences, nextOccurrence, occurrenceDates, upcomingOccurrences } from "@/server/recurrence";
 import { utc } from "../support/intervals";
 import { fixed, flexible } from "../support/items";
 
@@ -170,7 +170,7 @@ describe("expandOccurrences", { tags: ["unit", "critical"] }, () => {
   });
 });
 
-describe("nextOccurrence", { tags: ["unit", "critical"] }, () => {
+describe("upcoming occurrences", { tags: ["unit", "critical"] }, () => {
   const tz = "America/New_York";
 
   it("finds the first occurrence ending after a time, past skips, or none once the series ends", () => {
@@ -195,5 +195,35 @@ describe("nextOccurrence", { tags: ["unit", "critical"] }, () => {
 
     expect(next(seminar, "2026-12-29T00:00Z")).toBeUndefined();
     expect(nextOccurrence(fixed("Once", utc("2026-10-05T15:00", "2026-10-05T16:00")), new Date(0), tz)).toBeUndefined();
+  });
+
+  it("lists as many occurrences as asked, from the one running, past skips, until the series ends", () => {
+    // Mondays and Wednesdays from Mon Oct 5, 09:00–09:30 EDT, until Wed Oct 21.
+    const standup = {
+      ...fixed("Standup", utc("2026-10-05T13:00", "2026-10-05T13:30")),
+      recurrence: { frequency: "weekly", interval: 1, weekdays: [1, 3], until: "2026-10-21" } satisfies Recurrence,
+      overrides: [
+        { date: "2026-10-12", skipped: true, done: false },
+        { date: "2026-10-14", skipped: true, done: false },
+      ],
+    };
+    const upcoming = (from: string, count: number) =>
+      upcomingOccurrences(standup, new Date(from), count, tz).map((occurrence) => occurrence.id);
+
+    expect(upcoming("2026-10-07T13:15Z", 3)).toEqual([
+      "Standup@2026-10-07",
+      "Standup@2026-10-19",
+      "Standup@2026-10-21",
+    ]);
+    expect(upcoming("2026-10-07T13:15Z", 2)).toEqual(["Standup@2026-10-07", "Standup@2026-10-19"]);
+    expect(upcoming("2026-10-05T00:00Z", 10)).toEqual([
+      "Standup@2026-10-05",
+      "Standup@2026-10-07",
+      "Standup@2026-10-19",
+      "Standup@2026-10-21",
+    ]);
+    expect(upcomingOccurrences(fixed("Once", utc("2026-10-05T15:00", "2026-10-05T16:00")), new Date(0), 3, tz)).toEqual(
+      [],
+    );
   });
 });

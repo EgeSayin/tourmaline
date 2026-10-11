@@ -1,11 +1,12 @@
 import { describe, expect } from "vitest";
 import type { Placement } from "@/lib/placements";
 import type { Recurrence } from "@/lib/recurrence";
-import { insertItem, setItemDone } from "@/server/db/items-repository";
+import { OCCURRENCES_SHOWN } from "@/lib/settings";
+import { insertItem, setItemDone, setOccurrenceDone, skipOccurrence } from "@/server/db/items-repository";
 import { insertPlacements } from "@/server/db/placements-repository";
 import { settings } from "@/server/db/schema";
 import { loadCalendar } from "@/server/calendar";
-import { loadTaskBlocks } from "@/server/tasks";
+import { loadSchedule, loadTaskBlocks } from "@/server/tasks";
 import { dbTest as it } from "../support/database";
 import { utc } from "../support/intervals";
 import { fixed, flexible, unsaved } from "../support/items";
@@ -75,5 +76,67 @@ describe("the task list", { tags: ["integration", "critical"] }, () => {
       { start: new Date("2026-10-06T14:00Z"), state: "to-review", pinned: false },
       { start: new Date("2026-10-08T14:00Z"), state: "planned", pinned: true },
     ]);
+  });
+
+  it("loads an item's schedule: a one-off task's blocks, or a series' next occurrences with theirs", async ({ tx }) => {
+    const timeZone = "America/New_York";
+    const essay = await insertItem(tx, unsaved(flexible("Essay", 60, utc("2026-10-05T04:00", "2026-10-09T21:00"))));
+    // Daily from Mon Oct 5, 10:00 EDT, each due by the next day's 10:00.
+    const gym = await insertItem(tx, {
+      ...unsaved(flexible("Gym", 60, utc("2026-10-05T14:00", "2026-10-06T14:00"))),
+      recurrence: daily,
+    });
+    const standup = await insertItem(tx, {
+      ...unsaved(fixed("Standup", utc("2026-10-05T13:00", "2026-10-05T13:30"))),
+      recurrence: { ...daily, until: "2026-10-09" },
+    });
+    const party = await insertItem(tx, unsaved(fixed("Party", utc("2026-10-10T23:00", "2026-10-11T03:00"))));
+    const placed = (taskId: string, start: string, end: string): Placement => ({
+      taskId,
+      ...utc(start, end),
+      source: "auto",
+      pinned: false,
+      status: "planned",
+    });
+    await insertPlacements(tx, [
+      placed(essay, "2026-10-08T14:00", "2026-10-08T15:00"),
+      placed(`${gym}@2026-10-07`, "2026-10-07T18:00", "2026-10-07T19:00"),
+      placed(`${gym}@2026-10-08`, "2026-10-08T18:00", "2026-10-08T19:00"),
+    ]);
+    await skipOccurrence(tx, gym, "2026-10-09");
+    await setOccurrenceDone(tx, gym, "2026-10-08", true);
+
+    const essaySchedule = await loadSchedule(tx, essay, wednesdayNoon, timeZone);
+    expect(essaySchedule.occurrences).toEqual([]);
+    expect(essaySchedule.blocks.map((block) => block.start)).toEqual([new Date("2026-10-08T14:00Z")]);
+
+    // Wednesday's occurrence is still open at noon; Friday's is skipped.
+    const gymSchedule = await loadSchedule(tx, gym, wednesdayNoon, timeZone);
+    expect(gymSchedule.blocks).toEqual([]);
+    expect(gymSchedule.occurrences).toHaveLength(OCCURRENCES_SHOWN);
+    expect(
+      gymSchedule.occurrences.slice(0, 3).map(({ date, end, blocks }) => ({
+        date,
+        end,
+        blocks: blocks.map((block) => block.start),
+      })),
+    ).toEqual([
+      { date: "2026-10-07", end: new Date("2026-10-08T14:00Z"), blocks: [new Date("2026-10-07T18:00Z")] },
+      { date: "2026-10-08", end: new Date("2026-10-09T14:00Z"), blocks: [new Date("2026-10-08T18:00Z")] },
+      { date: "2026-10-10", end: new Date("2026-10-11T14:00Z"), blocks: [] },
+    ]);
+
+    // Wednesday's has ended by noon, and the series ends on Friday.
+    const standupSchedule = await loadSchedule(tx, standup, wednesdayNoon, timeZone);
+    expect(standupSchedule.occurrences.map(({ date, start, blocks }) => ({ date, start, blocks }))).toEqual([
+      { date: "2026-10-08", start: new Date("2026-10-08T13:00Z"), blocks: [] },
+      { date: "2026-10-09", start: new Date("2026-10-09T13:00Z"), blocks: [] },
+    ]);
+
+    expect(await loadSchedule(tx, party, wednesdayNoon, timeZone)).toEqual({ blocks: [], occurrences: [] });
+    expect(await loadSchedule(tx, crypto.randomUUID(), wednesdayNoon, timeZone)).toEqual({
+      blocks: [],
+      occurrences: [],
+    });
   });
 });

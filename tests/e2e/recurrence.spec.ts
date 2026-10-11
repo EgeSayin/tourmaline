@@ -78,7 +78,7 @@ test.describe("recurring items", () => {
     await expect(tomorrows).toHaveCount(0);
   });
 
-  test("lists each occurrence of a repeating task that can't fit by its date, and opens the series", async ({
+  test("lists each occurrence of a repeating task that can't fit by its date, and opens the series to mark one done", async ({
     page,
   }, testInfo) => {
     const title = `E2E night shift (${testInfo.project.name})`;
@@ -105,9 +105,29 @@ test.describe("recurring items", () => {
     await expect(panel.getByLabel("How often")).toHaveValue("daily");
     await expect(panel.getByLabel("Due")).toHaveCount(0);
 
+    // Its editor lists today's occurrence, which can be marked done on its own and reopened.
+    const todaysOccurrence = panel
+      .getByRole("group", { name: "Next occurrences" })
+      .getByRole("listitem", { name: dateLabel(0) });
+    const markDone = todaysOccurrence.getByRole("button", { name: `Mark ${dateLabel(0)} done` });
+    const reopen = todaysOccurrence.getByRole("button", { name: `Reopen ${dateLabel(0)}` });
+    await markDone.click();
+    await expect(reopen).toBeVisible();
+    await showQueue(page, testInfo);
+    await expect(entries.first()).toBeVisible();
+    await expect(todays).toHaveCount(0);
+
+    await entries.first().click();
+    await reopen.click();
+    await expect(markDone).toBeVisible();
+    await showQueue(page, testInfo);
+    await expect(todays).toBeVisible();
+
+    await entries.first().click();
     await panel.getByRole("button", { name: "Delete" }).click();
     await panel.getByRole("button", { name: "Confirm delete" }).click();
     await expect(panel).toBeHidden();
+    await showQueue(page, testInfo);
     await expect(todays).toHaveCount(0);
   });
 });

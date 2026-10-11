@@ -106,14 +106,22 @@ export function withFirstDeadline<T extends NewTask>(task: Omit<T, "deadline">, 
 
 /** The first occurrence of a recurring `item` that ends after `from`, or `undefined` if none does. */
 export function nextOccurrence(item: Item, from: Date, timeZone: TimeZone): Item | undefined {
-  if (!item.recurrence) return undefined;
+  return upcomingOccurrences(item, from, 1, timeZone)[0];
+}
+
+/**
+ * The first `count` occurrences of a recurring `item` that end after `from`, in order, or as many as there are;
+ * none for a one-off item.
+ */
+export function upcomingOccurrences<T extends Item>(item: T, from: Date, count: number, timeZone: TimeZone): T[] {
+  if (!item.recurrence) return [];
   // Every period holds a date the rule could occur on, and each skip can push the next one a period further.
-  const periods = item.overrides.filter((override) => override.skipped).length + 1;
+  const periods = item.overrides.filter((override) => override.skipped).length + count;
   const range = {
     start: from,
     end: addMinutes(from, (periods * daysPerPeriod(item.recurrence) + 1) * MINUTES_PER_DAY),
   };
-  return expandOccurrences(item, range, timeZone)[0];
+  return expandOccurrences(item, range, timeZone).slice(0, count);
 }
 
 const daysPerPeriod = (rule: Recurrence) => rule.interval * (rule.frequency === "daily" ? 1 : 7);

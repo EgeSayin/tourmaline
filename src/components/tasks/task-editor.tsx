@@ -6,17 +6,18 @@ import { useRouter } from "next/navigation";
 import { ItemForm } from "@/components/items/item-form";
 import { buttonVariants } from "@/components/ui/button";
 import type { TimeZone } from "@/lib/time/time-zone";
-import type { TaskBlock, TaskEntry } from "@/server/tasks";
+import type { ItemSchedule, TaskEntry } from "@/server/tasks";
 import { TaskBlocks } from "./task-blocks";
+import { TaskOccurrences } from "./task-occurrences";
 
-/** Edits `task` with its `blocks`, or adds a new item without one; closing or saving goes back to the list. */
+/** Edits `task` with its `schedule`, or adds a new item without one; closing or saving goes back to the list. */
 export function TaskEditor({
   task,
-  blocks,
+  schedule,
   timeZone,
 }: {
   task: TaskEntry | null;
-  blocks: TaskBlock[];
+  schedule: ItemSchedule;
   timeZone: TimeZone;
 }) {
   const router = useRouter();
@@ -41,7 +42,11 @@ export function TaskEditor({
         timeZone={timeZone}
         onDone={() => router.push("/tasks")}
       />
-      {task?.kind === "task" && !task.recurring && <TaskBlocks blocks={blocks} timeZone={timeZone} />}
+      {task?.recurring ? (
+        <TaskOccurrences item={task.target.item} occurrences={schedule.occurrences} timeZone={timeZone} />
+      ) : (
+        task?.kind === "task" && <TaskBlocks blocks={schedule.blocks} timeZone={timeZone} />
+      )}
     </aside>
   );
 }
