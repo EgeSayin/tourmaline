@@ -4,6 +4,7 @@ import { isFixed } from "@/lib/items";
 import type { PlacementRef } from "@/lib/placements";
 import { later } from "@/lib/time/interval";
 import type { TimeZone } from "@/lib/time/time-zone";
+import { type CategoryEntry, listCategories } from "@/server/categories/category-list";
 import { loadCategories } from "@/server/db/categories-repository";
 import type { Database, Transaction } from "@/server/db/connection";
 import { loadItems } from "@/server/db/items-repository";
@@ -61,6 +62,8 @@ export interface Calendar {
   review: ReviewEntry[];
   /** Every item, for the task list. */
   tasks: TaskEntry[];
+  /** Every category, by name, with its item count. */
+  categories: CategoryEntry[];
 }
 
 /**
@@ -72,7 +75,11 @@ export async function loadCalendar(
   now: Date,
   shownDate?: Temporal.PlainDate,
 ): Promise<Calendar | null> {
-  const [settings, items] = await Promise.all([loadSettings(executor), loadItems(executor)]);
+  const [settings, items, categories] = await Promise.all([
+    loadSettings(executor),
+    loadItems(executor),
+    loadCategories(executor),
+  ]);
   if (!settings) return null;
   const { timeZone } = settings;
   const plan = await syncPlan(executor, items, settings, now);
@@ -93,14 +100,7 @@ export async function loadCalendar(
       week: weekNavigation(week.dates[0], today.toString()),
       days: dayNavigation(days.dates[0], PHONE_DAY_COUNT),
     },
-    blocks: toCalendarBlocks(
-      fixedItems,
-      await loadPlacements(executor, shown),
-      timeZone,
-      targetFor,
-      await loadCategories(executor),
-      now,
-    ),
+    blocks: toCalendarBlocks(fixedItems, await loadPlacements(executor, shown), timeZone, targetFor, categories, now),
     queue: plan.unplaced
       .filter((task) => task.deadline > now)
       .map((task) => ({
@@ -126,5 +126,6 @@ export async function loadCalendar(
         : [];
     }),
     tasks: listTasks(items, plan.unplaced, targetFor, now),
+    categories: listCategories(categories, items),
   };
 }

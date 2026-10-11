@@ -3,13 +3,13 @@ import { desc, eq, lte } from "drizzle-orm";
 import { db } from "@/server/db/client";
 import { inPlanTransaction } from "@/server/db/plan-lock";
 import { insertItem, loadItems } from "@/server/db/items-repository";
-import { items, placements, settings } from "@/server/db/schema";
+import { categories, items, placements, settings } from "@/server/db/schema";
 import { syncPlan } from "@/server/planning/sync-plan";
 import { weekContaining } from "@/server/time/days";
 import { sampleWeek } from "./sample-week";
 
 /**
- * Replaces all items and settings with the sample week for the current week, planned from the week's start, with
+ * Replaces all items, categories and settings with the sample week for the current week, planned from the week's start, with
  * the placements that ended before now checked off as done, but for one to review and one missed.
  */
 async function seed() {
@@ -25,6 +25,7 @@ async function seed() {
 
   const plan = await inPlanTransaction(db, async (tx) => {
     await tx.delete(items);
+    await tx.delete(categories);
     await tx.insert(settings).values(settingsRow).onConflictDoUpdate({ target: settings.id, set: settingsRow });
     for (const item of [...sample.fixedItems, ...sample.tasks]) await insertItem(tx, item);
 

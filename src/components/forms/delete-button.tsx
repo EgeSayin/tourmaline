@@ -1,9 +1,9 @@
 import { Trash2 } from "lucide-react";
 import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
-import { deleteItemAction } from "@/server/items/actions";
 
-export function DeleteItemButton({ id, onDeleted }: { id: string; onDeleted: () => void }) {
+/** Asks for confirmation, then runs `onDelete` and, once it's done, `onDeleted`. */
+export function DeleteButton({ onDelete, onDeleted }: { onDelete: () => Promise<void>; onDeleted: () => void }) {
   const [confirming, setConfirming] = useState(false);
   const [pending, startTransition] = useTransition();
 
@@ -24,7 +24,7 @@ export function DeleteItemButton({ id, onDeleted }: { id: string; onDeleted: () 
         disabled={pending}
         onClick={() =>
           startTransition(async () => {
-            await deleteItemAction(id);
+            await onDelete();
             onDeleted();
           })
         }

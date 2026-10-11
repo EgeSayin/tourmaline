@@ -1,10 +1,10 @@
-import { CalendarDays, ListTodo, Plus } from "lucide-react";
+import { CalendarDays, ListTodo, Plus, Tags } from "lucide-react";
 import Link from "next/link";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-export type AppPage = "calendar" | "tasks";
+export type AppPage = "calendar" | "tasks" | "categories";
 
 /** The one section shown on phones, where the columns don't fit side by side. */
 export type PhoneSection = "left" | "main" | "side";
@@ -21,7 +21,6 @@ export function AppShell({
   page,
   left,
   main,
-  mainLabel,
   side,
   sideOpen,
   phoneSection,
@@ -30,7 +29,6 @@ export function AppShell({
   page: AppPage;
   left: React.ReactNode;
   main: React.ReactNode;
-  mainLabel: string;
   side: React.ReactNode;
   sideOpen: boolean;
   phoneSection: PhoneSection;
@@ -56,7 +54,7 @@ export function AppShell({
 
       <div className={`space-y-4 overflow-y-auto p-4 md:border-r ${shownOn("left")}`}>{left}</div>
       <section
-        aria-label={mainLabel}
+        aria-label={PAGES.find((entry) => entry.page === page)!.region}
         className={`space-y-3 overflow-y-auto p-4 ${sideOpen ? "" : "md:col-span-2"} ${shownOn("main")}`}
       >
         {main}
@@ -67,9 +65,11 @@ export function AppShell({
   );
 }
 
+/** Each page's link, and `region`, the name of its middle section. */
 export const PAGES = [
-  { page: "calendar", href: "/", label: "Calendar", Icon: CalendarDays },
-  { page: "tasks", href: "/tasks", label: "Tasks", Icon: ListTodo },
+  { page: "calendar", href: "/", label: "Calendar", region: "Calendar", Icon: CalendarDays },
+  { page: "tasks", href: "/tasks", label: "Tasks", region: "Task list", Icon: ListTodo },
+  { page: "categories", href: "/categories", label: "Categories", region: "Category list", Icon: Tags },
 ] as const;
 
 /** Links between the pages, the current one marked. */

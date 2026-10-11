@@ -21,7 +21,11 @@ module.exports = {
       severity: "error",
       comment: "Client code may import types from src/server, and call server actions, but no other server code.",
       from: { path: "^src/(components|hooks)/" },
-      to: { path: "^src/server/", pathNot: "^src/server/items/actions\\.ts$", dependencyTypesNot: ["type-only"] },
+      to: {
+        path: "^src/server/",
+        pathNot: "^src/server/(items|categories)/actions\\.ts$",
+        dependencyTypesNot: ["type-only"],
+      },
     },
     {
       name: "repositories-only-save",

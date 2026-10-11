@@ -23,3 +23,5 @@ export interface Category {
 }
 
 export type NewCategory = Omit<Category, "id">;
+
+export const CATEGORY_NAME_MAX = 40;
