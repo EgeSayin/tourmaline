@@ -1,16 +1,20 @@
 "use client";
 
 import { createContext, use, useState } from "react";
-import type { EditTarget } from "@/lib/calendar-blocks";
+import type { BlockPlacement, EditTarget } from "@/lib/calendar-blocks";
 import type { TimeZone } from "@/lib/time/time-zone";
 
-export type PanelMode = { kind: "closed" } | { kind: "add" } | ({ kind: "edit" } & EditTarget);
+/** A scheduled block the panel was opened from. */
+export type OpenedBlock = BlockPlacement & { start: Date; end: Date };
+
+export type PanelMode =
+  { kind: "closed" } | { kind: "add" } | ({ kind: "edit"; block: OpenedBlock | null } & EditTarget);
 
 interface PanelState {
   mode: PanelMode;
   timeZone: TimeZone;
   openAdd: () => void;
-  openEdit: (target: EditTarget) => void;
+  openEdit: (target: EditTarget, block?: OpenedBlock | null) => void;
   close: () => void;
 }
 
@@ -29,7 +33,7 @@ export function ItemPanelProvider({ timeZone, children }: { timeZone: TimeZone; 
     mode,
     timeZone,
     openAdd: () => setMode({ kind: "add" }),
-    openEdit: (target) => setMode({ kind: "edit", ...target }),
+    openEdit: (target, block = null) => setMode({ kind: "edit", ...target, block }),
     close: () => setMode({ kind: "closed" }),
   };
   return <PanelContext value={state}>{children}</PanelContext>;

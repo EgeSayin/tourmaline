@@ -1,5 +1,5 @@
 import "server-only";
-import { lte } from "drizzle-orm";
+import { desc, eq, lte } from "drizzle-orm";
 import { db } from "@/server/db/client";
 import { inPlanTransaction } from "@/server/db/plan-lock";
 import { insertItem, loadItems } from "@/server/db/items-repository";
@@ -10,7 +10,7 @@ import { sampleWeek } from "./sample-week";
 
 /**
  * Replaces all items and settings with the sample week for the current week, planned from the week's start, with
- * the placements that ended before now checked off as done.
+ * the placements that ended before now checked off as done, but for one to review and one missed.
  */
 async function seed() {
   if (process.env.NODE_ENV === "production") throw new Error("Refusing to seed a production database");
@@ -31,6 +31,15 @@ async function seed() {
     const weekStart = weekContaining(now, sample.settings.timeZone).range.start;
     const plan = await syncPlan(tx, await loadItems(tx), sample.settings, weekStart);
     await tx.update(placements).set({ status: "done" }).where(lte(placements.endAt, now));
+    // Show the review list and a missed block: the latest past block is left to review, the one before is missed.
+    const [toReview, missed] = await tx
+      .select({ id: placements.id })
+      .from(placements)
+      .where(lte(placements.endAt, now))
+      .orderBy(desc(placements.endAt))
+      .limit(2);
+    if (toReview) await tx.update(placements).set({ status: "planned" }).where(eq(placements.id, toReview.id));
+    if (missed) await tx.update(placements).set({ status: "missed" }).where(eq(placements.id, missed.id));
     return plan;
   });
 

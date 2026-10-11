@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { WEEKDAY_NAMES } from "@/lib/time/format";
-import { earlySlot, isPhone, itemPanel, localDate, localDateTime, openAddItemForm, TIME_ZONE } from "./helpers";
+import { earlySlot, itemPanel, localDate, localDateTime, openAddItemForm, TIME_ZONE, showQueue } from "./helpers";
 
 const weekdayLabel = (days: number) => WEEKDAY_NAMES[localDate(days).dayOfWeek - 1];
 /** As queue entries show a date, e.g. "Wed, Oct 7". */
@@ -81,8 +81,7 @@ test.describe("recurring items", () => {
     await form.getByRole("button", { name: "Add item" }).click();
     await expect(form).toBeHidden();
 
-    if (isPhone(testInfo)) await page.getByRole("radio", { name: "Queue" }).click();
-    const queue = page.getByRole("region", { name: "Task queue" });
+    const queue = await showQueue(page, testInfo);
     const entries = queue.getByRole("button", { name: new RegExp(`^${RegExp.escape(title)} · \\w{3}, \\w{3} \\d+`) });
     await expect(entries.first()).toContainText("15h left");
 

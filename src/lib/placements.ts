@@ -28,5 +28,13 @@ export function isPending(placement: Placement, now: Date): boolean {
   return placement.status === "planned" && !placement.pinned && placement.start >= now;
 }
 
+/** Where a placement stands at a time: a planned one is in progress once started, and to review once ended. */
+export type PlacementState = "planned" | "in-progress" | "to-review" | "done" | "missed";
+
+export function placementState(placement: Placement, now: Date): PlacementState {
+  if (placement.status !== "planned") return placement.status;
+  return placement.end <= now ? "to-review" : placement.start < now ? "in-progress" : "planned";
+}
+
 /** Placements start on multiples of this many minutes, and task durations are multiples of it. */
 export const SLOT_MIN = 5;

@@ -3,6 +3,7 @@ import { ItemPanelProvider } from "@/components/items/item-panel-state";
 import { CalendarGrid } from "@/components/schedule/calendar-grid";
 import { CalendarHeader } from "@/components/schedule/calendar-header";
 import { ScheduleView } from "@/components/schedule/schedule-view";
+import { ReviewList } from "@/components/schedule/review-list";
 import { TaskQueue } from "@/components/schedule/task-queue";
 import { loadCalendar } from "@/server/calendar";
 import { parseDateParam } from "@/server/time/days";
@@ -36,6 +37,8 @@ export default async function Home({ searchParams }: PageProps<"/">) {
           }
           queue={<TaskQueue entries={calendar.queue} timeZone={calendar.timeZone} />}
           queueCount={calendar.queue.length}
+          review={<ReviewList entries={calendar.review} timeZone={calendar.timeZone} />}
+          reviewCount={calendar.review.length}
           calendar={
             <CalendarGrid
               today={calendar.today}

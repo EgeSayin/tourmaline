@@ -57,3 +57,11 @@ export async function openItemForEditing(page: Page, testInfo: TestInfo, title: 
   await page.getByRole("button", { name: new RegExp(`^${RegExp.escape(title)}`) }).click();
   return itemPanel(page, testInfo, "Edit item");
 }
+
+/** Shows the task queue: the lists' Queue tab, behind the bottom tab on phones. */
+export async function showQueue(page: Page, testInfo: TestInfo) {
+  const tab = (group: string) => page.getByRole("radiogroup", { name: group }).getByRole("radio", { name: /^Queue/ });
+  if (isPhone(testInfo)) await tab("View").click();
+  await tab("Lists").click();
+  return page.getByRole("region", { name: "Task queue" });
+}

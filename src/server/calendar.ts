@@ -1,12 +1,13 @@
 import "server-only";
 import { type CalendarBlock, type EditTarget, toCalendarBlocks } from "@/lib/calendar-blocks";
 import { isFixed, type Item } from "@/lib/items";
+import type { PlacementRef } from "@/lib/placements";
 import { parseOccurrenceId } from "@/lib/recurrence";
 import { later } from "@/lib/time/interval";
 import type { TimeZone } from "@/lib/time/time-zone";
 import type { Database, Transaction } from "@/server/db/connection";
 import { loadItems } from "@/server/db/items-repository";
-import { loadPlacements } from "@/server/db/placements-repository";
+import { loadPlacements, loadPlacementsToReview } from "@/server/db/placements-repository";
 import { loadSettings } from "@/server/db/settings-repository";
 import { syncPlan } from "@/server/planning/sync-plan";
 import { expandOccurrences, nextOccurrence } from "@/server/recurrence";
@@ -30,6 +31,17 @@ export interface QueueEntry {
   target: EditTarget;
 }
 
+/** A past block waiting to be checked off or marked missed. */
+export interface ReviewEntry {
+  /** Unique among the entries. */
+  key: string;
+  title: string;
+  start: Date;
+  end: Date;
+  ref: PlacementRef;
+  target: EditTarget;
+}
+
 export interface Calendar {
   timeZone: TimeZone;
   /** Local dates of the week containing the shown date, Monday first. */
@@ -43,6 +55,8 @@ export interface Calendar {
   blocks: CalendarBlock[];
   /** Planned tasks due after now whose remaining time doesn't fit before their deadline. */
   queue: QueueEntry[];
+  /** Every past block still to review, oldest first. */
+  review: ReviewEntry[];
 }
 
 /**
@@ -75,7 +89,7 @@ export async function loadCalendar(
       week: weekNavigation(week.dates[0], today.toString()),
       days: dayNavigation(days.dates[0], PHONE_DAY_COUNT),
     },
-    blocks: toCalendarBlocks(fixedItems, await loadPlacements(executor, shown), timeZone, targetFor),
+    blocks: toCalendarBlocks(fixedItems, await loadPlacements(executor, shown), timeZone, targetFor, now),
     queue: plan.unplaced
       .filter((task) => task.deadline > now)
       .map((task) => ({
@@ -85,6 +99,21 @@ export async function loadCalendar(
         deadline: task.deadline,
         target: targetFor(task.id)!,
       })),
+    review: (await loadPlacementsToReview(executor, now)).flatMap(({ taskId, start, end }) => {
+      const target = targetFor(taskId);
+      return target
+        ? [
+            {
+              key: `${taskId}@${start.toISOString()}`,
+              title: target.item.title,
+              start,
+              end,
+              ref: { taskId, start },
+              target,
+            },
+          ]
+        : [];
+    }),
   };
 }
 

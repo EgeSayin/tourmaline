@@ -88,6 +88,46 @@ describe("loadCalendar", { tags: ["integration", "critical"] }, () => {
     expect(show(saturday)).toEqual(["Essay 2026-10-07 12", "Project 2026-10-12 10"]);
   });
 
+  it("lists every past block still to review, oldest first, and leaves reviewed ones out", async ({ tx }) => {
+    await saveSettings(tx);
+    const essay = flexible("Essay", 300, utc("2026-09-28T04:00", "2026-10-09T21:00"));
+    const essayId = await insertItem(tx, essay);
+    const block = (start: string, end: string, status: Placement["status"] = "planned") => ({
+      ...auto(essayId, utc(start, end)),
+      status,
+    });
+    const lastWeek = block("2026-09-30T14:00", "2026-09-30T15:00");
+    const monday = block("2026-10-05T14:00", "2026-10-05T15:00");
+    await insertPlacements(tx, [
+      monday,
+      lastWeek,
+      block("2026-10-06T14:00", "2026-10-06T15:00", "done"),
+      block("2026-10-06T16:00", "2026-10-06T17:00", "missed"),
+      block("2026-10-07T15:30", "2026-10-07T16:30"), // in progress
+    ]);
+
+    const calendar = await loadCalendar(tx, wednesdayNoon);
+
+    const target = { item: { ...essay, id: essayId }, occurrenceDate: null };
+    expect(calendar?.review).toEqual(
+      [lastWeek, monday].map(({ taskId, start, end }) => ({
+        key: expect.any(String),
+        title: "Essay",
+        start,
+        end,
+        ref: { taskId, start },
+        target,
+      })),
+    );
+    expect(calendar!.blocks.map((block) => block.placement?.state)).toEqual([
+      "to-review",
+      "done",
+      "missed",
+      "in-progress",
+      "planned", // the hour left, placed after now; to review and in-progress time counts
+    ]);
+  });
+
   it("shows recurring items on every shown day, each opening its series", async ({ tx }) => {
     await saveSettings(tx);
     const standupId = await insertItem(tx, {

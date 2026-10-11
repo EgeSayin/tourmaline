@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { isPhone, itemPanel, localDateTime, openAddItemForm } from "./helpers";
+import { itemPanel, localDateTime, openAddItemForm, showQueue } from "./helpers";
 
 test.describe("task queue", () => {
   test("lists a task that can't fit, opens it with its values and drops it once deleted", async ({
@@ -17,8 +17,7 @@ test.describe("task queue", () => {
     await form.getByRole("button", { name: "Add item" }).click();
     await expect(form).toBeHidden();
 
-    if (isPhone(testInfo)) await page.getByRole("radio", { name: "Queue" }).click();
-    const queue = page.getByRole("region", { name: "Task queue" });
+    const queue = await showQueue(page, testInfo);
     const entry = queue.getByRole("button", { name: new RegExp(`^${RegExp.escape(title)}`) });
     await expect(entry).toContainText("24h left");
 

@@ -1,5 +1,5 @@
 import "server-only";
-import { and, asc, eq, gt, gte, isNull, lt } from "drizzle-orm";
+import { and, asc, eq, gt, gte, isNull, lt, lte } from "drizzle-orm";
 import { isPending, type Placement, type PlacementRef } from "@/lib/placements";
 import { occurrenceId, parseOccurrenceId } from "@/lib/recurrence";
 import type { Interval } from "@/lib/time/interval";
@@ -12,6 +12,16 @@ export async function loadPlacements(executor: Database | Transaction, range: In
     .select()
     .from(placements)
     .where(and(lt(placements.startAt, range.end), gt(placements.endAt, range.start)))
+    .orderBy(asc(placements.startAt));
+  return rows.map(toPlacement);
+}
+
+/** Planned placements that ended by `now`, waiting to be reviewed, sorted by start. */
+export async function loadPlacementsToReview(executor: Database | Transaction, now: Date): Promise<Placement[]> {
+  const rows = await executor
+    .select()
+    .from(placements)
+    .where(and(eq(placements.status, "planned"), lte(placements.endAt, now)))
     .orderBy(asc(placements.startAt));
   return rows.map(toPlacement);
 }

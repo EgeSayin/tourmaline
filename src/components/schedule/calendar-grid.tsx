@@ -68,7 +68,9 @@ export function CalendarGrid({
             blocks={blocks.filter((block) => block.date === date)}
             scale={scale}
             timeZone={timeZone}
-            onSelect={(block) => openEdit(block.target)}
+            onSelect={({ target, placement, start, end }) =>
+              openEdit(target, placement && { ...placement, start, end })
+            }
           />
         ))}
       </div>

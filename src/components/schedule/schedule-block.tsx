@@ -1,3 +1,5 @@
+import { Pin } from "lucide-react";
+import { PLACEMENT_STATE_LABELS } from "@/components/items/placement-state";
 import type { CalendarBlock } from "@/lib/calendar-blocks";
 import { formatTimeRange } from "@/lib/time/format";
 import type { TimeZone } from "@/lib/time/time-zone";
@@ -17,7 +19,12 @@ export function ScheduleBlock({
 }) {
   const top = scale.top(block.startMinute);
   const isTiny = block.endMinute - block.startMinute < 15;
-  const label = `${block.title} ${formatTimeRange(block.start, block.end, timeZone)}`;
+  const { placement } = block;
+  const notes = [
+    placement && placement.state !== "planned" && PLACEMENT_STATE_LABELS[placement.state].toLowerCase(),
+    placement?.pinned && "pinned",
+  ].filter(Boolean);
+  const label = `${block.title} ${formatTimeRange(block.start, block.end, timeZone)}${notes.length > 0 ? ` (${notes.join(", ")})` : ""}`;
 
   return (
     <button
@@ -32,7 +39,10 @@ export function ScheduleBlock({
       }`}
       style={{ top: top + 1, height: scale.top(block.endMinute) - top - 2 }}
     >
-      <div className="truncate font-medium">{block.title}</div>
+      <div className="flex items-start gap-1">
+        <span className="truncate font-medium">{block.title}</span>
+        {placement?.pinned && <Pin className="ml-auto size-3 shrink-0" aria-hidden />}
+      </div>
     </button>
   );
 }

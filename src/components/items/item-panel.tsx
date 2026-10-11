@@ -4,6 +4,7 @@ import { Dialog } from "@base-ui/react/dialog";
 import { Plus, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useMediaQuery } from "@/hooks/use-media-query";
+import { BlockSection } from "./block-section";
 import { ItemForm } from "./item-form";
 import { type PanelMode, useItemPanel } from "./item-panel-state";
 
@@ -39,6 +40,7 @@ function PanelContent({ mode }: { mode: Exclude<PanelMode, { kind: "closed" }> }
           <X />
         </Button>
       </div>
+      {editing?.block && <BlockSection block={editing.block} timeZone={timeZone} onDone={close} />}
       <ItemForm key={editing?.item.id ?? "new"} target={editing} timeZone={timeZone} onDone={close} />
     </>
   );

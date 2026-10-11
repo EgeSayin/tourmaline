@@ -1,5 +1,5 @@
 import type { FixedItem, Item } from "./items";
-import type { Placement } from "./placements";
+import { type Placement, type PlacementRef, type PlacementState, placementState } from "./placements";
 import { toLocal } from "./time/local-time";
 import type { TimeZone } from "./time/time-zone";
 
@@ -13,7 +13,14 @@ export interface EditTarget {
   occurrenceDate: string | null;
 }
 
-export type BlockStyle = "fixed" | "fixed-optional" | "scheduled";
+export type BlockStyle = "fixed" | "fixed-optional" | "scheduled" | "to-review" | "done" | "missed";
+
+/** A scheduled block's own placement, as it stands at the time the blocks were built. */
+export interface BlockPlacement {
+  ref: PlacementRef;
+  state: PlacementState;
+  pinned: boolean;
+}
 
 export interface CalendarBlock {
   /** Unique among the blocks. */
@@ -29,26 +36,34 @@ export interface CalendarBlock {
   startMinute: number;
   endMinute: number;
   target: EditTarget;
+  /** `null` for a fixed item. */
+  placement: BlockPlacement | null;
 }
 
 /**
  * Positions fixed items and placements on their local day, each with the edit target `targetFor` finds for its item
  * or occurrence id; a placement without one, whose item is gone, is skipped. A block running past midnight is cut
- * off at the end of the day it starts on.
+ * off at the end of the day it starts on. Scheduled blocks are styled by their placement's state at `now`.
  */
 export function toCalendarBlocks(
   fixedItems: FixedItem[],
   placements: Placement[],
   timeZone: TimeZone,
   targetFor: (id: string) => EditTarget | undefined,
+  now: Date,
 ): CalendarBlock[] {
   const unpositioned = [
-    ...fixedItems.map((item) => ({ key: item.id, id: item.id, start: item.start, end: item.end })),
+    ...fixedItems.map((item) => ({ key: item.id, id: item.id, start: item.start, end: item.end, placement: null })),
     ...placements.map((placement) => ({
       key: `${placement.taskId}@${placement.start.toISOString()}`,
       id: placement.taskId,
       start: placement.start,
       end: placement.end,
+      placement: {
+        ref: { taskId: placement.taskId, start: placement.start },
+        state: placementState(placement, now),
+        pinned: placement.pinned,
+      },
     })),
   ];
 
@@ -61,7 +76,7 @@ export function toCalendarBlocks(
     return {
       ...block,
       title: item.title,
-      style: blockStyle(item),
+      style: blockStyle(item, block.placement),
       faded: item.timing === "flexible" && item.priority === "low",
       date: start.date,
       startMinute: start.minuteOfDay,
@@ -71,7 +86,10 @@ export function toCalendarBlocks(
   });
 }
 
-function blockStyle(item: Item): BlockStyle {
-  if (item.timing === "flexible") return "scheduled";
+function blockStyle(item: Item, placement: BlockPlacement | null): BlockStyle {
+  if (placement) {
+    const { state } = placement;
+    return state === "planned" || state === "in-progress" ? "scheduled" : state;
+  }
   return item.priority === "mandatory" ? "fixed" : "fixed-optional";
 }
