@@ -1,6 +1,6 @@
 import "server-only";
 import { minutesBetween } from "@/lib/time/duration";
-import type { FixedItem, Task } from "@/lib/items";
+import { type FixedItem, PRIORITIES, type Task } from "@/lib/items";
 import { isPending, type Placement } from "@/lib/placements";
 import type { SchedulerSettings } from "@/lib/settings";
 import { freeTimeMap } from "./free-time";
@@ -20,15 +20,20 @@ export interface ReplanInput {
 export interface ReplanResult {
   /** Kept and newly placed, sorted by start; missed ones are left out. */
   placements: Placement[];
-  /** Tasks whose remaining time didn't fit; `durationMin` is the remaining time. */
+  /** Tasks whose remaining time didn't fit, in the order given; `durationMin` is the remaining time. */
   unplaced: Task[];
 }
 
 /**
  * Keeps placements that are done, pinned or in progress, and past planned ones still waiting to be reviewed, so
- * their task's time isn't moved before they are; missed ones are dropped, so their time is planned again. Pending placements are kept too while they remain valid (inside their task's window, in free time,
- * not overlapping), and each task's remaining time is placed in the free time from `now` on. Only if some task
- * then doesn't fit are the pending placements dropped and everything re-placed.
+ * their task's time isn't moved before they are; missed ones are dropped, so their time is planned again. Pending
+ * placements are kept too while they remain valid (inside their task's window, in free time, not overlapping), and
+ * each task's remaining time is placed in the free time from `now` on.
+ *
+ * If some task then doesn't fit, less important tasks are bumped: the pending placements of each priority level are
+ * dropped in turn, least important first, and everything not kept is placed again. The plan that leaves the fewest
+ * tasks unplaced at the most important level wins, then at the next level, and so on; a tie goes to the plan that
+ * keeps more. So tasks never leave a more important task unplaced through their pending placements.
  */
 export function replan({ horizon, fixedItems, tasks, existing, settings }: ReplanInput): ReplanResult {
   const now = horizon.start;
@@ -43,7 +48,27 @@ export function replan({ horizon, fixedItems, tasks, existing, settings }: Repla
   }));
 
   const stable = fillAround(startingNow, kept, movable, free);
-  return stable.unplaced.length === 0 ? stable : fillAround(startingNow, kept, [], free);
+  if (stable.unplaced.length === 0) return stable;
+
+  const priorityOf = new Map(tasks.map((task) => [task.id, PRIORITIES.indexOf(task.priority)]));
+  const keepingAbove = (level: number) =>
+    fillAround(
+      startingNow,
+      kept,
+      movable.filter((placement) => (priorityOf.get(placement.taskId) ?? PRIORITIES.length) < level),
+      free,
+    );
+  const bumped = PRIORITIES.map((_, level) => keepingAbove(level)).reverse();
+  return bumped.reduce((best, plan) => (fewerUnplaced(plan, best) ? plan : best), stable);
+}
+
+/** Whether `a` leaves fewer tasks unplaced than `b` at the most important priority level where they differ. */
+function fewerUnplaced(a: ReplanResult, b: ReplanResult): boolean {
+  const counts = ({ unplaced }: ReplanResult) =>
+    PRIORITIES.map((priority) => unplaced.filter((task) => task.priority === priority).length);
+  const [countsA, countsB] = [counts(a), counts(b)];
+  const level = countsA.findIndex((count, i) => count !== countsB[i]);
+  return level !== -1 && countsA[level] < countsB[level];
 }
 
 /** Keeps `kept`, keeps each of `saved` that still fits, then places every task's remaining time. */
@@ -81,5 +106,6 @@ function fillAround(tasks: Task[], kept: Placement[], saved: Placement[], free: 
   const { placements: added, unplaced } = placeTasks(remainingTasks, open, [...kept, ...preserved]);
 
   const placements = [...kept, ...preserved, ...added].sort((a, b) => a.start.getTime() - b.start.getTime());
-  return { placements, unplaced };
+  const order = new Map(tasks.map((task, i) => [task.id, i]));
+  return { placements, unplaced: unplaced.sort((a, b) => order.get(a.id)! - order.get(b.id)!) };
 }

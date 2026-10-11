@@ -2,7 +2,7 @@ import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import { minutesBetween } from "@/lib/time/duration";
 import type { Task } from "@/lib/items";
-import { PLACEMENT_STATUSES, type Placement } from "@/lib/placements";
+import { isPending, PLACEMENT_STATUSES, type Placement } from "@/lib/placements";
 import { CHUNK_BREAK_MIN, type SchedulerSettings } from "@/lib/settings";
 import { freeTimeMap } from "@/server/scheduler/free-time";
 import { subtractIntervals } from "@/lib/time/interval";
@@ -144,6 +144,51 @@ describe("replan", { tags: ["unit", "critical"] }, () => {
     expect(result.unplaced).toEqual([]);
   });
 
+  it("bumps less important tasks for a mandatory one, planning them again where they still fit", () => {
+    // Free only 10:00–14:00, filled with an essay and some reading before the exam prep comes in.
+    const settings: SchedulerSettings = { timeZone: "UTC", downtime: { startMinute: 14 * 60, endMinute: 10 * 60 } };
+    const day = utc("2026-10-05T00:00", "2026-10-06T00:00");
+    const essay = flexible("Essay", 120, day);
+    const reading = flexible("Reading", 60, day, "low");
+    const examPrep = flexible("Exam prep", 180, utc("2026-10-05T00:00", "2026-10-05T13:00"), "mandatory");
+    const planned = (taskId: string, times: { start: Date; end: Date }): Placement => ({
+      taskId,
+      ...times,
+      source: "auto",
+      pinned: false,
+      status: "planned",
+    });
+
+    const result = replan({
+      horizon: utc("2026-10-05T08:00", "2026-10-06T00:00"),
+      fixedItems: [],
+      tasks: [essay, reading, examPrep],
+      existing: [
+        planned("Essay", utc("2026-10-05T10:00", "2026-10-05T12:00")),
+        planned("Reading", utc("2026-10-05T12:00", "2026-10-05T13:00")),
+      ],
+      settings,
+    });
+
+    expect(result.placements).toEqual([
+      planned("Exam prep", utc("2026-10-05T10:00", "2026-10-05T13:00")),
+      planned("Reading", utc("2026-10-05T13:00", "2026-10-05T14:00")),
+    ]);
+    expect(result.unplaced.map((task) => task.title)).toEqual(["Essay"]); // no two hours left
+
+    // A task that can't fit even with everything else bumped moves nothing.
+    const marathon = flexible("Marathon", 5 * 60, day, "mandatory");
+    const again = replan({
+      horizon: utc("2026-10-05T08:00", "2026-10-06T00:00"),
+      fixedItems: [],
+      tasks: [reading, marathon],
+      existing: [planned("Reading", utc("2026-10-05T12:00", "2026-10-05T13:00"))],
+      settings,
+    });
+    expect(again.placements).toEqual([planned("Reading", utc("2026-10-05T12:00", "2026-10-05T13:00"))]);
+    expect(again.unplaced.map((task) => task.title)).toEqual(["Marathon"]);
+  });
+
   it("keeps a break between a split task's new chunks and its earlier ones", () => {
     const settings: SchedulerSettings = { timeZone: "UTC", downtime: { startMinute: 22 * 60, endMinute: 10 * 60 } };
     const thesis = {
@@ -283,4 +328,39 @@ describe("replan", { tags: ["unit", "critical"] }, () => {
       }),
     );
   });
+
+  it(
+    "never leaves a mandatory task unplaced for lower-priority ones: their pending blocks give way",
+    { tags: ["property"] },
+    () => {
+      const withExistingArb = scenarioArb.chain((scenario) =>
+        existingArb(scenario.tasks).map((existing) => ({ ...scenario, existing })),
+      );
+      fc.assert(
+        fc.property(withExistingArb, ({ horizon, settings, fixedItems, tasks, existing }) => {
+          const mandatory = new Set(tasks.filter((task) => task.priority === "mandatory").map((task) => task.id));
+          const unplacedMandatory = ({ unplaced }: { unplaced: Task[] }) =>
+            unplaced
+              .map((task) => task.id)
+              .filter((id) => mandatory.has(id))
+              .sort();
+
+          const all = replan({ horizon, settings, fixedItems, tasks, existing });
+          const withoutLower = replan({
+            horizon,
+            settings,
+            fixedItems,
+            tasks: tasks.filter((task) => mandatory.has(task.id)),
+            existing: existing.filter((p) => mandatory.has(p.taskId) || !isPending(p, horizon.start)),
+          });
+
+          expect(unplacedMandatory(all).length).toBeLessThanOrEqual(unplacedMandatory(withoutLower).length);
+          const unplacedIds = new Set(all.unplaced.map((task) => task.id));
+          expect(all.unplaced.map((task) => task.id)).toEqual(
+            tasks.filter((task) => unplacedIds.has(task.id)).map((task) => task.id),
+          );
+        }),
+      );
+    },
+  );
 });
