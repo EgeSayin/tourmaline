@@ -4,7 +4,7 @@ import type { FixedItem, Task } from "@/lib/items";
 import type { Placement } from "@/lib/placements";
 import type { SchedulerSettings } from "@/lib/settings";
 import { freeTimeMap } from "./free-time";
-import { type Interval, type IntervalSet, mergeIntervals, subtractIntervals } from "@/lib/time/interval";
+import { type Interval, type IntervalSet, later, mergeIntervals, subtractIntervals } from "@/lib/time/interval";
 import { placeTasks } from "./placement";
 
 export interface ReplanInput {
@@ -39,27 +39,27 @@ export function replan({ horizon, fixedItems, tasks, existing, settings }: Repla
   const free = subtractIntervals(freeFromNow, kept);
   const startingNow = tasks.map((task) => ({
     ...task,
-    earliestStart: task.earliestStart > now ? task.earliestStart : now,
+    earliestStart: later(task.earliestStart, now),
   }));
 
   const stable = fillAround(startingNow, kept, movable, free);
   return stable.unplaced.length === 0 ? stable : fillAround(startingNow, kept, [], free);
 }
 
-/** Keeps `kept`, keeps each of `preferred` that still fits, then places every task's remaining time. */
-function fillAround(tasks: Task[], kept: Placement[], preferred: Placement[], free: IntervalSet): ReplanResult {
+/** Keeps `kept`, keeps each of `saved` that still fits, then places every task's remaining time. */
+function fillAround(tasks: Task[], kept: Placement[], saved: Placement[], free: IntervalSet): ReplanResult {
   const tasksById = new Map(tasks.map((task) => [task.id, task]));
   const placedMinutes = new Map<string, number>();
-  const addMinutes = (placement: Placement) =>
+  const countPlaced = (placement: Placement) =>
     placedMinutes.set(
       placement.taskId,
       (placedMinutes.get(placement.taskId) ?? 0) + minutesBetween(placement.start, placement.end),
     );
-  kept.forEach(addMinutes);
+  kept.forEach(countPlaced);
 
   let open = free;
   const preserved: Placement[] = [];
-  for (const placement of [...preferred].sort((a, b) => a.start.getTime() - b.start.getTime())) {
+  for (const placement of [...saved].sort((a, b) => a.start.getTime() - b.start.getTime())) {
     const task = tasksById.get(placement.taskId);
     if (!task) continue;
     const remaining = task.durationMin - (placedMinutes.get(task.id) ?? 0);
@@ -71,7 +71,7 @@ function fillAround(tasks: Task[], kept: Placement[], preferred: Placement[], fr
     if (!fits) continue;
 
     preserved.push(placement);
-    addMinutes(placement);
+    countPlaced(placement);
     open = subtractIntervals(open, [placement]);
   }
 

@@ -5,7 +5,7 @@ import type { SchedulerSettings } from "@/lib/settings";
 import type { DailyWindow } from "@/lib/time/time-of-day";
 import type { TimeZone } from "@/lib/time/time-zone";
 import { localDate, toDate } from "@/server/time/temporal";
-import { type Interval, type IntervalSet, subtractIntervals } from "@/lib/time/interval";
+import { clipIntervals, type Interval, type IntervalSet, subtractIntervals } from "@/lib/time/interval";
 
 /** Returns the parts of `range` outside downtime and fixed items (including their buffers), sorted by start. */
 export function freeTimeMap(range: Interval, fixedItems: FixedItem[], settings: SchedulerSettings): IntervalSet {
@@ -23,18 +23,15 @@ export function dailyIntervals(range: Interval, window: DailyWindow, timeZone: T
   // A window that wraps midnight may have started the evening before the range.
   let day = localDate(range.start, timeZone).subtract({ days: wrapsMidnight ? 1 : 0 });
   const lastDay = localDate(range.end, timeZone);
-  const result: Interval[] = [];
+  const windows: Interval[] = [];
 
   for (; Temporal.PlainDate.compare(day, lastDay) <= 0; day = day.add({ days: 1 })) {
-    const start = atLocalTime(day, window.startMinute, timeZone);
-    const end = atLocalTime(wrapsMidnight ? day.add({ days: 1 }) : day, window.endMinute, timeZone);
-    const clipped = {
-      start: start > range.start ? start : range.start,
-      end: end < range.end ? end : range.end,
-    };
-    if (clipped.start < clipped.end) result.push(clipped);
+    windows.push({
+      start: atLocalTime(day, window.startMinute, timeZone),
+      end: atLocalTime(wrapsMidnight ? day.add({ days: 1 }) : day, window.endMinute, timeZone),
+    });
   }
-  return result;
+  return clipIntervals(windows, range);
 }
 
 function atLocalTime(day: Temporal.PlainDate, minuteOfDay: number, timeZone: TimeZone): Date {

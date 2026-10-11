@@ -1,19 +1,17 @@
 import "server-only";
 import { minutesBetween } from "@/lib/time/duration";
 import { type Task, PRIORITIES } from "@/lib/items";
-import type { Interval } from "@/lib/time/interval";
+import { clipIntervals, type Interval } from "@/lib/time/interval";
 
 /**
  * Share of the free time between the task's `earliestStart` and `deadline` that the task needs.
  * `Infinity` when there is no free time in that window.
  */
 export function pressure(task: Task, free: readonly Interval[]): number {
-  let availableMin = 0;
-  for (const slot of free) {
-    const start = slot.start > task.earliestStart ? slot.start : task.earliestStart;
-    const end = slot.end < task.deadline ? slot.end : task.deadline;
-    if (start < end) availableMin += minutesBetween(start, end);
-  }
+  const availableMin = clipIntervals(free, { start: task.earliestStart, end: task.deadline }).reduce(
+    (sum, slot) => sum + minutesBetween(slot.start, slot.end),
+    0,
+  );
   return availableMin === 0 ? Infinity : task.durationMin / availableMin;
 }
 

@@ -1,6 +1,6 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
-import { mergeIntervals, subtractIntervals } from "@/lib/time/interval";
+import { clipIntervals, earlier, later, mergeIntervals, subtractIntervals } from "@/lib/time/interval";
 import { covers, expectSortedWithGaps, intervalsArb, iv, SPAN_MIN } from "../../support/intervals";
 
 describe("mergeIntervals", { tags: ["unit", "critical"] }, () => {
@@ -63,5 +63,22 @@ describe("subtractIntervals", { tags: ["unit", "critical"] }, () => {
         }
       }),
     );
+  });
+});
+
+describe("clipIntervals, earlier and later", { tags: ["unit"] }, () => {
+  it("keep the parts inside a window, in order, and pick the earlier or later time", () => {
+    const intervals = [iv("08:00", "09:00"), iv("09:30", "11:00"), iv("12:00", "13:00"), iv("14:00", "15:00")];
+
+    expect(clipIntervals(intervals, iv("10:00", "14:00"))).toEqual([iv("10:00", "11:00"), iv("12:00", "13:00")]);
+    expect(clipIntervals(intervals, iv("16:00", "17:00"))).toEqual([]);
+
+    const { start: ten, end: eleven } = iv("10:00", "11:00");
+    expect([earlier(ten, eleven), earlier(eleven, ten), later(ten, eleven), later(eleven, ten)]).toEqual([
+      ten,
+      ten,
+      eleven,
+      eleven,
+    ]);
   });
 });

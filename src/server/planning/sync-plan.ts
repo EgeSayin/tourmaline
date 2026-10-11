@@ -3,6 +3,7 @@ import { isFixed, type Item, isTask, type Task } from "@/lib/items";
 import type { Placement } from "@/lib/placements";
 import { RECURRENCE_LOOKAHEAD_DAYS, type SchedulerSettings } from "@/lib/settings";
 import { addMinutes } from "@/lib/time/duration";
+import { earlier } from "@/lib/time/interval";
 import type { Database, Transaction } from "@/server/db/connection";
 import { loadPlacements, replacePendingPlacements } from "@/server/db/placements-repository";
 import { expandOccurrences } from "@/server/recurrence";
@@ -38,14 +39,11 @@ export async function syncPlan(
   const oneOffs = items.filter((item) => !item.recurrence);
   const oneOffEnd = planningHorizon(now, oneOffs).end;
   const lookaheadEnd = addMinutes(now, RECURRENCE_LOOKAHEAD_DAYS * MINUTES_PER_DAY);
-  const tasks = expand(items.filter(isTask), { start: now, end: oneOffEnd < lookaheadEnd ? oneOffEnd : lookaheadEnd });
+  const tasks = expand(items.filter(isTask), { start: now, end: earlier(oneOffEnd, lookaheadEnd) });
   const horizon = planningHorizon(now, [...oneOffs, ...tasks]);
 
   // Earlier placements matter only as time already spent on a planned task.
-  const historyStart = tasks.reduce(
-    (earliest, task) => (task.earliestStart < earliest ? task.earliestStart : earliest),
-    now,
-  );
+  const historyStart = tasks.reduce((start, task) => earlier(start, task.earliestStart), now);
   const existing = await loadPlacements(executor, { start: historyStart, end: horizon.end });
   const { placements, unplaced } = replan({
     horizon,

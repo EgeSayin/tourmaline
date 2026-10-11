@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { FieldGroup } from "@/components/ui/field";
 import type { EditTarget } from "@/lib/calendar-blocks";
 import { itemToFormValues, type Repeat } from "@/lib/item-form";
-import { type Item, PRIORITIES } from "@/lib/items";
+import { type Item, PRIORITIES, type Priority } from "@/lib/items";
 import type { TimeZone } from "@/lib/time/time-zone";
 import { createItemAction, type ItemFormState, updateItemAction } from "@/server/items/actions";
 import { DeleteItemButton } from "./delete-item-button";
@@ -16,7 +16,14 @@ import { RepeatFields } from "./repeat-fields";
 import { SkipOccurrenceButton } from "./skip-occurrence-button";
 import { TimingSwitch } from "./timing-switch";
 
-const PRIORITY_OPTIONS = PRIORITIES.map((value) => ({ value, label: value.charAt(0).toUpperCase() + value.slice(1) }));
+const PRIORITY_LABELS = {
+  mandatory: "Mandatory",
+  high: "High",
+  normal: "Normal",
+  low: "Low",
+} satisfies Record<Priority, string>;
+
+const PRIORITY_OPTIONS = PRIORITIES.map((value) => ({ value, label: PRIORITY_LABELS[value] }));
 
 /** Adds a new item, or edits the target's item when given, offering to skip the occurrence it was opened from. */
 export function ItemForm({

@@ -7,7 +7,7 @@ import { CHUNK_BREAK_MIN, type SchedulerSettings } from "@/lib/settings";
 import { freeTimeMap } from "@/server/scheduler/free-time";
 import { subtractIntervals } from "@/lib/time/interval";
 import { replan } from "@/server/scheduler/replan";
-import { findEarliestSlot } from "@/server/scheduler/placement";
+import { findEarliestSlot } from "@/server/scheduler/search";
 import { intervalArb, SPAN_MIN, utc } from "../../support/intervals";
 import { fixed, fixedItemArb, flexible, flexibleItemsArb } from "../../support/items";
 import { utcSettingsArb } from "../../support/settings";

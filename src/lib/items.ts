@@ -29,6 +29,12 @@ export interface FixedItem extends BaseItem {
   bufferAfterMin: number;
 }
 
+/** How long each chunk of a split task may be. */
+export interface ChunkSizes {
+  minChunkMin: number;
+  maxChunkMin: number;
+}
+
 export interface Task extends BaseItem {
   timing: "flexible";
   durationMin: number;
@@ -36,7 +42,7 @@ export interface Task extends BaseItem {
   /** For a recurring task, the first occurrence's; each occurrence's window ends where the rule next occurs. */
   deadline: Date;
   /** `null` means the item must be placed as a single block. */
-  split: { minChunkMin: number; maxChunkMin: number } | null;
+  split: ChunkSizes | null;
   spread: SpreadStrategy;
 }
 

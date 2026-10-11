@@ -1,19 +1,14 @@
 import "server-only";
-import { weekContaining } from "@/server/time/days";
-import type { Item } from "@/lib/items";
-import { occurrenceId, parseOccurrenceId } from "@/lib/recurrence";
-import { sampleWeek } from "./sample-week";
-import { expandOccurrences } from "@/server/recurrence";
-import { freeTimeMap } from "@/server/scheduler/free-time";
-import { placeTasks } from "@/server/scheduler/placement";
 import { db } from "@/server/db/client";
-import { insertItem } from "@/server/db/items-repository";
-import { insertPlacements } from "@/server/db/placements-repository";
+import { insertItem, loadItems } from "@/server/db/items-repository";
 import { items, settings } from "@/server/db/schema";
+import { syncPlan } from "@/server/planning/sync-plan";
+import { weekContaining } from "@/server/time/days";
+import { sampleWeek } from "./sample-week";
 
 /**
  * Replaces all items and settings with the sample week for the current week, planned from the week's start,
- * so placements before now count as done. Recurring items are planned for that week's occurrences.
+ * so placements before now count as done.
  */
 async function seed() {
   if (process.env.NODE_ENV === "production") throw new Error("Refusing to seed a production database");
@@ -25,27 +20,14 @@ async function seed() {
     downtimeStartMinute: sample.settings.downtime.startMinute,
     downtimeEndMinute: sample.settings.downtime.endMinute,
   };
-  const { range } = weekContaining(now, sample.settings.timeZone);
-  const expand = <T extends Item>(list: T[]) =>
-    list.flatMap((item) => expandOccurrences(item, range, sample.settings.timeZone));
-  const plan = placeTasks(expand(sample.tasks), freeTimeMap(range, expand(sample.fixedItems), sample.settings));
 
-  await db.transaction(async (tx) => {
+  const plan = await db.transaction(async (tx) => {
     await tx.delete(items);
     await tx.insert(settings).values(settingsRow).onConflictDoUpdate({ target: settings.id, set: settingsRow });
+    for (const item of [...sample.fixedItems, ...sample.tasks]) await insertItem(tx, item);
 
-    const savedIds = new Map<string, string>();
-    for (const item of [...sample.fixedItems, ...sample.tasks]) {
-      savedIds.set(item.id, await insertItem(tx, item));
-    }
-    await insertPlacements(
-      tx,
-      plan.placements.map((placement) => {
-        const { itemId, date } = parseOccurrenceId(placement.taskId);
-        const savedId = savedIds.get(itemId)!;
-        return { ...placement, taskId: date ? occurrenceId(savedId, date) : savedId };
-      }),
-    );
+    const weekStart = weekContaining(now, sample.settings.timeZone).range.start;
+    return syncPlan(tx, await loadItems(tx), sample.settings, weekStart);
   });
 
   console.log(

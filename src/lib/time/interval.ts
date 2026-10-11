@@ -45,3 +45,18 @@ export function subtractIntervals(free: readonly Interval[], busy: readonly Inte
   }
   return result as unknown as IntervalSet;
 }
+
+export function earlier(date: Date, other: Date): Date {
+  return other < date ? other : date;
+}
+
+export function later(date: Date, other: Date): Date {
+  return other > date ? other : date;
+}
+
+/** The parts of `intervals` inside `window`, in their order, leaving out those that fall outside it. */
+export function clipIntervals(intervals: readonly Interval[], window: Interval): Interval[] {
+  return intervals
+    .map((interval) => ({ start: later(interval.start, window.start), end: earlier(interval.end, window.end) }))
+    .filter((interval) => interval.start < interval.end);
+}

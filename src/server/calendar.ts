@@ -2,6 +2,7 @@ import "server-only";
 import { type CalendarBlock, type EditTarget, toCalendarBlocks } from "@/lib/calendar-blocks";
 import { isFixed, type Item } from "@/lib/items";
 import { parseOccurrenceId } from "@/lib/recurrence";
+import { later } from "@/lib/time/interval";
 import type { TimeZone } from "@/lib/time/time-zone";
 import type { Database, Transaction } from "@/server/db/connection";
 import { loadItems } from "@/server/db/items-repository";
@@ -61,7 +62,7 @@ export async function loadCalendar(
   const today = localDate(now, timeZone);
   const week = weekOf(shownDate ?? today, timeZone);
   const days = daysFrom(shownDate ?? today, PHONE_DAY_COUNT, timeZone);
-  const shown = { start: week.range.start, end: days.range.end > week.range.end ? days.range.end : week.range.end };
+  const shown = { start: week.range.start, end: later(days.range.end, week.range.end) };
   const fixedItems = items.filter(isFixed).flatMap((item) => expandOccurrences(item, shown, timeZone));
   const targetFor = editTargets(items, now, timeZone);
 
