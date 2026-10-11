@@ -16,6 +16,7 @@ import {
 } from "drizzle-orm/pg-core";
 import { CATEGORY_COLORS } from "@/lib/categories";
 import type { Downtime } from "@/lib/downtime";
+import type { SavedQueue } from "@/server/db/plans-repository";
 import { type Item, PRIORITIES, SPREAD_STRATEGIES } from "@/lib/items";
 import { PLACEMENT_STATUSES, SLOT_MIN } from "@/lib/placements";
 import type { Recurrence } from "@/lib/recurrence";
@@ -61,6 +62,13 @@ const workspaceId = () =>
   uuid("workspace_id")
     .notNull()
     .references(() => workspaces.id, { onDelete: "cascade" });
+
+/** A workspace's latest plan: when it was made, and the tasks that didn't fit; placements hold the rest. */
+export const plans = pgTable("plans", {
+  workspaceId: workspaceId().primaryKey(),
+  plannedAt: timestamptz("planned_at").notNull(),
+  queue: jsonb("queue").$type<SavedQueue>().notNull(),
+});
 
 /** One row per workspace. */
 export const settings = pgTable(

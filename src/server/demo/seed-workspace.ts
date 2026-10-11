@@ -3,6 +3,7 @@ import { insertCategory } from "@/server/db/categories-repository";
 import { insertItem, loadItems } from "@/server/db/items-repository";
 import { categories, items, placements, settings } from "@/server/db/schema";
 import { ownedBy, type WorkspaceTx } from "@/server/db/workspace-transaction";
+import { replanWorkspace } from "@/server/planning/saved-plan";
 import { type Plan, syncPlan } from "@/server/planning/sync-plan";
 import { weekContaining } from "@/server/time/days";
 import { sampleWeek } from "./sample-week";
@@ -10,7 +11,7 @@ import { sampleWeek } from "./sample-week";
 /**
  * Replaces the workspace's items, categories and settings with the sample week for the current week, planned from
  * the week's start, with the placements that ended before now checked off as done, but for one to review and one
- * missed.
+ * missed, then planned again from `now`.
  */
 export async function seedWorkspace(tx: WorkspaceTx, now: Date): Promise<Plan> {
   const sample = sampleWeek(now);
@@ -39,5 +40,6 @@ export async function seedWorkspace(tx: WorkspaceTx, now: Date): Promise<Plan> {
     .limit(2);
   if (toReview) await tx.update(placements).set({ status: "planned" }).where(eq(placements.id, toReview.id));
   if (missed) await tx.update(placements).set({ status: "missed" }).where(eq(placements.id, missed.id));
+  await replanWorkspace(tx, now);
   return plan;
 }

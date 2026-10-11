@@ -12,7 +12,7 @@ import type { WorkspaceTx } from "@/server/db/workspace-transaction";
 import { loadItems } from "@/server/db/items-repository";
 import { loadPlacements, loadPlacementsToReview } from "@/server/db/placements-repository";
 import { loadSettings } from "@/server/db/settings-repository";
-import { syncPlan } from "@/server/planning/sync-plan";
+import { currentQueue } from "@/server/planning/saved-plan";
 import { focusDays } from "@/server/scheduler/focus-cap";
 import { expandOccurrences, nextOccurrence } from "@/server/recurrence";
 import { listTasks, type TaskEntry } from "@/server/tasks";
@@ -72,11 +72,11 @@ export interface Calendar {
   categories: CategoryEntry[];
 }
 
-/** Plans (see `syncPlan`), then loads the week and the phone days from `shownDate` (default: today). */
+/** Reads the plan (see `currentQueue`), then loads the week and the phone days from `shownDate` (default: today). */
 export async function loadCalendar(tx: WorkspaceTx, now: Date, shownDate?: Temporal.PlainDate): Promise<Calendar> {
   const [settings, items, categories] = await Promise.all([loadSettings(tx), loadItems(tx), loadCategories(tx)]);
   const { timeZone } = settings;
-  const plan = await syncPlan(tx, items, settings, now);
+  const queue = await currentQueue(tx, items, settings, now);
 
   const today = localDate(now, timeZone);
   const week = weekOf(shownDate ?? today, timeZone);
@@ -105,14 +105,14 @@ export async function loadCalendar(tx: WorkspaceTx, now: Date, shownDate?: Tempo
     ),
     focusCaps: settings.focusCaps,
     downtime: settings.downtime,
-    queue: plan.unplaced
+    queue: queue
       .filter((task) => task.deadline > now)
-      .map((task) => ({
-        key: task.id,
-        title: task.title,
-        remainingMin: task.durationMin,
-        deadline: task.deadline,
-        target: targetFor(task.id)!,
+      .map(({ id, title, remainingMin, deadline }) => ({
+        key: id,
+        title,
+        remainingMin,
+        deadline,
+        target: targetFor(id)!,
       })),
     review: (await loadPlacementsToReview(tx, now)).flatMap(({ taskId, start, end }) => {
       const target = targetFor(taskId);
@@ -129,7 +129,7 @@ export async function loadCalendar(tx: WorkspaceTx, now: Date, shownDate?: Tempo
           ]
         : [];
     }),
-    tasks: listTasks(items, plan.unplaced, targetFor, now),
+    tasks: listTasks(items, queue, targetFor, now),
     categories: listCategories(categories, items),
   };
 }

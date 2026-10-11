@@ -1,6 +1,6 @@
 "use server";
 
-import { withWorkspace } from "@/server/workspaces/current-workspace";
+import { changeWorkspace, withWorkspace } from "@/server/workspaces/current-workspace";
 import { refresh } from "next/cache";
 import { type FormState, formFields } from "@/lib/form-state";
 import { z } from "zod";
@@ -41,7 +41,7 @@ export async function createItemAction(_previous: FormState, formData: FormData)
   const { fields, parsed } = await parseSubmission(formData, new Date());
   if (!parsed.ok) return { status: "invalid", errors: parsed.errors, fields };
 
-  await withWorkspace((tx) => createItem(tx, parsed.item));
+  await changeWorkspace((tx) => createItem(tx, parsed.item));
   refresh();
   return { status: "saved" };
 }
@@ -52,7 +52,7 @@ export async function updateItemAction(id: string, _previous: FormState, formDat
   const { fields, timeZone, parsed } = await parseSubmission(formData, now);
   if (!parsed.ok) return { status: "invalid", errors: parsed.errors, fields };
 
-  const found = await withWorkspace((tx) => editItem(tx, validId, parsed.item, now, timeZone));
+  const found = await changeWorkspace((tx) => editItem(tx, validId, parsed.item, now, timeZone));
   if (!found) throw new Error(`Item ${validId} not found`);
   refresh();
   return { status: "saved" };
@@ -61,7 +61,7 @@ export async function updateItemAction(id: string, _previous: FormState, formDat
 export async function deleteItemAction(id: string): Promise<void> {
   const validId = itemId.parse(id);
   const timeZone = await loadTimeZone();
-  const found = await withWorkspace((tx) => removeItem(tx, validId, new Date(), timeZone));
+  const found = await changeWorkspace((tx) => removeItem(tx, validId, new Date(), timeZone));
   if (!found) throw new Error(`Item ${validId} not found`);
   refresh();
 }
@@ -69,7 +69,7 @@ export async function deleteItemAction(id: string): Promise<void> {
 export async function skipOccurrenceAction(id: string, date: string): Promise<void> {
   const validId = itemId.parse(id);
   const validDate = z.iso.date().parse(date);
-  const found = await withWorkspace((tx) => skipOccurrence(tx, validId, validDate));
+  const found = await changeWorkspace((tx) => skipOccurrence(tx, validId, validDate));
   if (!found) throw new Error(`Series ${validId} not found`);
   refresh();
 }
@@ -77,14 +77,14 @@ export async function skipOccurrenceAction(id: string, date: string): Promise<vo
 export async function setPlacementStatusAction(ref: PlacementRef, status: PlacementStatus): Promise<void> {
   const validRef = placementRef.parse(ref);
   const validStatus = z.enum(PLACEMENT_STATUSES).parse(status);
-  const found = await withWorkspace((tx) => setPlacementStatus(tx, validRef, validStatus, new Date()));
+  const found = await changeWorkspace((tx) => setPlacementStatus(tx, validRef, validStatus, new Date()));
   if (!found) throw new Error(`Placement of ${validRef.taskId} at ${validRef.start.toISOString()} not found`);
   refresh();
 }
 
 export async function setPlacementPinnedAction(ref: PlacementRef, pinned: boolean): Promise<void> {
   const validRef = placementRef.parse(ref);
-  const found = await withWorkspace((tx) => setPlacementPinned(tx, validRef, z.boolean().parse(pinned), new Date()));
+  const found = await changeWorkspace((tx) => setPlacementPinned(tx, validRef, z.boolean().parse(pinned), new Date()));
   if (!found) throw new Error(`Placement of ${validRef.taskId} at ${validRef.start.toISOString()} not found`);
   refresh();
 }
@@ -92,7 +92,7 @@ export async function setPlacementPinnedAction(ref: PlacementRef, pinned: boolea
 export async function setTaskDoneAction(id: string, date: string | null, done: boolean): Promise<void> {
   const validId = itemId.parse(id);
   const validDate = z.iso.date().nullable().parse(date);
-  const found = await withWorkspace((tx) => setTaskDone(tx, validId, validDate, z.boolean().parse(done), new Date()));
+  const found = await changeWorkspace((tx) => setTaskDone(tx, validId, validDate, z.boolean().parse(done), new Date()));
   if (!found) throw new Error(`Task ${validId} not found`);
   refresh();
 }

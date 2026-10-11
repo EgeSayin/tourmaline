@@ -1,8 +1,9 @@
 import { type BlockPlacement, type EditTarget, toBlockPlacement } from "@/lib/calendar-blocks";
-import { isTask, type Item, itemSpan, type Task } from "@/lib/items";
+import { isTask, type Item, itemSpan } from "@/lib/items";
 import { parseOccurrenceId } from "@/lib/recurrence";
 import { OCCURRENCES_SHOWN } from "@/lib/settings";
 import type { TimeZone } from "@/lib/time/time-zone";
+import type { QueuedTask } from "@/server/db/plans-repository";
 import type { WorkspaceTx } from "@/server/db/workspace-transaction";
 import { loadItem } from "@/server/db/items-repository";
 import { loadTaskPlacements } from "@/server/db/placements-repository";
@@ -26,16 +27,14 @@ export interface TaskEntry {
   target: EditTarget;
 }
 
-/** Every item with its status, sorted by `when`; `unplaced` is the plan's (see `syncPlan`). */
+/** Every item with its status, sorted by `when`; `queue` is the plan's (see `currentQueue`). */
 export function listTasks(
   items: Item[],
-  unplaced: Task[],
+  queue: QueuedTask[],
   targetFor: (id: string) => EditTarget | undefined,
   now: Date,
 ): TaskEntry[] {
-  const queued = new Set(
-    unplaced.filter((task) => task.deadline > now).map((task) => parseOccurrenceId(task.id).itemId),
-  );
+  const queued = new Set(queue.filter((task) => task.deadline > now).map((task) => parseOccurrenceId(task.id).itemId));
   const entries = items.map((item): TaskEntry => {
     const target = targetFor(item.id)!;
     const span = itemSpan(target.item);
