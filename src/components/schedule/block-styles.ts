@@ -22,6 +22,9 @@ export function blockFill(color: CategoryColor | null): string {
   return color ? CATEGORY_FILLS[color] : BLOCK_FILL;
 }
 
+/** Drawn around a block's outline when it's a fixed item overlapping another. */
+export const CONFLICT_STYLE = { label: "Conflict", className: "ring-2 ring-red-500 dark:ring-red-400" };
+
 /** The outline, and any text style, for each kind and state. */
 export const BLOCK_STYLES: Record<BlockStyle, { label: string; className: string }> = {
   fixed: { label: "Fixed", className: "border-2 border-sky-500 dark:border-sky-400" },

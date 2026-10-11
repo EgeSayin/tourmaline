@@ -57,6 +57,7 @@ describe("toCalendarBlocks", { tags: ["unit"] }, () => {
         lanes: 1,
         target: { item: lecture, occurrenceDate: null },
         placement: null,
+        conflict: false,
       },
       {
         key: expect.any(String),
@@ -72,6 +73,7 @@ describe("toCalendarBlocks", { tags: ["unit"] }, () => {
         lanes: 1,
         target: { item: party, occurrenceDate: null },
         placement: null,
+        conflict: false,
       },
       ...(
         [
@@ -92,7 +94,39 @@ describe("toCalendarBlocks", { tags: ["unit"] }, () => {
         lanes: 1,
         target: { item: reading, occurrenceDate: "2026-10-05" },
         placement: { ref: { taskId, start }, state, pinned },
+        conflict: false,
       })),
+    ]);
+  });
+});
+
+describe("conflicts", { tags: ["unit"] }, () => {
+  it("marks fixed items that overlap each other, whatever their priority, and nothing else", () => {
+    const lecture = fixed("Lecture", utc("2026-10-05T14:00", "2026-10-05T15:00"));
+    const club = { ...fixed("Club", utc("2026-10-05T14:30", "2026-10-05T16:00")), priority: "low" as const };
+    const dinner = fixed("Dinner", utc("2026-10-05T16:00", "2026-10-05T17:00")); // starts as the club ends
+    const nextDay = fixed("Lecture again", utc("2026-10-06T14:00", "2026-10-06T15:00"));
+    const reading = flexible("Reading", 60, utc("2026-10-05T04:00", "2026-10-09T04:00"));
+    const done: Placement = {
+      taskId: "Reading",
+      ...utc("2026-10-05T16:00", "2026-10-05T17:00"), // overlaps the dinner
+      source: "auto",
+      pinned: false,
+      status: "done",
+    };
+    const items = new Map<string, Item>([lecture, club, dinner, nextDay, reading].map((item) => [item.id, item]));
+    const targetFor = (id: string): EditTarget | undefined => {
+      const item = items.get(id);
+      return item && { item, occurrenceDate: null };
+    };
+
+    const blocks = toCalendarBlocks([lecture, club, dinner, nextDay], [done], tz, targetFor, [], new Date());
+    expect(blocks.map(({ title, conflict }) => `${title}: ${conflict}`)).toEqual([
+      "Lecture: true",
+      "Club: true",
+      "Dinner: false",
+      "Lecture again: false",
+      "Reading: false",
     ]);
   });
 });

@@ -1,6 +1,7 @@
 import type { Category, CategoryColor } from "./categories";
 import type { FixedItem, Item } from "./items";
 import { type Placement, type PlacementRef, type PlacementState, placementState } from "./placements";
+import { overlaps } from "./time/interval";
 import { toLocal } from "./time/local-time";
 import type { TimeZone } from "./time/time-zone";
 
@@ -50,13 +51,16 @@ export interface CalendarBlock {
   target: EditTarget;
   /** `null` for a fixed item. */
   placement: BlockPlacement | null;
+  /** A fixed item that overlaps another of the fixed items given: both stay, and it's up to you to sort out. */
+  conflict: boolean;
 }
 
 /**
  * Positions fixed items and placements on their local day, each with the edit target `targetFor` finds for its item
  * or occurrence id; a placement without one, whose item is gone, is skipped. A block running past midnight is cut
  * off at the end of the day it starts on. Scheduled blocks are styled by their placement's state at `now`, and every
- * block is coloured by its item's category among `categories`.
+ * block is coloured by its item's category among `categories`. Fixed items that overlap each other are marked as
+ * conflicts.
  */
 export function toCalendarBlocks(
   fixedItems: FixedItem[],
@@ -95,7 +99,13 @@ export function toCalendarBlocks(
       target,
     };
   });
-  return withLanes(positioned);
+  const fixed = positioned.filter((block) => block.placement === null);
+  return withLanes(
+    positioned.map((block) => ({
+      ...block,
+      conflict: block.placement === null && fixed.some((other) => other !== block && overlaps(block, other)),
+    })),
+  );
 }
 
 /** Where a block sits on its day. */

@@ -7,7 +7,7 @@ import type { CalendarBlock } from "@/lib/calendar-blocks";
 import { matchesFilter } from "@/lib/categories";
 import { formatTimeRange } from "@/lib/time/format";
 import type { TimeZone } from "@/lib/time/time-zone";
-import { BLOCK_STYLES, blockFill } from "./block-styles";
+import { BLOCK_STYLES, blockFill, CONFLICT_STYLE } from "./block-styles";
 import type { TimeScale } from "./time-scale";
 
 export function ScheduleBlock({
@@ -29,6 +29,7 @@ export function ScheduleBlock({
   const notes = [
     placement && placement.state !== "planned" && PLACEMENT_STATE_LABELS[placement.state].toLowerCase(),
     placement?.pinned && "pinned",
+    block.conflict && "conflict",
   ].filter(Boolean);
   const label = `${block.title} ${formatTimeRange(block.start, block.end, timeZone)}${notes.length > 0 ? ` (${notes.join(", ")})` : ""}`;
 
@@ -51,7 +52,7 @@ export function ScheduleBlock({
         title={label}
         className={`flex size-full cursor-pointer flex-col justify-start overflow-hidden rounded-md px-1 text-left text-xs md:px-2 ${
           isTiny ? "leading-3" : "py-1"
-        } transition hover:brightness-95 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none dark:hover:brightness-125 ${blockFill(block.color)} ${BLOCK_STYLES[block.style].className} ${
+        } transition hover:brightness-95 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none dark:hover:brightness-125 ${blockFill(block.color)} ${BLOCK_STYLES[block.style].className} ${block.conflict ? CONFLICT_STYLE.className : ""} ${
           filteredOut ? "opacity-25" : ""
         }`}
       >

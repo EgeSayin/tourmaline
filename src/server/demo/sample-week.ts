@@ -89,7 +89,8 @@ const daily: Recurrence = { frequency: "daily", interval: 1, until: null };
 
 /**
  * A student's week of fixed items and tasks, in the week (Monday–Sunday) containing `now`, and the categories they
- * belong to. Lectures, chess club, lunch, gym and language practice repeat from that week on.
+ * belong to. Lectures, chess club, lunch, gym and language practice repeat from that week on. That Wednesday, a guest
+ * talk overlaps chess club.
  */
 export function sampleWeek(now: Date) {
   const week = weekContaining(now, settings.timeZone).dates;
@@ -107,6 +108,7 @@ export function sampleWeek(now: Date) {
       categoryId: "calc",
     }),
     fixed("chess", "Chess club", WED, ["18:00", "19:30"], { priority: "normal", recurrence: weekly(3) }),
+    fixed("talk", "Guest talk", WED, ["17:30", "19:00"], { location: "Main auditorium", categoryId: "seminar" }),
     fixed("hangout", "Dinner with friends", SAT, ["19:00", "22:00"], { priority: "normal" }),
   ];
 
