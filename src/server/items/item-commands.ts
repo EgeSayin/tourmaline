@@ -69,7 +69,7 @@ export async function skipOccurrence(tx: Transaction, itemId: string, date: stri
 }
 
 /**
- * Replaces the stored item `id` with `item`. A task keeps its started and pinned placements, so time already spent
+ * Replaces the stored item `id` with `item`. A task keeps all but its pending placements, so time already spent
  * on it still counts, and the rest are placed again; a fixed item has none. Overrides stay only while it recurs.
  */
 async function saveInPlace(tx: Transaction, id: string, item: NewItem, now: Date): Promise<void> {

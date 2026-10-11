@@ -1,7 +1,7 @@
 import "server-only";
 import { minutesBetween } from "@/lib/time/duration";
 import type { FixedItem, Task } from "@/lib/items";
-import type { Placement } from "@/lib/placements";
+import { isMissed, isPending, type Placement } from "@/lib/placements";
 import type { SchedulerSettings } from "@/lib/settings";
 import { freeTimeMap } from "./free-time";
 import { type Interval, type IntervalSet, later, mergeIntervals, subtractIntervals } from "@/lib/time/interval";
@@ -18,22 +18,22 @@ export interface ReplanInput {
 }
 
 export interface ReplanResult {
-  /** Kept and newly placed, sorted by start. */
+  /** Kept and newly placed, sorted by start; missed ones are left out. */
   placements: Placement[];
   /** Tasks whose remaining time didn't fit; `durationMin` is the remaining time. */
   unplaced: Task[];
 }
 
 /**
- * Keeps placements that have started or are pinned. Other existing placements are kept too while they remain
- * valid (inside their task's window, in free time, not overlapping), and each task's remaining time is placed
- * in the free time from `now` on. Only if some task then doesn't fit are the unpinned future placements
- * dropped and everything re-placed.
+ * Keeps placements that are done, pinned or in progress; missed ones (see `isMissed`) are dropped, so their time is
+ * planned again. Pending placements are kept too while they remain valid (inside their task's window, in free time,
+ * not overlapping), and each task's remaining time is placed in the free time from `now` on. Only if some task
+ * then doesn't fit are the pending placements dropped and everything re-placed.
  */
 export function replan({ horizon, fixedItems, tasks, existing, settings }: ReplanInput): ReplanResult {
   const now = horizon.start;
-  const kept = existing.filter((placement) => placement.pinned || placement.start < now);
-  const movable = existing.filter((placement) => !placement.pinned && placement.start >= now);
+  const kept = existing.filter((placement) => !isPending(placement, now) && !isMissed(placement, now));
+  const movable = existing.filter((placement) => isPending(placement, now));
 
   const freeFromNow = now < horizon.end ? freeTimeMap(horizon, fixedItems, settings) : mergeIntervals([]);
   const free = subtractIntervals(freeFromNow, kept);

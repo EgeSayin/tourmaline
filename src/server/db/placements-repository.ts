@@ -1,6 +1,6 @@
 import "server-only";
 import { and, asc, eq, gt, gte, lt } from "drizzle-orm";
-import type { Placement } from "@/lib/placements";
+import { isPending, type Placement } from "@/lib/placements";
 import { occurrenceId, parseOccurrenceId } from "@/lib/recurrence";
 import type { Interval } from "@/lib/time/interval";
 import type { Database, Transaction } from "./connection";
@@ -42,20 +42,20 @@ export async function insertPlacements(executor: Database | Transaction, toInser
   );
 }
 
-/** Deletes the item's placements; with `from`, only the pending ones (unpinned, starting then or later). */
+/** Deletes the item's placements; with `from`, only the pending ones (see `isPending`) as of then. */
 export async function deletePlacements(tx: Transaction, itemId: string, from?: Date): Promise<void> {
-  const pending = from && and(eq(placements.pinned, false), gte(placements.startAt, from));
-  await tx.delete(placements).where(and(eq(placements.itemId, itemId), pending));
+  await tx.delete(placements).where(and(eq(placements.itemId, itemId), from && pendingAt(from)));
 }
 
-/**
- * Replaces the pending placements (unpinned, starting at `from` or later) with those among `next`.
- * Started and pinned placements are left untouched.
- */
+/** Replaces the pending placements (see `isPending`) as of `from` with those among `next`; others are untouched. */
 export async function replacePendingPlacements(tx: Transaction, from: Date, next: Placement[]): Promise<void> {
-  await tx.delete(placements).where(and(eq(placements.pinned, false), gte(placements.startAt, from)));
+  await tx.delete(placements).where(pendingAt(from));
   await insertPlacements(
     tx,
-    next.filter((placement) => !placement.pinned && placement.start >= from),
+    next.filter((placement) => isPending(placement, from)),
   );
+}
+
+function pendingAt(now: Date) {
+  return and(eq(placements.pinned, false), eq(placements.done, false), gte(placements.startAt, now));
 }

@@ -1,6 +1,6 @@
 import "server-only";
 import { isFixed, type Item, isTask, type Task } from "@/lib/items";
-import type { Placement } from "@/lib/placements";
+import { isPending, type Placement } from "@/lib/placements";
 import { RECURRENCE_LOOKAHEAD_DAYS, type SchedulerSettings } from "@/lib/settings";
 import { addMinutes } from "@/lib/time/duration";
 import { earlier } from "@/lib/time/interval";
@@ -24,7 +24,8 @@ export interface Plan {
 /**
  * Re-plans from `now` around the saved placements and saves the plan if it changed. The plan runs to the latest
  * one-off item date; recurring items don't extend it, but a task occurrence overlapping it, within
- * `RECURRENCE_LOOKAHEAD_DAYS`, is planned up to its deadline. Placements before `now` count toward each task's time.
+ * `RECURRENCE_LOOKAHEAD_DAYS`, is planned up to its deadline. Done placements and those in progress count toward each
+ * task's time; missed ones don't, so their time is planned again.
  * Re-planning an unchanged plan changes nothing, so repeated calls don't write.
  */
 export async function syncPlan(
@@ -53,7 +54,7 @@ export async function syncPlan(
     settings,
   });
 
-  const pending = (list: Placement[]) => list.filter((p) => !p.pinned && p.start >= now);
+  const pending = (list: Placement[]) => list.filter((p) => isPending(p, now));
   if (!samePlacements(pending(existing), pending(placements))) {
     await executor.transaction((tx) => replacePendingPlacements(tx, now, placements));
   }

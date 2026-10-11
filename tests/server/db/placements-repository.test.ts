@@ -100,7 +100,7 @@ describe("placements repository", { tags: ["integration", "critical"] }, () => {
     expect(await loadPlacements(tx, week)).toEqual([]);
   });
 
-  it("replaces the pending placements from a time on, keeping started and pinned ones", async ({ tx }) => {
+  it("replaces the pending placements from a time on, keeping started, pinned and done ones", async ({ tx }) => {
     const essayId = await insertItem(tx, flexible("Essay", 600, utc("2026-10-05T04:00", "2026-10-19T04:00")));
     const placement = (start: string, end: string, extra: Partial<Placement> = {}): Placement => ({
       taskId: essayId,
@@ -113,17 +113,19 @@ describe("placements repository", { tags: ["integration", "critical"] }, () => {
     const now = new Date("2026-10-07T12:00Z");
 
     const started = placement("2026-10-07T11:30", "2026-10-07T12:30");
-    const pinned = placement("2026-10-08T14:00", "2026-10-08T15:00", { source: "manual", pinned: true, done: false });
+    const pinned = placement("2026-10-08T14:00", "2026-10-08T15:00", { source: "manual", pinned: true });
+    const doneEarly = placement("2026-10-08T16:00", "2026-10-08T17:00", { done: true });
     const stale = placement("2026-10-09T14:00", "2026-10-09T15:00");
     const staleNextWeek = placement("2026-10-13T14:00", "2026-10-13T15:00");
-    await insertPlacements(tx, [started, pinned, stale, staleNextWeek]);
+    await insertPlacements(tx, [started, pinned, doneEarly, stale, staleNextWeek]);
 
     const replacement = placement("2026-10-10T14:00", "2026-10-10T15:00");
-    await replacePendingPlacements(tx, now, [started, pinned, replacement]);
+    await replacePendingPlacements(tx, now, [started, pinned, doneEarly, replacement]);
 
     expect(await loadPlacements(tx, utc("2026-10-05T04:00", "2026-10-19T04:00"))).toEqual([
       started,
       pinned,
+      doneEarly,
       replacement,
     ]);
   });

@@ -21,18 +21,18 @@ const scenarioArb = fc
   )
   .map(([horizon, settings, fixedItems, tasks]) => ({ horizon, settings, fixedItems, tasks }));
 
-/** Saved placements from an earlier run: random times, some pinned, marked `manual` to tell them from new ones. */
+/** Saved placements: random times, some pinned or done, marked `manual` to tell them from new ones. */
 function existingArb(tasks: Task[]): fc.Arbitrary<Placement[]> {
   if (tasks.length === 0) return fc.constant([]);
   return fc.array(
     fc
-      .tuple(fc.integer({ min: 0, max: tasks.length - 1 }), intervalArb(120), fc.boolean())
-      .map(([i, times, pinned]): Placement => ({
+      .tuple(fc.integer({ min: 0, max: tasks.length - 1 }), intervalArb(120), fc.boolean(), fc.boolean())
+      .map(([i, times, pinned, done]): Placement => ({
         taskId: tasks[i].id,
         ...times,
         source: "manual",
         pinned,
-        done: false,
+        done,
       })),
     { maxLength: 6 },
   );
@@ -45,7 +45,7 @@ const minutesFor = (placements: Placement[], taskId: string) =>
   placements.filter((p) => p.taskId === taskId).reduce((sum, p) => sum + minutesBetween(p.start, p.end), 0);
 
 describe("replan", { tags: ["unit", "critical"] }, () => {
-  it("keeps started, pinned, and still-valid placements and places the remaining time from now", () => {
+  it("keeps done, pinned, in-progress and still-valid placements, and places the rest from now", () => {
     const settings: SchedulerSettings = { timeZone: "UTC", downtime: { startMinute: 23 * 60, endMinute: 10 * 60 } };
     const horizon = utc("2026-10-05T15:00", "2026-10-07T00:00"); // Mon 15:00 to the end of Tue
     const window = utc("2026-10-05T00:00", "2026-10-06T23:00");
@@ -55,25 +55,28 @@ describe("replan", { tags: ["unit", "critical"] }, () => {
       flexible("Reading", 60, window),
       flexible("Homework", 90, window),
       flexible("Call prep", 60, window),
+      flexible("Review", 60, window),
     ];
-    const placement = (taskId: string, times: { start: Date; end: Date }, pinned = false): Placement => ({
+    const placement = (taskId: string, times: { start: Date; end: Date }, extra: Partial<Placement> = {}) => ({
       taskId,
       ...times,
-      source: "auto",
-      pinned,
+      source: "auto" as const,
+      pinned: false,
       done: false,
+      ...extra,
     });
 
-    const pastEssay = placement("Essay", utc("2026-10-05T10:00", "2026-10-05T11:00"));
+    const pastEssay = placement("Essay", utc("2026-10-05T10:00", "2026-10-05T11:00"), { done: true });
+    const missedReview = placement("Review", utc("2026-10-05T11:00", "2026-10-05T12:00"));
     const inProgress = placement("Call prep", utc("2026-10-05T14:30", "2026-10-05T15:30"));
-    const pinnedReading = placement("Reading", utc("2026-10-06T12:00", "2026-10-06T13:00"), true);
+    const pinnedReading = placement("Reading", utc("2026-10-06T12:00", "2026-10-06T13:00"), { pinned: true });
     const futureHomework = placement("Homework", utc("2026-10-06T10:00", "2026-10-06T11:30"));
 
     const result = replan({
       horizon,
       fixedItems: [lecture],
       tasks,
-      existing: [futureHomework, pinnedReading, inProgress, pastEssay],
+      existing: [futureHomework, pinnedReading, inProgress, missedReview, pastEssay],
       settings,
     });
 
@@ -81,6 +84,7 @@ describe("replan", { tags: ["unit", "critical"] }, () => {
       pastEssay,
       inProgress,
       placement("Essay", utc("2026-10-05T17:00", "2026-10-05T18:00")), // the remaining hour, after the lecture
+      placement("Review", utc("2026-10-05T18:00", "2026-10-05T19:00")), // missed, so placed again
       futureHomework, // still valid, so it stays
       pinnedReading,
     ]);
@@ -133,7 +137,7 @@ describe("replan", { tags: ["unit", "critical"] }, () => {
       ...utc("2026-10-05T10:00", "2026-10-05T10:45"),
       source: "auto",
       pinned: false,
-      done: false,
+      done: true,
     };
 
     const result = replan({
@@ -151,7 +155,7 @@ describe("replan", { tags: ["unit", "critical"] }, () => {
   });
 
   it(
-    "keeps started and pinned placements and fills each task's remaining time after now",
+    "keeps done, pinned and in-progress placements, drops missed ones, and fills each task's remaining time after now",
     { tags: ["property"] },
     () => {
       const caseArb = scenarioArb.chain((scenario) => fc.tuple(fc.constant(scenario), existingArb(scenario.tasks)));
@@ -159,7 +163,10 @@ describe("replan", { tags: ["unit", "critical"] }, () => {
       fc.assert(
         fc.property(caseArb, ([{ horizon, settings, fixedItems, tasks }, existing]) => {
           const result = replan({ horizon, fixedItems, tasks, existing, settings });
-          const kept = existing.filter((p) => p.pinned || p.start < horizon.start);
+          const now = horizon.start;
+          const kept = existing.filter((p) => p.done || (p.end > now && (p.pinned || p.start < now)));
+          const missed = existing.filter((p) => !p.done && p.end <= now);
+          for (const placement of missed) expect(result.placements).not.toContainEqual(placement);
           const others = result.placements.filter((p) => !kept.some((k) => samePlacement(k, p)));
 
           for (const placement of kept) expect(result.placements).toContainEqual(placement);
