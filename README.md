@@ -14,6 +14,10 @@ npm run db:seed               # optional: a sample week
 npm run dev
 ```
 
+With `DEMO_MODE=true` it runs as the public demo: a welcome page offers each visitor a private guest workspace
+seeded with the sample week, kept through an httpOnly session cookie and deleted after a week unused. Nothing about
+visitors is stored but a hash of their session token.
+
 ## Checks
 
 ```bash

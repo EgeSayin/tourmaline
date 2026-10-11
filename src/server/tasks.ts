@@ -3,7 +3,7 @@ import { isTask, type Item, itemSpan, type Task } from "@/lib/items";
 import { parseOccurrenceId } from "@/lib/recurrence";
 import { OCCURRENCES_SHOWN } from "@/lib/settings";
 import type { TimeZone } from "@/lib/time/time-zone";
-import type { Executor } from "@/server/db/connection";
+import type { WorkspaceTx } from "@/server/db/workspace-transaction";
 import { loadItem } from "@/server/db/items-repository";
 import { loadTaskPlacements } from "@/server/db/placements-repository";
 import { upcomingOccurrences } from "@/server/recurrence";
@@ -59,8 +59,8 @@ export interface TaskBlock {
   placement: BlockPlacement;
 }
 
-export async function loadTaskBlocks(executor: Executor, taskId: string, now: Date): Promise<TaskBlock[]> {
-  return (await loadTaskPlacements(executor, taskId)).map((placement) => ({
+export async function loadTaskBlocks(tx: WorkspaceTx, taskId: string, now: Date): Promise<TaskBlock[]> {
+  return (await loadTaskPlacements(tx, taskId)).map((placement) => ({
     start: placement.start,
     end: placement.end,
     placement: toBlockPlacement(placement, now),
@@ -84,20 +84,15 @@ export interface ItemSchedule {
  * The schedule of item `id` at `now`: a one-off task's blocks, or the first `OCCURRENCES_SHOWN` occurrences of a
  * series that end after `now`, skipped ones left out. Empty for a one-off fixed item or a missing one.
  */
-export async function loadSchedule(
-  executor: Executor,
-  id: string,
-  now: Date,
-  timeZone: TimeZone,
-): Promise<ItemSchedule> {
-  const item = await loadItem(executor, id);
+export async function loadSchedule(tx: WorkspaceTx, id: string, now: Date, timeZone: TimeZone): Promise<ItemSchedule> {
+  const item = await loadItem(tx, id);
   if (!item?.recurrence) {
-    return { blocks: item && isTask(item) ? await loadTaskBlocks(executor, id, now) : [], occurrences: [] };
+    return { blocks: item && isTask(item) ? await loadTaskBlocks(tx, id, now) : [], occurrences: [] };
   }
   const occurrences: OccurrenceEntry[] = [];
   for (const occurrence of upcomingOccurrences(item, now, OCCURRENCES_SHOWN, timeZone)) {
     const { start, end } = itemSpan(occurrence);
-    const blocks = isTask(occurrence) ? await loadTaskBlocks(executor, occurrence.id, now) : [];
+    const blocks = isTask(occurrence) ? await loadTaskBlocks(tx, occurrence.id, now) : [];
     occurrences.push({ date: parseOccurrenceId(occurrence.id).date!, start, end, blocks });
   }
   return { blocks: [], occurrences };

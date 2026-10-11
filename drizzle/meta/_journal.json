@@ -148,6 +148,13 @@
       "when": 1791751206226,
       "tag": "0020_settings_weekly_downtime",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1791756385443,
+      "tag": "0021_guest_workspaces",
+      "breakpoints": true
     }
   ]
 }

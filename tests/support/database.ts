@@ -3,7 +3,8 @@ import { drizzle } from "drizzle-orm/postgres-js";
 import { migrate } from "drizzle-orm/postgres-js/migrator";
 import postgres from "postgres";
 import { test } from "vitest";
-import { createDatabase, type Database, type Transaction } from "@/server/db/connection";
+import { createDatabase, type Database } from "@/server/db/connection";
+import { PERSONAL_WORKSPACE_ID, type WorkspaceTx } from "@/server/db/workspace-transaction";
 
 const MIGRATION_LOCK_ID = 727_001;
 
@@ -30,9 +31,9 @@ async function prepareTestDatabase(adminUrl: string, testUrl: string) {
 
 /**
  * Vitest `test` with lazy database fixtures; tests that don't use them never connect.
- * `tx` is a transaction that is rolled back after the test.
+ * `tx` is a transaction in the personal workspace that is rolled back after the test.
  */
-export const dbTest = test.extend<{ $worker: { db: Database }; $test: { tx: Transaction } }>({
+export const dbTest = test.extend<{ $worker: { db: Database }; $test: { tx: WorkspaceTx } }>({
   db: [
     async ({}, use) => {
       const adminUrl = process.env.DATABASE_URL;
@@ -50,7 +51,7 @@ export const dbTest = test.extend<{ $worker: { db: Database }; $test: { tx: Tran
   tx: async ({ db }, use) => {
     await db
       .transaction(async (tx) => {
-        await use(tx);
+        await use(Object.assign(tx, { workspaceId: PERSONAL_WORKSPACE_ID }));
         tx.rollback();
       })
       .catch((error) => {
@@ -58,3 +59,15 @@ export const dbTest = test.extend<{ $worker: { db: Database }; $test: { tx: Tran
       });
   },
 });
+
+/**
+ * A savepoint in `tx`, so a failing statement can be expected without aborting `tx`, working in `workspaceId`
+ * (default: `tx`'s).
+ */
+export function savepoint<T>(
+  tx: WorkspaceTx,
+  work: (inner: WorkspaceTx) => Promise<T>,
+  workspaceId = tx.workspaceId,
+): Promise<T> {
+  return tx.transaction((inner) => work(Object.assign(inner, { workspaceId })));
+}

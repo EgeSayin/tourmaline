@@ -13,7 +13,7 @@ import {
   setTaskDone,
   skipOccurrence,
 } from "@/server/items/item-commands";
-import { dbTest as it } from "../../support/database";
+import { dbTest as it, savepoint } from "../../support/database";
 import { utc } from "../../support/intervals";
 import { fixed, flexible, unsaved } from "../../support/items";
 
@@ -181,16 +181,16 @@ describe("placement commands", () => {
       expect(await setPlacementStatus(tx, past, status, now)).toBe(true);
       expect((await stored(past)).status).toBe(status);
     }
-    await expect(tx.transaction((inner) => setPlacementStatus(inner, future, "missed", now))).rejects.toThrow();
+    await expect(savepoint(tx, (inner) => setPlacementStatus(inner, future, "missed", now))).rejects.toThrow();
     expect(await setPlacementStatus(tx, future, "done", now)).toBe(true); // done early
 
-    await expect(tx.transaction((inner) => setPlacementPinned(inner, future, true, now))).rejects.toThrow(); // done
+    await expect(savepoint(tx, (inner) => setPlacementPinned(inner, future, true, now))).rejects.toThrow(); // done
     await setPlacementStatus(tx, future, "planned", now);
     expect(await setPlacementPinned(tx, future, true, now)).toBe(true);
     expect((await stored(future)).pinned).toBe(true);
     expect(await setPlacementPinned(tx, future, false, now)).toBe(true);
     expect((await stored(future)).pinned).toBe(false);
-    await expect(tx.transaction((inner) => setPlacementPinned(inner, past, true, now))).rejects.toThrow(); // ended
+    await expect(savepoint(tx, (inner) => setPlacementPinned(inner, past, true, now))).rejects.toThrow(); // ended
 
     const nowhere = { taskId: essayId, start: new Date("2026-10-08T09:00Z") };
     expect(await setPlacementStatus(tx, nowhere, "done", now)).toBe(false);

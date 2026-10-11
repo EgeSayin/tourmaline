@@ -1,10 +1,10 @@
 "use server";
 
+import { withWorkspace } from "@/server/workspaces/current-workspace";
 import { refresh } from "next/cache";
 import { type FormState, formFields } from "@/lib/form-state";
 import { z } from "zod";
 import { deleteCategory, insertCategory, loadCategories, updateCategory } from "@/server/db/categories-repository";
-import { db } from "@/server/db/client";
 import { parseCategoryForm } from "./parse-category-form";
 
 const categoryId = z.uuid();
@@ -16,7 +16,7 @@ export async function saveCategoryAction(
 ): Promise<FormState> {
   const validId = id === null ? null : categoryId.parse(id);
   const fields = formFields(formData);
-  const state = await db.transaction(async (tx): Promise<FormState> => {
+  const state = await withWorkspace(async (tx): Promise<FormState> => {
     const parsed = parseCategoryForm(fields, await loadCategories(tx), validId);
     if (!parsed.ok) return { status: "invalid", errors: parsed.errors, fields };
     if (validId === null) await insertCategory(tx, parsed.category);
@@ -29,6 +29,6 @@ export async function saveCategoryAction(
 
 export async function deleteCategoryAction(id: string): Promise<void> {
   const validId = categoryId.parse(id);
-  if (!(await deleteCategory(db, validId))) throw new Error(`Category ${validId} not found`);
+  if (!(await withWorkspace((tx) => deleteCategory(tx, validId)))) throw new Error(`Category ${validId} not found`);
   refresh();
 }

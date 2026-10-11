@@ -1,11 +1,10 @@
 "use server";
 
+import { withWorkspace } from "@/server/workspaces/current-workspace";
 import { refresh } from "next/cache";
 import { type FormState, formFields } from "@/lib/form-state";
 import { isTimeZone } from "@/lib/time/time-zone";
-import { db } from "@/server/db/client";
 import { replacePendingPlacements } from "@/server/db/placements-repository";
-import { inPlanTransaction } from "@/server/db/plan-lock";
 import { loadSettings, moveToTimeZone, saveWeekSettings } from "@/server/db/settings-repository";
 import { parseWeekSettings } from "./parse-week-settings";
 
@@ -14,7 +13,7 @@ export async function saveWeekSettingsAction(_previous: FormState, formData: For
   const parsed = parseWeekSettings(fields);
   if (!parsed.ok) return { status: "invalid", errors: parsed.errors, fields };
 
-  await inPlanTransaction(db, async (tx) => {
+  await withWorkspace(async (tx) => {
     await saveWeekSettings(tx, parsed.settings);
     // Kept blocks stay where they are while they fit, so only dropping them spreads the plan under new caps.
     await replacePendingPlacements(tx, new Date(), []);
@@ -28,7 +27,7 @@ export async function saveTimeZoneAction(_previous: FormState, formData: FormDat
   const timeZone = fields.timeZone ?? "";
   if (!isTimeZone(timeZone)) return { status: "invalid", errors: { timeZone: ["Pick a time zone"] }, fields };
 
-  await inPlanTransaction(db, async (tx) => {
+  await withWorkspace(async (tx) => {
     if ((await loadSettings(tx)).timeZone !== timeZone) await moveToTimeZone(tx, timeZone);
   });
   refresh();

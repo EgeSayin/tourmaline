@@ -8,7 +8,7 @@ import { later } from "@/lib/time/interval";
 import type { TimeZone } from "@/lib/time/time-zone";
 import { type CategoryEntry, listCategories } from "@/server/categories/category-list";
 import { loadCategories } from "@/server/db/categories-repository";
-import type { Executor } from "@/server/db/connection";
+import type { WorkspaceTx } from "@/server/db/workspace-transaction";
 import { loadItems } from "@/server/db/items-repository";
 import { loadPlacements, loadPlacementsToReview } from "@/server/db/placements-repository";
 import { loadSettings } from "@/server/db/settings-repository";
@@ -73,14 +73,10 @@ export interface Calendar {
 }
 
 /** Plans (see `syncPlan`), then loads the week and the phone days from `shownDate` (default: today). */
-export async function loadCalendar(executor: Executor, now: Date, shownDate?: Temporal.PlainDate): Promise<Calendar> {
-  const [settings, items, categories] = await Promise.all([
-    loadSettings(executor),
-    loadItems(executor),
-    loadCategories(executor),
-  ]);
+export async function loadCalendar(tx: WorkspaceTx, now: Date, shownDate?: Temporal.PlainDate): Promise<Calendar> {
+  const [settings, items, categories] = await Promise.all([loadSettings(tx), loadItems(tx), loadCategories(tx)]);
   const { timeZone } = settings;
-  const plan = await syncPlan(executor, items, settings, now);
+  const plan = await syncPlan(tx, items, settings, now);
 
   const today = localDate(now, timeZone);
   const week = weekOf(shownDate ?? today, timeZone);
@@ -88,7 +84,7 @@ export async function loadCalendar(executor: Executor, now: Date, shownDate?: Te
   const shown = { start: week.range.start, end: later(days.range.end, week.range.end) };
   const fixedItems = items.filter(isFixed).flatMap((item) => expandOccurrences(item, shown, timeZone));
   const targetFor = editTargets(items, now, timeZone);
-  const placements = await loadPlacements(executor, shown);
+  const placements = await loadPlacements(tx, shown);
   const busy = [...fixedItems, ...placements.filter((placement) => placement.status !== "missed")];
 
   return {
@@ -118,7 +114,7 @@ export async function loadCalendar(executor: Executor, now: Date, shownDate?: Te
         deadline: task.deadline,
         target: targetFor(task.id)!,
       })),
-    review: (await loadPlacementsToReview(executor, now)).flatMap(({ taskId, start, end }) => {
+    review: (await loadPlacementsToReview(tx, now)).flatMap(({ taskId, start, end }) => {
       const target = targetFor(taskId);
       return target
         ? [

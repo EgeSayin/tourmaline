@@ -3,15 +3,14 @@ import { TaskEditor } from "@/components/tasks/task-editor";
 import { TaskList } from "@/components/tasks/task-list";
 import { Workspace } from "@/components/workspace/workspace";
 import { loadCalendar } from "@/server/calendar";
-import { db } from "@/server/db/client";
-import { inPlanTransaction } from "@/server/db/plan-lock";
+import { withWorkspace } from "@/server/workspaces/current-workspace";
 import { loadSchedule } from "@/server/tasks";
 
 export default async function Tasks({ searchParams }: PageProps<"/tasks">) {
   await connection();
   const params = await searchParams;
   const now = new Date();
-  const { calendar, selected, schedule } = await inPlanTransaction(db, async (tx) => {
+  const { calendar, selected, schedule } = await withWorkspace(async (tx) => {
     const calendar = await loadCalendar(tx, now);
     const selected = calendar.tasks.find((entry) => entry.id === params.id) ?? null;
     const schedule = selected

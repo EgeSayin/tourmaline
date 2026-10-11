@@ -4,7 +4,7 @@ import { isFixed } from "@/lib/items";
 import type { Placement, PlacementStatus } from "@/lib/placements";
 import type { Recurrence } from "@/lib/recurrence";
 import { NO_FOCUS_CAPS, RECURRENCE_LOOKAHEAD_DAYS, type SchedulerSettings } from "@/lib/settings";
-import type { Transaction } from "@/server/db/connection";
+import type { WorkspaceTx } from "@/server/db/workspace-transaction";
 import { insertItem, loadItems, setItemDone, setOccurrenceDone } from "@/server/db/items-repository";
 import { insertPlacements, loadPlacements } from "@/server/db/placements-repository";
 import { placements } from "@/server/db/schema";
@@ -28,7 +28,7 @@ const auto = (taskId: string, times: { start: Date; end: Date }, status: Placeme
   pinned: false,
   status,
 });
-const plan = async (tx: Transaction, now: Date) => syncPlan(tx, await loadItems(tx), settings, now);
+const plan = async (tx: WorkspaceTx, now: Date) => syncPlan(tx, await loadItems(tx), settings, now);
 
 describe("syncPlan", () => {
   it("plans from now on around fixed items, saves the plan, and reports what doesn't fit", async ({ tx }) => {

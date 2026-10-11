@@ -1,52 +1,61 @@
 import { and, eq, gte, type SQL } from "drizzle-orm";
 import type { Item, NewItem } from "@/lib/items";
-import type { Executor, Transaction } from "./connection";
+import { ownedBy, type WorkspaceTx } from "./workspace-transaction";
 import { items, occurrenceOverrides } from "./schema";
 
-export async function insertItem(executor: Executor, item: NewItem): Promise<string> {
-  const [{ id }] = await executor.insert(items).values(toRow(item)).returning({ id: items.id });
+export async function insertItem(tx: WorkspaceTx, item: NewItem): Promise<string> {
+  const [{ id }] = await tx
+    .insert(items)
+    .values({ ...toRow(item), workspaceId: tx.workspaceId })
+    .returning({ id: items.id });
   return id;
 }
 
 /** Returns `false` if no item has `id`. */
-export async function updateItem(executor: Executor, id: string, item: NewItem): Promise<boolean> {
-  const updated = await executor.update(items).set(toRow(item)).where(eq(items.id, id)).returning({ id: items.id });
+export async function updateItem(tx: WorkspaceTx, id: string, item: NewItem): Promise<boolean> {
+  const updated = await tx
+    .update(items)
+    .set(toRow(item))
+    .where(and(ownedBy(tx, items), eq(items.id, id)))
+    .returning({ id: items.id });
   return updated.length > 0;
 }
 
 /** Returns `false` if no item has `id`. */
-export async function deleteItem(executor: Executor, id: string): Promise<boolean> {
-  const deleted = await executor.delete(items).where(eq(items.id, id)).returning({ id: items.id });
+export async function deleteItem(tx: WorkspaceTx, id: string): Promise<boolean> {
+  const deleted = await tx
+    .delete(items)
+    .where(and(ownedBy(tx, items), eq(items.id, id)))
+    .returning({ id: items.id });
   return deleted.length > 0;
 }
 
-export function loadItems(executor: Executor): Promise<Item[]> {
-  return findItems(executor);
+export function loadItems(tx: WorkspaceTx): Promise<Item[]> {
+  return findItems(tx);
 }
 
-export async function loadItem(executor: Executor, id: string): Promise<Item | undefined> {
-  const [item] = await findItems(executor, eq(items.id, id));
+export async function loadItem(tx: WorkspaceTx, id: string): Promise<Item | undefined> {
+  const [item] = await findItems(tx, eq(items.id, id));
   return item;
 }
 
-export async function setItemDone(executor: Executor, id: string, done: boolean): Promise<void> {
-  await executor.update(items).set({ done }).where(eq(items.id, id));
+export async function setItemDone(tx: WorkspaceTx, id: string, done: boolean): Promise<void> {
+  await tx
+    .update(items)
+    .set({ done })
+    .where(and(ownedBy(tx, items), eq(items.id, id)));
 }
 
-export async function setOccurrenceDone(
-  executor: Executor,
-  itemId: string,
-  date: string,
-  done: boolean,
-): Promise<void> {
-  await executor
+// Overrides go by item id: callers first load the item, which checks it is in their workspace.
+export async function setOccurrenceDone(tx: WorkspaceTx, itemId: string, date: string, done: boolean): Promise<void> {
+  await tx
     .insert(occurrenceOverrides)
     .values({ itemId, occurrenceDate: date, done })
     .onConflictDoUpdate({ target: [occurrenceOverrides.itemId, occurrenceOverrides.occurrenceDate], set: { done } });
 }
 
-export async function skipOccurrence(executor: Executor, itemId: string, date: string): Promise<void> {
-  await executor
+export async function skipOccurrence(tx: WorkspaceTx, itemId: string, date: string): Promise<void> {
+  await tx
     .insert(occurrenceOverrides)
     .values({ itemId, occurrenceDate: date, skipped: true })
     .onConflictDoUpdate({
@@ -55,21 +64,21 @@ export async function skipOccurrence(executor: Executor, itemId: string, date: s
     });
 }
 
-export async function deleteOverrides(tx: Transaction, itemId: string): Promise<void> {
+export async function deleteOverrides(tx: WorkspaceTx, itemId: string): Promise<void> {
   await tx.delete(occurrenceOverrides).where(eq(occurrenceOverrides.itemId, itemId));
 }
 
 /** Moves `fromId`'s occurrence overrides dated `fromDate` or later to `toId`. */
-export async function moveOverrides(tx: Transaction, fromId: string, toId: string, fromDate: string): Promise<void> {
+export async function moveOverrides(tx: WorkspaceTx, fromId: string, toId: string, fromDate: string): Promise<void> {
   await tx
     .update(occurrenceOverrides)
     .set({ itemId: toId })
     .where(and(eq(occurrenceOverrides.itemId, fromId), gte(occurrenceOverrides.occurrenceDate, fromDate)));
 }
 
-async function findItems(executor: Executor, where?: SQL): Promise<Item[]> {
-  const rows = await executor.query.items.findMany({
-    where,
+async function findItems(tx: WorkspaceTx, where?: SQL): Promise<Item[]> {
+  const rows = await tx.query.items.findMany({
+    where: and(ownedBy(tx, items), where),
     with: { overrides: { orderBy: (override, { asc }) => [asc(override.occurrenceDate)] } },
   });
   return rows.map(toItem);

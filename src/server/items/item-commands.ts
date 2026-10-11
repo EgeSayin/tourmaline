@@ -2,7 +2,7 @@ import { isFixed, isTask, type Item, itemSpan, type NewItem } from "@/lib/items"
 import type { PlacementRef, PlacementStatus } from "@/lib/placements";
 import { occurrenceId, parseOccurrenceId } from "@/lib/recurrence";
 import type { TimeZone } from "@/lib/time/time-zone";
-import type { Transaction } from "@/server/db/connection";
+import type { WorkspaceTx } from "@/server/db/workspace-transaction";
 import {
   deleteItem,
   deleteOverrides,
@@ -18,7 +18,7 @@ import { checkOffToReview, deletePlacements, loadPlacement, updatePlacement } fr
 import { firstOccurrence } from "@/server/recurrence";
 import { localDate } from "@/server/time/temporal";
 
-export function createItem(tx: Transaction, item: NewItem): Promise<string> {
+export function createItem(tx: WorkspaceTx, item: NewItem): Promise<string> {
   return insertItem(tx, item);
 }
 
@@ -29,7 +29,7 @@ export function createItem(tx: Transaction, item: NewItem): Promise<string> {
  * Returns the id that now holds `item`, or `undefined` if no item has `id`.
  */
 export async function editItem(
-  tx: Transaction,
+  tx: WorkspaceTx,
   id: string,
   item: NewItem,
   now: Date,
@@ -53,7 +53,7 @@ export async function editItem(
  * Removes the stored item `id` from today on: a series that already occurred before today ends yesterday and keeps
  * its past; anything else is deleted. Returns `false` if no item has `id`.
  */
-export async function removeItem(tx: Transaction, id: string, now: Date, timeZone: TimeZone): Promise<boolean> {
+export async function removeItem(tx: WorkspaceTx, id: string, now: Date, timeZone: TimeZone): Promise<boolean> {
   const existing = await loadItem(tx, id);
   if (!existing) return false;
 
@@ -62,7 +62,7 @@ export async function removeItem(tx: Transaction, id: string, now: Date, timeZon
 }
 
 /** Skips the occurrence of series `itemId` on local date `date`. Returns `false` if no series has `itemId`. */
-export async function skipOccurrence(tx: Transaction, itemId: string, date: string): Promise<boolean> {
+export async function skipOccurrence(tx: WorkspaceTx, itemId: string, date: string): Promise<boolean> {
   const item = await loadItem(tx, itemId);
   if (!item?.recurrence) return false;
 
@@ -76,7 +76,7 @@ export async function skipOccurrence(tx: Transaction, itemId: string, date: stri
  * task.
  */
 export async function setTaskDone(
-  tx: Transaction,
+  tx: WorkspaceTx,
   itemId: string,
   date: string | null,
   done: boolean,
@@ -96,7 +96,7 @@ export async function setTaskDone(
  * missed. Returns `false` if there is no such placement.
  */
 export async function setPlacementStatus(
-  tx: Transaction,
+  tx: WorkspaceTx,
   ref: PlacementRef,
   status: PlacementStatus,
   now: Date,
@@ -114,7 +114,7 @@ export async function setPlacementStatus(
  * Returns `false` if there is no such placement.
  */
 export async function setPlacementPinned(
-  tx: Transaction,
+  tx: WorkspaceTx,
   ref: PlacementRef,
   pinned: boolean,
   now: Date,
@@ -133,7 +133,7 @@ export async function setPlacementPinned(
  * Replaces the stored item `id` with `item`. A task keeps all but its pending placements, so time already spent
  * on it still counts, and the rest are placed again; a fixed item has none. Overrides stay only while it recurs.
  */
-async function saveInPlace(tx: Transaction, id: string, item: NewItem, now: Date): Promise<void> {
+async function saveInPlace(tx: WorkspaceTx, id: string, item: NewItem, now: Date): Promise<void> {
   await deletePlacements(tx, id, isFixed(item) ? undefined : now);
   if (!item.recurrence) await deleteOverrides(tx, id);
   await updateItem(tx, id, item);
@@ -144,7 +144,7 @@ async function saveInPlace(tx: Transaction, id: string, item: NewItem, now: Date
  * returns `true`.
  */
 async function endSeriesBefore(
-  tx: Transaction,
+  tx: WorkspaceTx,
   item: Item,
   date: Temporal.PlainDate,
   now: Date,

@@ -3,7 +3,7 @@ import { describe, expect } from "vitest";
 import type { Placement } from "@/lib/placements";
 import type { Recurrence } from "@/lib/recurrence";
 import { type Calendar, loadCalendar } from "@/server/calendar";
-import type { Transaction } from "@/server/db/connection";
+import type { WorkspaceTx } from "@/server/db/workspace-transaction";
 import { insertItem } from "@/server/db/items-repository";
 import { insertPlacements } from "@/server/db/placements-repository";
 import { settings } from "@/server/db/schema";
@@ -22,7 +22,7 @@ const auto = (taskId: string, times: { start: Date; end: Date }): Placement => (
 const show = (calendar: Calendar | null) =>
   calendar!.blocks.map((block) => `${block.title} ${block.date} ${block.startMinute / 60}`);
 
-async function saveSettings(tx: Transaction) {
+async function saveSettings(tx: WorkspaceTx) {
   await tx.update(settings).set({ timeZone: "America/New_York", downtime: nightly(23 * 60, 10 * 60) });
 }
 

@@ -41,35 +41,61 @@ const auditColumns = {
     .$onUpdate(() => new Date()),
 };
 
-/** Single row (`id = 1`), created by a migration, while the app has one user. */
+/** Whose data a row is: a guest's in demo mode, otherwise the one personal workspace a migration creates. */
+export const workspaces = pgTable("workspaces", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  createdAt: timestamptz("created_at").notNull().defaultNow(),
+  lastUsedAt: timestamptz("last_used_at").notNull().defaultNow(),
+});
+
+/** A guest's session: only a hash of the token its cookie holds, so a leaked table opens no workspace. */
+export const sessions = pgTable("sessions", {
+  tokenHash: text("token_hash").primaryKey(),
+  workspaceId: uuid("workspace_id")
+    .notNull()
+    .references(() => workspaces.id, { onDelete: "cascade" }),
+  createdAt: timestamptz("created_at").notNull().defaultNow(),
+});
+
+const workspaceId = () =>
+  uuid("workspace_id")
+    .notNull()
+    .references(() => workspaces.id, { onDelete: "cascade" });
+
+/** One row per workspace. */
 export const settings = pgTable(
   "settings",
   {
-    id: integer("id").primaryKey().default(1),
+    workspaceId: workspaceId().primaryKey(),
     timeZone: text("time_zone").$type<TimeZone>().notNull().default(DEFAULT_SETTINGS.timeZone),
     downtime: jsonb("downtime").$type<Downtime>().notNull().default(DEFAULT_SETTINGS.downtime),
     focusCapsMin: jsonb("focus_caps_min").$type<FocusCaps>().notNull().default(DEFAULT_SETTINGS.focusCaps),
     ...auditColumns,
   },
   (t) => [
-    check("settings_single_row", sql`${t.id} = 1`),
     check("settings_focus_caps_week", sql`jsonb_array_length(${t.focusCapsMin}) = 7`),
     check("settings_downtime_week", sql`jsonb_array_length(${t.downtime}) = 7`),
   ],
 );
 
-export const categories = pgTable("categories", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  name: text("name").notNull().unique(),
-  color: categoryColorEnum("color").notNull(),
-  ...auditColumns,
-});
+export const categories = pgTable(
+  "categories",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    workspaceId: workspaceId(),
+    name: text("name").notNull(),
+    color: categoryColorEnum("color").notNull(),
+    ...auditColumns,
+  },
+  (t) => [unique("categories_workspace_name").on(t.workspaceId, t.name)],
+);
 
 /** One row per item. The other kind's columns stay null, which `items_kind` enforces along with each kind's own. */
 export const items = pgTable(
   "items",
   {
     id: uuid("id").primaryKey().defaultRandom(),
+    workspaceId: workspaceId(),
     title: text("title").notNull(),
     priority: priorityEnum("priority").notNull().default("normal"),
     timing: timingEnum("timing").notNull(),
@@ -93,6 +119,7 @@ export const items = pgTable(
     ...auditColumns,
   },
   (t) => [
+    index("items_workspace").on(t.workspaceId),
     check(
       "items_kind",
       sql`case ${t.timing}
@@ -130,6 +157,7 @@ export const placements = pgTable(
   "placements",
   {
     id: uuid("id").primaryKey().defaultRandom(),
+    workspaceId: workspaceId(),
     itemId: uuid("item_id")
       .notNull()
       .references(() => items.id, { onDelete: "cascade" }),
@@ -144,7 +172,7 @@ export const placements = pgTable(
   (t) => [
     check("placements_times", sql`${t.startAt} < ${t.endAt}`),
     unique("placements_task_start").on(t.itemId, t.occurrenceDate, t.startAt).nullsNotDistinct(),
-    index("placements_start_at").on(t.startAt),
+    index("placements_workspace_start_at").on(t.workspaceId, t.startAt),
   ],
 );
 

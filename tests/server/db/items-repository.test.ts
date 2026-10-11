@@ -3,7 +3,7 @@ import type { FixedItem, NewItem, NewTask } from "@/lib/items";
 import type { OccurrenceOverride } from "@/lib/recurrence";
 import { insertItem, loadItems, updateItem } from "@/server/db/items-repository";
 import { items } from "@/server/db/schema";
-import { dbTest as it } from "../../support/database";
+import { dbTest as it, savepoint } from "../../support/database";
 
 const lecture: Omit<FixedItem, "id" | "overrides"> = {
   title: "CS 101 lecture",
@@ -72,7 +72,9 @@ describe("items repository", () => {
 
   it("rejects task durations and chunk sizes off the 5-minute grid, and a kind's missing fields", async ({ tx }) => {
     await expect(
-      tx.transaction((inner) => inner.insert(items).values({ title: "No times", timing: "fixed" })),
+      savepoint(tx, (inner) =>
+        inner.insert(items).values({ workspaceId: inner.workspaceId, title: "No times", timing: "fixed" }),
+      ),
     ).rejects.toThrow();
     const offGrid: NewItem[] = [
       { ...essay, durationMin: 62 },
@@ -80,7 +82,7 @@ describe("items repository", () => {
       { ...essay, split: { minChunkMin: 30, maxChunkMin: 92 } },
     ];
     for (const item of offGrid) {
-      await expect(tx.transaction((inner) => insertItem(inner, item))).rejects.toThrow();
+      await expect(savepoint(tx, (inner) => insertItem(inner, item))).rejects.toThrow();
     }
     await expect(insertItem(tx, essay)).resolves.toBeTypeOf("string");
   });

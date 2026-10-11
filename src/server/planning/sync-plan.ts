@@ -3,7 +3,7 @@ import { isPending, type Placement } from "@/lib/placements";
 import { RECURRENCE_LOOKAHEAD_DAYS, type SchedulerSettings } from "@/lib/settings";
 import { addMinutes } from "@/lib/time/duration";
 import { earlier, type Interval, later } from "@/lib/time/interval";
-import type { Executor } from "@/server/db/connection";
+import type { WorkspaceTx } from "@/server/db/workspace-transaction";
 import { loadPlacements, replacePendingPlacements } from "@/server/db/placements-repository";
 import { expandOccurrences } from "@/server/recurrence";
 import { replan } from "@/server/scheduler/replan";
@@ -21,12 +21,7 @@ export interface Plan {
 }
 
 /** Plans from `now` (see `replan`) and saves the plan if it changed. The plan runs to the latest one-off date; task occurrences within `RECURRENCE_LOOKAHEAD_DAYS` are planned up to their deadline. */
-export async function syncPlan(
-  executor: Executor,
-  items: Item[],
-  settings: SchedulerSettings,
-  now: Date,
-): Promise<Plan> {
+export async function syncPlan(tx: WorkspaceTx, items: Item[], settings: SchedulerSettings, now: Date): Promise<Plan> {
   const expand = <T extends Item>(list: T[], range: { start: Date; end: Date }) =>
     list.flatMap((item) => expandOccurrences(item, range, settings.timeZone));
 
@@ -42,7 +37,7 @@ export async function syncPlan(
   // Earlier placements matter as time already spent on a planned task, and today's toward today's focus cap.
   const todayStart = startOfDay(localDate(now, settings.timeZone), settings.timeZone);
   const historyStart = tasks.reduce((start, task) => earlier(start, task.earliestStart), todayStart);
-  const existing = await loadPlacements(executor, { start: historyStart, end: horizon.end });
+  const existing = await loadPlacements(tx, { start: historyStart, end: horizon.end });
   const { placements, unplaced } = replan({
     horizon,
     fixedItems: expand(items.filter(isFixed), { start: todayStart, end: horizon.end }),
@@ -53,7 +48,7 @@ export async function syncPlan(
 
   const pending = (list: Placement[]) => list.filter((p) => isPending(p, now));
   if (!samePlacements(pending(existing), pending(placements))) {
-    await executor.transaction((tx) => replacePendingPlacements(tx, now, placements));
+    await replacePendingPlacements(tx, now, placements);
   }
   return { tasks, placements, unplaced };
 }

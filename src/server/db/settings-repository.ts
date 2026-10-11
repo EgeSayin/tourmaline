@@ -3,36 +3,39 @@ import type { PgColumn } from "drizzle-orm/pg-core";
 import type { SchedulerSettings } from "@/lib/settings";
 import { isTimeZone, type TimeZone } from "@/lib/time/time-zone";
 import { sameLocalTime } from "@/server/time/temporal";
-import type { Executor } from "./connection";
+import { ownedBy, type WorkspaceTx } from "./workspace-transaction";
 import { items, placements, settings } from "./schema";
 
-export async function loadSettings(executor: Executor): Promise<SchedulerSettings> {
-  const row = (await executor.query.settings.findFirst())!;
+export async function loadSettings(tx: WorkspaceTx): Promise<SchedulerSettings> {
+  const row = (await tx.query.settings.findFirst({ where: ownedBy(tx, settings) }))!;
   if (!isTimeZone(row.timeZone)) throw new Error(`Unsupported time zone in settings: "${row.timeZone}"`);
   return { timeZone: row.timeZone, downtime: row.downtime, focusCaps: row.focusCapsMin };
 }
 
 export async function saveWeekSettings(
-  executor: Executor,
+  tx: WorkspaceTx,
   { downtime, focusCaps }: Pick<SchedulerSettings, "downtime" | "focusCaps">,
 ): Promise<void> {
-  await executor.update(settings).set({ downtime, focusCapsMin: focusCaps });
+  await tx.update(settings).set({ downtime, focusCapsMin: focusCaps }).where(ownedBy(tx, settings));
 }
 
 /** Switches to `timeZone`, keeping every item's and block's local date and time: a 09:00 class stays at 09:00. */
-export async function moveToTimeZone(executor: Executor, timeZone: TimeZone): Promise<void> {
-  const { timeZone: from } = await loadSettings(executor);
+export async function moveToTimeZone(tx: WorkspaceTx, timeZone: TimeZone): Promise<void> {
+  const { timeZone: from } = await loadSettings(tx);
   const shift = (column: PgColumn) => sql`(${column} at time zone ${from}) at time zone ${timeZone}`;
-  await executor.update(items).set({
-    startAt: shift(items.startAt),
-    endAt: shift(items.endAt),
-    earliestStart: shift(items.earliestStart),
-    deadline: shift(items.deadline),
-  });
+  await tx
+    .update(items)
+    .set({
+      startAt: shift(items.startAt),
+      endAt: shift(items.endAt),
+      earliestStart: shift(items.earliestStart),
+      deadline: shift(items.deadline),
+    })
+    .where(ownedBy(tx, items));
   // Reinserted rather than updated: shifting rows one by one could briefly clash on a task's unique start.
-  const moved = await executor.delete(placements).returning();
+  const moved = await tx.delete(placements).where(ownedBy(tx, placements)).returning();
   if (moved.length > 0) {
-    await executor.insert(placements).values(
+    await tx.insert(placements).values(
       moved.map((placement) => ({
         ...placement,
         startAt: sameLocalTime(placement.startAt, from, timeZone),
@@ -40,5 +43,5 @@ export async function moveToTimeZone(executor: Executor, timeZone: TimeZone): Pr
       })),
     );
   }
-  await executor.update(settings).set({ timeZone });
+  await tx.update(settings).set({ timeZone }).where(ownedBy(tx, settings));
 }

@@ -6,13 +6,12 @@ import { ScheduleLegend } from "@/components/schedule/schedule-legend";
 import { Workspace } from "@/components/workspace/workspace";
 import { loadCalendar } from "@/server/calendar";
 import { parseDateParam } from "@/server/time/days";
-import { db } from "@/server/db/client";
-import { inPlanTransaction } from "@/server/db/plan-lock";
+import { withWorkspace } from "@/server/workspaces/current-workspace";
 
 export default async function Home({ searchParams }: PageProps<"/">) {
   await connection();
   const shownDate = parseDateParam((await searchParams).date);
-  const calendar = await inPlanTransaction(db, (tx) => loadCalendar(tx, new Date(), shownDate));
+  const calendar = await withWorkspace((tx) => loadCalendar(tx, new Date(), shownDate));
 
   return (
     <Workspace
