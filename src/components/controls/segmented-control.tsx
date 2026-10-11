@@ -17,6 +17,7 @@ export function SegmentedControl<T extends string>({
   size = "sm",
   className,
   optionClassName,
+  style,
 }: {
   label: string;
   options: readonly Segment<T>[];
@@ -25,12 +26,14 @@ export function SegmentedControl<T extends string>({
   size?: "default" | "sm" | "icon-sm";
   className?: string;
   optionClassName?: string;
+  style?: React.CSSProperties;
 }) {
   return (
     <div
       role="radiogroup"
       aria-label={label}
       className={cn(!optionClassName && "gap-1 rounded-lg border bg-card p-1", className)}
+      style={style}
     >
       {options.map((option) => (
         <button

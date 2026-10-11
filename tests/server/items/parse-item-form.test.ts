@@ -14,8 +14,9 @@ describe("parseItemForm", () => {
         {
           timing: "fixed",
           title: "  CS 101 lecture ",
-          start: "2026-10-05T11:00",
-          end: "2026-10-05T12:15",
+          date: "2026-10-05",
+          startTime: "11:00",
+          endTime: "12:15",
           location: "",
           bufferBeforeMin: "15",
           bufferAfterMin: "",
@@ -38,6 +39,14 @@ describe("parseItemForm", () => {
         bufferAfterMin: 0,
       },
     });
+    // Ending at an earlier time means ending the next day.
+    expect(
+      parseItemForm(
+        { timing: "fixed", title: "Shift", date: "2026-10-05", startTime: "22:00", endTime: "02:30" },
+        tz,
+        now,
+      ),
+    ).toMatchObject({ item: { start: new Date("2026-10-06T02:00Z"), end: new Date("2026-10-06T06:30Z") } });
 
     expect(
       parseItemForm(
@@ -74,10 +83,13 @@ describe("parseItemForm", () => {
 
   it("reports field errors for invalid input", () => {
     expect(
-      parseItemForm({ timing: "fixed", title: " ", start: "2026-10-05T12:00", end: "2026-10-05T11:00" }, tz, now),
+      parseItemForm({ timing: "fixed", title: " ", date: "2026-10-05", startTime: "12:00", endTime: "12:00" }, tz, now),
     ).toEqual({
       ok: false,
-      errors: { title: ["Enter a title"], end: ["End must be after start"] },
+      errors: { title: ["Enter a title"], endTime: ["End must differ from start"] },
+    });
+    expect(parseItemForm({ timing: "fixed", title: "Party" }, tz, now)).toMatchObject({
+      errors: { date: ["Enter a date"], startTime: ["Enter a time"], endTime: ["Enter a time"] },
     });
 
     expect(
@@ -85,7 +97,7 @@ describe("parseItemForm", () => {
         {
           timing: "flexible",
           title: "Essay",
-          durationMin: "42",
+          durationMin: "1h 30m",
           earliestStart: "2026-10-05T09:00",
           deadline: "tomorrow",
           minChunkMin: "30",
@@ -95,7 +107,7 @@ describe("parseItemForm", () => {
       ),
     ).toMatchObject({
       ok: false,
-      errors: { durationMin: ["Use multiples of 5 minutes"], deadline: ["Enter a date and time"] },
+      errors: { durationMin: ["Enter a duration, like 1h 30m"], deadline: ["Enter a date and time"] },
     });
 
     const task = { timing: "flexible", title: "Essay", durationMin: "60" };
@@ -106,7 +118,7 @@ describe("parseItemForm", () => {
     });
     expect(parseItemForm({ ...dueTomorrow, minChunkMin: "45", maxChunkMin: "30" }, tz, now)).toEqual({
       ok: false,
-      errors: { maxChunkMin: ["Maximum chunk must be at least the minimum"] },
+      errors: { maxChunkMin: ["Longest block must be at least the shortest"] },
     });
 
     for (const earliestStart of ["", "2026-10-04T09:00"]) {
@@ -138,8 +150,9 @@ describe("parseItemForm", () => {
     const lecture = {
       timing: "fixed",
       title: "Lecture",
-      start: "2026-10-05T11:00",
-      end: "2026-10-05T12:15",
+      date: "2026-10-05",
+      startTime: "11:00",
+      endTime: "12:15",
       repeat: "weekly",
       interval: "2",
       weekdays: "3,1",
@@ -173,7 +186,7 @@ describe("parseItemForm", () => {
   });
 
   it("reports invalid repeat rules", () => {
-    const lecture = { timing: "fixed", title: "Lecture", start: "2026-10-05T11:00", end: "2026-10-05T12:15" };
+    const lecture = { timing: "fixed", title: "Lecture", date: "2026-10-05", startTime: "11:00", endTime: "12:15" };
     expect(parseItemForm({ ...lecture, repeat: "weekly", weekdays: "", interval: "0" }, tz, now)).toEqual({
       ok: false,
       errors: { interval: [expect.any(String)], weekdays: ["Choose at least one day"] },
@@ -195,7 +208,7 @@ describe("parseItemForm", () => {
       ok: false,
       errors: {
         title: [expect.any(String)],
-        maxChunkMin: ["Set both chunk sizes or neither"],
+        maxChunkMin: ["Enter both block lengths"],
         durationMin: [expect.any(String)],
         earliestStart: [expect.any(String)],
         weekdays: [expect.any(String)],

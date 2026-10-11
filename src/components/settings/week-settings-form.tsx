@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { FormInput, FormSection, FormStateProvider } from "@/components/forms/form-fields";
+import { FormDurationInput, FormSection, FormStateProvider } from "@/components/forms/form-fields";
 import { DowntimeBands } from "@/components/schedule/downtime-bands";
 import { HourAxis } from "@/components/schedule/hour-axis";
 import { hourLines, timeScale } from "@/components/schedule/time-scale";
@@ -54,7 +54,7 @@ export function WeekSettingsForm({ downtime, focusCaps }: Pick<SchedulerSettings
     Object.fromEntries(
       WEEKDAYS.map((weekday) => {
         const cap = focusCaps[weekday - 1];
-        return [focusCapField(weekday), cap === null ? "" : String(cap / 60)];
+        return [focusCapField(weekday), cap === null ? "" : String(cap)];
       }),
     ),
   );
@@ -86,8 +86,8 @@ export function WeekSettingsForm({ downtime, focusCaps }: Pick<SchedulerSettings
         <FormSection title="Week">
           <p className="text-sm text-muted-foreground">
             Paint downtime by pressing and dragging; tasks are never planned in it. Drag from painted time to clear it.
-            Under each day is its focus cap: the most hours of fixed items and task blocks to plan into it. Tasks go
-            over it only to finish before their deadline. Leave it empty for no cap.
+            Under each day is its focus cap, like 6h: the most time of fixed items and task blocks to plan into it.
+            Tasks go over it only to finish before their deadline. Leave it empty for no cap.
           </p>
           <div
             className="grid overflow-hidden rounded-xl border bg-card [--axis:2.75rem] md:[--axis:3.5rem]"
@@ -97,18 +97,13 @@ export function WeekSettingsForm({ downtime, focusCaps }: Pick<SchedulerSettings
               aria-hidden
               className="flex items-end justify-end border-b pr-1 pb-2 text-right text-[11px] leading-tight text-muted-foreground md:pr-2 md:pb-3"
             >
-              Focus cap (h)
+              Focus cap
             </div>
             {WEEKDAYS.map((weekday) => (
               <div key={weekday} className="border-b border-l p-1 text-center md:p-2">
-                <FormInput
+                <FormDurationInput
                   name={focusCapField(weekday)}
                   label={WEEKDAY_NAMES[weekday - 1]}
-                  type="number"
-                  inputMode="decimal"
-                  min={0}
-                  max={24}
-                  step={0.25}
                   placeholder="–"
                   className="px-1 text-center"
                 />

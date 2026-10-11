@@ -8,7 +8,7 @@ test.describe("scheduled blocks", () => {
     const title = `E2E flashcards (${testInfo.project.name})`;
     const form = await openAddItemForm(page);
     await form.getByLabel("Title").fill(title);
-    await form.getByLabel("Duration (min)").fill("30");
+    await form.getByLabel("Duration", { exact: true }).fill("30");
     await form.getByLabel("Not before", { exact: true }).fill(localDateTime(1, "10:00"));
     await form.getByLabel("Due").fill(localDateTime(1, "22:00"));
     await form.getByRole("button", { name: "Add item" }).click();

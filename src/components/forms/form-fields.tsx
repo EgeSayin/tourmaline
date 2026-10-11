@@ -7,6 +7,9 @@ import { cn } from "@/lib/utils";
 import { Field, FieldDescription, FieldError, FieldLabel, FieldLegend, FieldSet } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
+import { type Segment, SegmentedControl } from "@/components/controls/segmented-control";
+import { parseDuration } from "@/lib/time/duration";
+import { formatDuration } from "@/lib/time/format";
 
 interface FormState {
   /** Submitted values, used as defaults so a failed submission doesn't clear the form. */
@@ -56,7 +59,12 @@ function FormField({ name, label, description, children }: FieldProps & { childr
   );
 }
 
-/** `clearable` adds a button that empties the input: WebKit offers no way to empty a date or time input. */
+const PICKER_TYPES = ["date", "time", "datetime-local"];
+
+/**
+ * `clearable` adds a button that empties the input: WebKit offers no way to empty a date or time input. An empty
+ * date or time input shows its `placeholder`, which browsers otherwise ignore there; WebKit shows today instead.
+ */
 export function FormInput({
   name,
   label,
@@ -71,22 +79,30 @@ export function FormInput({
   const [initialValue] = useState(values[name]);
   const [empty, setEmpty] = useState(!initialValue);
   const ref = useRef<HTMLInputElement>(null);
+  const hint = empty && PICKER_TYPES.includes(props.type ?? "") ? props.placeholder : undefined;
   const input = (
-    <Input
-      ref={ref}
-      id={name}
-      name={name}
-      defaultValue={initialValue}
-      aria-invalid={errors[name] ? true : undefined}
-      // Styled date and time inputs in WebKit show the current time when empty, in full colour unless muted here.
-      data-empty={empty ? true : undefined}
-      onInput={(event) => {
-        setEmpty(!event.currentTarget.value);
-        onInput?.(event);
-      }}
-      className={cn("data-empty:text-muted-foreground", className)}
-      {...props}
-    />
+    <div className={cn("relative min-w-0", clearable && "flex-1")}>
+      <Input
+        ref={ref}
+        id={name}
+        name={name}
+        defaultValue={initialValue}
+        aria-invalid={errors[name] ? true : undefined}
+        // Styled date and time inputs in WebKit show the current time when empty, in full colour unless muted here.
+        data-empty={empty ? true : undefined}
+        onInput={(event) => {
+          setEmpty(!event.currentTarget.value);
+          onInput?.(event);
+        }}
+        className={cn("peer", hint ? "not-focus:text-transparent" : "data-empty:text-muted-foreground", className)}
+        {...props}
+      />
+      {hint && (
+        <span className="pointer-events-none absolute inset-y-0 left-2.5 flex items-center text-sm text-muted-foreground peer-focus:hidden">
+          {hint}
+        </span>
+      )}
+    </div>
   );
 
   return (
@@ -112,6 +128,96 @@ export function FormInput({
         input
       )}
     </FormField>
+  );
+}
+
+/**
+ * Takes a duration as text, such as "1h 30m" or "90", and submits it in minutes; text that isn't a duration is
+ * submitted as is, for the server to reject. `presets` are minutes offered as buttons.
+ */
+export function FormDurationInput({
+  name,
+  label,
+  description,
+  placeholder,
+  presets = [],
+  className,
+}: FieldProps & { placeholder?: string; presets?: number[]; className?: string }) {
+  const { values, errors } = use(FormStateContext);
+  const [text, setText] = useState(() => {
+    const value = values[name] ?? "";
+    return /^\d+$/.test(value) ? formatDuration(Number(value)) : value;
+  });
+  const minutes = parseDuration(text);
+
+  return (
+    <FormField name={name} label={label} description={description}>
+      <Input
+        id={name}
+        value={text}
+        placeholder={placeholder}
+        autoComplete="off"
+        aria-invalid={errors[name] ? true : undefined}
+        onChange={(event) => setText(event.target.value)}
+        onBlur={() => minutes !== null && setText(formatDuration(minutes))}
+        className={className}
+      />
+      <input type="hidden" name={name} value={minutes ?? text} />
+      {presets.length > 0 && (
+        <div className="flex flex-wrap gap-1">
+          {presets.map((preset) => (
+            <Button
+              key={preset}
+              type="button"
+              variant="outline"
+              size="xs"
+              onClick={() => setText(formatDuration(preset))}
+            >
+              {formatDuration(preset)}
+            </Button>
+          ))}
+        </div>
+      )}
+    </FormField>
+  );
+}
+
+/** One of a few `options` as a row of buttons, submitted as `name` when given. */
+export function FormChoice<T extends string>({
+  name,
+  label,
+  description,
+  options,
+  defaultValue,
+  onValueChange,
+}: {
+  name?: string;
+  label: string;
+  description?: string;
+  options: readonly Segment<T>[];
+  defaultValue: T;
+  onValueChange?: (value: T) => void;
+}) {
+  const submitted = use(FormStateContext).values[name ?? ""];
+  const [value, setValue] = useState(options.find((option) => option.value === submitted)?.value ?? defaultValue);
+
+  return (
+    <FieldSet className="gap-2">
+      <FieldLegend variant="label">{label}</FieldLegend>
+      {name && <input type="hidden" name={name} value={value} />}
+      <SegmentedControl
+        label={label}
+        options={options}
+        value={value}
+        onChange={(next) => {
+          setValue(next);
+          onValueChange?.(next);
+        }}
+        className="grid"
+        style={{ gridTemplateColumns: `repeat(${options.length}, minmax(0, 1fr))` }}
+      />
+      {description && <FieldDescription>{description}</FieldDescription>}
+    </FieldSet>
   );
 }
 

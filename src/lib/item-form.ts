@@ -13,9 +13,11 @@ const toNumber = (value: unknown) => {
 
 /** Local wall-clock time as sent by `<input type="datetime-local">`, e.g. "2026-10-01T14:00". */
 const localDateTime = z.iso.datetime({ local: true, error: "Enter a date and time" });
-const minutes = (min: number) => z.number({ error: "Enter a whole number of minutes" }).int().min(min);
+const localTime = z.iso.time({ precision: -1, error: "Enter a time" });
+const DURATION_ERROR = "Enter a duration, like 1h 30m";
+const minutes = (min: number) => z.number({ error: DURATION_ERROR }).int().min(min);
 const taskMinutes = z
-  .number({ error: "Enter a whole number of minutes" })
+  .number({ error: DURATION_ERROR })
   .min(SLOT_MIN)
   .multipleOf(SLOT_MIN, `Use multiples of ${SLOT_MIN} minutes`);
 
@@ -52,13 +54,14 @@ const fixedForm = z
   .object({
     ...shared,
     timing: z.literal("fixed"),
-    start: localDateTime,
-    end: localDateTime,
+    date: z.iso.date({ error: "Enter a date" }),
+    startTime: localTime,
+    endTime: localTime,
     location: z.preprocess(emptyToUndefined, z.string().trim().max(200).optional()),
     bufferBeforeMin: z.preprocess(toNumber, minutes(0).default(0)),
     bufferAfterMin: z.preprocess(toNumber, minutes(0).default(0)),
   })
-  .refine((form) => form.start < form.end, { path: ["end"], message: "End must be after start" })
+  .refine((form) => form.startTime !== form.endTime, { path: ["endTime"], message: "End must differ from start" })
   .refine(weekdaysChosen.check, weekdaysChosen.params);
 
 const flexibleForm = z
@@ -85,14 +88,14 @@ const flexibleForm = z
   })
   .refine((form) => (form.minChunkMin === undefined) === (form.maxChunkMin === undefined), {
     path: ["maxChunkMin"],
-    message: "Set both chunk sizes or neither",
+    message: "Enter both block lengths",
     ...evenIfInvalid,
   })
   .refine(
     (form) => form.minChunkMin === undefined || form.maxChunkMin === undefined || form.minChunkMin <= form.maxChunkMin,
     {
       path: ["maxChunkMin"],
-      message: "Maximum chunk must be at least the minimum",
+      message: "Longest block must be at least the shortest",
     },
   );
 
@@ -115,8 +118,9 @@ export function itemToFormValues(item: Item, timeZone: TimeZone): Record<string,
   if (item.timing === "fixed") {
     return {
       ...shared,
-      start: local(item.start),
-      end: local(item.end),
+      date: local(item.start).slice(0, 10),
+      startTime: local(item.start).slice(11, 16),
+      endTime: local(item.end).slice(11, 16),
       location: item.location ?? "",
       bufferBeforeMin: String(item.bufferBeforeMin),
       bufferAfterMin: String(item.bufferAfterMin),

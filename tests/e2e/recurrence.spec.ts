@@ -27,8 +27,9 @@ test.describe("recurring items", () => {
     const form = await openAddItemForm(page);
     await form.getByRole("radio", { name: "At a set time" }).click();
     await form.getByLabel("Title").fill(title);
-    await form.getByLabel("Starts").fill(localDateTime(-1, slot.start));
-    await form.getByLabel("Ends").fill(localDateTime(-1, slot.end));
+    await form.getByLabel("Date", { exact: true }).fill(String(localDate(-1)));
+    await form.getByLabel("Starts").fill(slot.start);
+    await form.getByLabel("Ends").fill(slot.end);
     await form.getByLabel("How often").selectOption("weekly");
     await form.getByRole("button", { name: "Add item" }).click();
     await expect(form.getByText("Choose at least one day")).toBeVisible();
@@ -51,7 +52,8 @@ test.describe("recurring items", () => {
     await blockPanel(page, testInfo).getByRole("link", { name: "Open task" }).click();
     const panel = itemEditor(page);
     const ended = Temporal.PlainTime.compare(Temporal.Now.plainTimeISO(TIME_ZONE), slot.end) >= 0;
-    await expect(panel.getByLabel("Starts")).toHaveValue(localDateTime(ended ? 1 : 0, slot.start));
+    await expect(panel.getByLabel("Date", { exact: true })).toHaveValue(String(localDate(ended ? 1 : 0)));
+    await expect(panel.getByLabel("Starts")).toHaveValue(slot.start);
     await expect(panel.getByLabel("How often")).toHaveValue("weekly");
     await expect(panel.getByLabel("Until", { exact: true })).toHaveValue(String(localDate(1)));
     await expect(panel.getByRole("button", { name: weekdayLabel(0), exact: true })).toHaveAttribute(
@@ -84,7 +86,7 @@ test.describe("recurring items", () => {
     const title = `E2E night shift (${testInfo.project.name})`;
     const form = await openAddItemForm(page);
     await form.getByLabel("Title").fill(title);
-    await form.getByLabel("Duration (min)").fill(String(15 * 60)); // longer than any free stretch in a day
+    await form.getByLabel("Duration", { exact: true }).fill(String(15 * 60)); // longer than any free stretch in a day
     await form.getByLabel("How often").selectOption("daily");
     await expect(form.getByLabel("Due")).toHaveCount(0);
     // From yesterday, so one occurrence always covers now.

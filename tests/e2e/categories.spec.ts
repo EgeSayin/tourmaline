@@ -38,7 +38,7 @@ test.describe("categories", () => {
     const form = await openAddItemForm(page);
     await form.getByLabel("Title").fill(item);
     await form.getByLabel("Category").selectOption({ label: `${name} renamed` });
-    await form.getByLabel("Duration (min)").fill("30");
+    await form.getByLabel("Duration", { exact: true }).fill("30");
     await form.getByLabel("Due").fill(localDateTime(2, "20:00"));
     await form.getByRole("button", { name: "Add item" }).click();
     await expect(form).toBeHidden();

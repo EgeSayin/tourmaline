@@ -8,7 +8,7 @@ test.describe("adding items", () => {
     await form.getByRole("button", { name: "Add item" }).click();
 
     await expect(form.getByText("Enter a title")).toBeVisible();
-    await expect(form.getByText("Enter a whole number of minutes")).toBeVisible();
+    await expect(form.getByText("Enter a duration, like 1h 30m")).toBeVisible();
     await expect(form.getByText("Enter a date and time")).toBeVisible();
   });
 
@@ -24,7 +24,7 @@ test.describe("adding items", () => {
     await expect(clearNotBefore).toBeDisabled();
 
     await form.getByLabel("Title").fill(title);
-    await form.getByLabel("Duration (min)").fill("60");
+    await form.getByLabel("Duration", { exact: true }).fill("60");
     await form.getByLabel("Due").fill(localDateTime(2, "20:00"));
     await form.getByRole("button", { name: "Add item" }).click();
 
@@ -40,7 +40,7 @@ test.describe("adding items", () => {
     await form.getByRole("radio", { name: "At a set time" }).click();
     await expect(form.getByRole("radio", { name: "At a set time" })).toBeChecked();
     await expect(form.getByRole("radio", { name: "Find time for it" })).not.toBeChecked();
-    await expect(form.getByLabel("Priority")).toHaveValue("mandatory");
+    await expect(form.getByRole("radio", { name: "Mandatory" })).toHaveAttribute("aria-checked", "true");
     await form.getByRole("link", { name: "Close" }).click();
 
     const slot = earlySlot(testInfo, 0);

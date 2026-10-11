@@ -10,7 +10,8 @@ import { toDate } from "@/server/time/temporal";
 export type ParsedItemForm = { ok: true; item: NewItem } | { ok: false; errors: FormErrors };
 
 /**
- * Validates submitted form fields and converts their local times to exact times in `timeZone`.
+ * Validates submitted form fields and converts their local times to exact times in `timeZone`. A fixed item ending at
+ * an earlier time than it starts ends the next day.
  * A one-off flexible task without an earliest start starts at `now`, and its deadline must be after `now`.
  * A recurring item must occur at least once; a recurring task is due when its first occurrence's window ends.
  */
@@ -30,14 +31,15 @@ export function parseItemForm(fields: Record<string, unknown>, timeZone: TimeZon
   const neverOccurs: ParsedItemForm = { ok: false, errors: { until: ["The series ends before it first occurs"] } };
 
   if (form.timing === "fixed") {
+    const endsNextDay = form.endTime < form.startTime;
     const item: NewItem = {
       title: form.title,
       priority: form.priority,
       timing: "fixed",
       recurrence,
       categoryId: form.category ?? null,
-      start: at(form.start),
-      end: at(form.end),
+      start: at(`${form.date}T${form.startTime}`),
+      end: at(`${endsNextDay ? Temporal.PlainDate.from(form.date).add({ days: 1 }) : form.date}T${form.endTime}`),
       location: form.location ?? null,
       bufferBeforeMin: form.bufferBeforeMin,
       bufferAfterMin: form.bufferAfterMin,

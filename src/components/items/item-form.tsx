@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { CategorySelect } from "./category-select";
 import { DeleteButton } from "@/components/forms/delete-button";
-import { FormInput, FormSelect, FormStateProvider } from "@/components/forms/form-fields";
+import { FormChoice, FormInput, FormStateProvider } from "@/components/forms/form-fields";
 import { Button } from "@/components/ui/button";
 import { FieldGroup } from "@/components/ui/field";
 import { itemToFormValues, type Repeat } from "@/lib/item-form";
@@ -54,10 +54,15 @@ export function ItemForm({
         <FieldGroup>
           <FormInput name="title" label="Title" autoFocus={!item} />
           <CategorySelect categories={categories} />
-          <FormSelect
+          <FormChoice
             key={timing}
             name="priority"
             label="Priority"
+            description={
+              timing === "fixed"
+                ? "Below mandatory, it shows as optional, with a dashed outline."
+                : "When time runs out, lower priority tasks move first."
+            }
             options={PRIORITY_OPTIONS}
             defaultValue={timing === "fixed" ? "mandatory" : "normal"}
           />

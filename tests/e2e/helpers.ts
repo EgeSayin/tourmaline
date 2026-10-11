@@ -53,8 +53,9 @@ export async function addFixedItemToday(
   const form = await openAddItemForm(page);
   await form.getByRole("radio", { name: "At a set time" }).click();
   await form.getByLabel("Title").fill(title);
-  await form.getByLabel("Starts").fill(localDateTime(0, slot.start));
-  await form.getByLabel("Ends").fill(localDateTime(0, slot.end));
+  await form.getByLabel("Date", { exact: true }).fill(String(localDate(0)));
+  await form.getByLabel("Starts").fill(slot.start);
+  await form.getByLabel("Ends").fill(slot.end);
   await form.getByRole("button", { name: "Add item" }).click();
   await expect(form).toBeHidden();
   await page.goto("/");
