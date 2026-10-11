@@ -29,9 +29,7 @@ const placementRef = z.object({
 });
 
 async function loadTimeZone() {
-  const settings = await loadSettings(db);
-  if (!settings) throw new Error("Settings must be saved before editing items");
-  return settings.timeZone;
+  return (await loadSettings(db)).timeZone;
 }
 
 async function parseSubmission(formData: FormData, now: Date) {

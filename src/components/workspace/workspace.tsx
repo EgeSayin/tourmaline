@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { SegmentedControl } from "@/components/controls/segmented-control";
 import { BlockPanel } from "@/components/schedule/block-panel";
-import { useBlockPanel } from "@/components/schedule/block-panel-state";
+import { BlockPanelProvider, useBlockPanel } from "@/components/schedule/block-panel-state";
 import { ReviewList } from "@/components/schedule/review-list";
 import { TaskQueue } from "@/components/schedule/task-queue";
 import { type AppPage, AppShell, PAGES } from "@/components/shell/app-shell";
@@ -21,18 +21,25 @@ const PHONE_TAB =
  * review while it has any) and, on the right, `editor` when given, or else the panel for the block clicked.
  * Phones switch pages and the lists at the bottom; an open editor takes the screen until the lists are shown.
  */
-export function Workspace({
-  page,
-  calendar,
-  main,
-  editor = null,
-}: {
+export function Workspace(props: WorkspaceProps) {
+  return (
+    <BlockPanelProvider timeZone={props.calendar.timeZone}>
+      <main>
+        <WorkspaceShell {...props} />
+      </main>
+    </BlockPanelProvider>
+  );
+}
+
+interface WorkspaceProps {
   page: AppPage;
   calendar: Calendar;
   /** The page's own header first, then its content. */
   main: React.ReactNode;
   editor?: React.ReactNode;
-}) {
+}
+
+function WorkspaceShell({ page, calendar, main, editor = null }: WorkspaceProps) {
   const { review, queue, timeZone } = calendar;
   const [phoneView, setPhoneView] = useState<"main" | "lists">("main");
   const [list, setList] = useState<List>(review.length > 0 ? "review" : "queue");

@@ -127,6 +127,13 @@
       "when": 1791749268205,
       "tag": "0017_drop_placement_source",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1791749623413,
+      "tag": "0018_default_settings_row",
+      "breakpoints": true
     }
   ]
 }

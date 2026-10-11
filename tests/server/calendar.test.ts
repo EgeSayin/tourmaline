@@ -23,14 +23,12 @@ const show = (calendar: Calendar | null) =>
 
 async function saveSettings(tx: Transaction) {
   await tx
-    .insert(settings)
-    .values({ timeZone: "America/New_York", downtimeStartMinute: 23 * 60, downtimeEndMinute: 10 * 60 });
+    .update(settings)
+    .set({ timeZone: "America/New_York", downtimeStartMinute: 23 * 60, downtimeEndMinute: 10 * 60 });
 }
 
 describe("loadCalendar", () => {
-  it("returns null without settings, otherwise the shown days with their blocks and the queue", async ({ tx }) => {
-    expect(await loadCalendar(tx, wednesdayNoon)).toBeNull();
-
+  it("returns the shown days with their blocks and the queue", async ({ tx }) => {
     await saveSettings(tx);
     await insertItem(tx, fixed("Lecture", utc("2026-10-07T17:00", "2026-10-07T18:00"))); // Wed 13:00–14:00
     await insertItem(tx, flexible("Essay", 90, utc("2026-10-05T04:00", "2026-10-09T21:00"))); // due Fri

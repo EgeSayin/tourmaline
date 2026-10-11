@@ -78,19 +78,14 @@ export interface Calendar {
 
 /**
  * Brings the plan up to date (see `syncPlan`) and returns the week and the `PHONE_DAY_COUNT` days from `shownDate`
- * (default: today), with their saved placements, the lists and every item. `null` if no settings are saved yet.
+ * (default: today), with their saved placements, the lists and every item.
  */
-export async function loadCalendar(
-  executor: Executor,
-  now: Date,
-  shownDate?: Temporal.PlainDate,
-): Promise<Calendar | null> {
+export async function loadCalendar(executor: Executor, now: Date, shownDate?: Temporal.PlainDate): Promise<Calendar> {
   const [settings, items, categories] = await Promise.all([
     loadSettings(executor),
     loadItems(executor),
     loadCategories(executor),
   ]);
-  if (!settings) return null;
   const { timeZone } = settings;
   const plan = await syncPlan(executor, items, settings, now);
 

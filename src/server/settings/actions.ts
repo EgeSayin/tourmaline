@@ -15,7 +15,7 @@ export async function saveFocusCapsAction(_previous: FormState, formData: FormDa
   if (!parsed.ok) return { status: "invalid", errors: parsed.errors, fields };
 
   await inPlanTransaction(db, async (tx) => {
-    if (!(await saveFocusCaps(tx, parsed.focusCaps))) throw new Error("Settings must be saved before focus caps");
+    await saveFocusCaps(tx, parsed.focusCaps);
     // Kept blocks stay where they are while they fit, so only dropping them spreads the plan under the new caps.
     await replacePendingPlacements(tx, new Date(), []);
   });

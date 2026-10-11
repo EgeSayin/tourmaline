@@ -3,10 +3,9 @@ import { isTimeZone } from "@/lib/time/time-zone";
 import type { Executor } from "./connection";
 import { settings } from "./schema";
 
-/** The saved settings, or `null` if none exist yet. Throws if the stored time zone isn't supported. */
-export async function loadSettings(executor: Executor): Promise<SchedulerSettings | null> {
-  const row = await executor.query.settings.findFirst();
-  if (!row) return null;
+/** Throws if the stored time zone isn't supported. */
+export async function loadSettings(executor: Executor): Promise<SchedulerSettings> {
+  const row = (await executor.query.settings.findFirst())!;
   if (!isTimeZone(row.timeZone)) throw new Error(`Unsupported time zone in settings: "${row.timeZone}"`);
 
   return {
@@ -16,8 +15,6 @@ export async function loadSettings(executor: Executor): Promise<SchedulerSetting
   };
 }
 
-/** Replaces the saved focus caps. Returns `false` if no settings exist yet. */
-export async function saveFocusCaps(executor: Executor, focusCaps: FocusCaps): Promise<boolean> {
-  const updated = await executor.update(settings).set({ focusCapsMin: focusCaps }).returning({ id: settings.id });
-  return updated.length > 0;
+export async function saveFocusCaps(executor: Executor, focusCaps: FocusCaps): Promise<void> {
+  await executor.update(settings).set({ focusCapsMin: focusCaps });
 }

@@ -19,8 +19,8 @@ describe("the task list", () => {
     tx,
   }) => {
     await tx
-      .insert(settings)
-      .values({ timeZone: "America/New_York", downtimeStartMinute: 23 * 60, downtimeEndMinute: 10 * 60 });
+      .update(settings)
+      .set({ timeZone: "America/New_York", downtimeStartMinute: 23 * 60, downtimeEndMinute: 10 * 60 });
 
     const essay = await insertItem(tx, unsaved(flexible("Essay", 90, utc("2026-10-05T04:00", "2026-10-09T21:00"))));
     const marathon = await insertItem(

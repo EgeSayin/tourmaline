@@ -19,7 +19,7 @@ import { CATEGORY_COLORS } from "@/lib/categories";
 import { type Item, PRIORITIES, SPREAD_STRATEGIES } from "@/lib/items";
 import { PLACEMENT_STATUSES, SLOT_MIN } from "@/lib/placements";
 import type { Recurrence } from "@/lib/recurrence";
-import type { FocusCaps } from "@/lib/settings";
+import { DEFAULT_SETTINGS, type FocusCaps } from "@/lib/settings";
 import type { TimeZone } from "@/lib/time/time-zone";
 
 export const priorityEnum = pgEnum("priority", PRIORITIES);
@@ -41,18 +41,15 @@ const auditColumns = {
     .$onUpdate(() => new Date()),
 };
 
-/** Single row (`id = 1`) while the app has one user. */
+/** Single row (`id = 1`), created by a migration, while the app has one user. */
 export const settings = pgTable(
   "settings",
   {
     id: integer("id").primaryKey().default(1),
-    timeZone: text("time_zone").$type<TimeZone>().notNull(),
-    downtimeStartMinute: integer("downtime_start_minute").notNull(),
-    downtimeEndMinute: integer("downtime_end_minute").notNull(),
-    focusCapsMin: jsonb("focus_caps_min")
-      .$type<FocusCaps>()
-      .notNull()
-      .default(sql`'[null, null, null, null, null, null, null]'::jsonb`),
+    timeZone: text("time_zone").$type<TimeZone>().notNull().default(DEFAULT_SETTINGS.timeZone),
+    downtimeStartMinute: integer("downtime_start_minute").notNull().default(DEFAULT_SETTINGS.downtime.startMinute),
+    downtimeEndMinute: integer("downtime_end_minute").notNull().default(DEFAULT_SETTINGS.downtime.endMinute),
+    focusCapsMin: jsonb("focus_caps_min").$type<FocusCaps>().notNull().default(DEFAULT_SETTINGS.focusCaps),
     ...auditColumns,
   },
   (t) => [

@@ -18,7 +18,8 @@ export interface SchedulerSettings {
   focusCaps: FocusCaps;
 }
 
-export const DEFAULT_SETTINGS: Omit<SchedulerSettings, "timeZone"> = {
+export const DEFAULT_SETTINGS: SchedulerSettings = {
+  timeZone: "UTC",
   downtime: { startMinute: 23 * 60, endMinute: 10 * 60 },
   focusCaps: NO_FOCUS_CAPS,
 };
