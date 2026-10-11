@@ -1,7 +1,9 @@
 import "server-only";
-import type { EditTarget } from "@/lib/calendar-blocks";
+import { type BlockPlacement, type EditTarget, toBlockPlacement } from "@/lib/calendar-blocks";
 import { isTask, type Item, itemSpan, type Task } from "@/lib/items";
 import { parseOccurrenceId } from "@/lib/recurrence";
+import type { Database, Transaction } from "@/server/db/connection";
+import { loadTaskPlacements } from "@/server/db/placements-repository";
 
 /**
  * `queued`: planned, but its remaining time, or an occurrence's, doesn't fit before its deadline. `done`: marked done.
@@ -47,4 +49,23 @@ export function listTasks(
     };
   });
   return entries.sort((a, b) => a.when.getTime() - b.when.getTime());
+}
+
+export interface TaskBlock {
+  start: Date;
+  end: Date;
+  placement: BlockPlacement;
+}
+
+/** The blocks of a task, or of an occurrence by its id, sorted by start, in their state at `now`. */
+export async function loadTaskBlocks(
+  executor: Database | Transaction,
+  taskId: string,
+  now: Date,
+): Promise<TaskBlock[]> {
+  return (await loadTaskPlacements(executor, taskId)).map((placement) => ({
+    start: placement.start,
+    end: placement.end,
+    placement: toBlockPlacement(placement, now),
+  }));
 }

@@ -22,6 +22,14 @@ export interface BlockPlacement {
   pinned: boolean;
 }
 
+export function toBlockPlacement(placement: Placement, now: Date): BlockPlacement {
+  return {
+    ref: { taskId: placement.taskId, start: placement.start },
+    state: placementState(placement, now),
+    pinned: placement.pinned,
+  };
+}
+
 export interface CalendarBlock {
   /** Unique among the blocks. */
   key: string;
@@ -59,11 +67,7 @@ export function toCalendarBlocks(
       id: placement.taskId,
       start: placement.start,
       end: placement.end,
-      placement: {
-        ref: { taskId: placement.taskId, start: placement.start },
-        state: placementState(placement, now),
-        pinned: placement.pinned,
-      },
+      placement: toBlockPlacement(placement, now),
     })),
   ];
 

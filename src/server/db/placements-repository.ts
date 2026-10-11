@@ -26,6 +26,12 @@ export async function loadPlacementsToReview(executor: Database | Transaction, n
   return rows.map(toPlacement);
 }
 
+/** Every placement of a task or occurrence (by its occurrence id), sorted by start. */
+export async function loadTaskPlacements(executor: Database | Transaction, taskId: string): Promise<Placement[]> {
+  const rows = await executor.select().from(placements).where(ofTask(taskId)).orderBy(asc(placements.startAt));
+  return rows.map(toPlacement);
+}
+
 /** The placement `ref` points to, or `undefined` if there is none. */
 export async function loadPlacement(
   executor: Database | Transaction,

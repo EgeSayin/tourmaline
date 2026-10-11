@@ -1,8 +1,10 @@
 import { expect, test } from "@playwright/test";
-import { blockPanel, localDate, localDateTime, openAddItemForm } from "./helpers";
+import { blockPanel, itemEditor, localDate, localDateTime, openAddItemForm } from "./helpers";
 
 test.describe("scheduled blocks", () => {
-  test("pins and unpins a block, checks it off early and undoes that", async ({ page }, testInfo) => {
+  test("pins and unpins a block, checks it off early and undoes that, from the calendar and from its task", async ({
+    page,
+  }, testInfo) => {
     const title = `E2E flashcards (${testInfo.project.name})`;
     const form = await openAddItemForm(page);
     await form.getByLabel("Title").fill(title);
@@ -31,5 +33,14 @@ test.describe("scheduled blocks", () => {
     await expect(block).toHaveAttribute("aria-label", /\(done\)$/);
     await act("Undo done");
     await expect(block).not.toHaveAttribute("aria-label", /\)$/);
+
+    await block.click();
+    await panel.getByRole("link", { name: "Open task" }).click();
+    const blocks = itemEditor(page).getByRole("group", { name: "Blocks" });
+    await expect(blocks.getByText(/· Planned$/)).toBeVisible();
+    await blocks.getByRole("button", { name: "Done early" }).click();
+    await expect(blocks.getByText(/· Done$/)).toBeVisible();
+    await blocks.getByRole("button", { name: "Undo done" }).click();
+    await expect(blocks.getByText(/· Planned$/)).toBeVisible();
   });
 });

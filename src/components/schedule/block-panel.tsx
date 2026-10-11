@@ -3,15 +3,13 @@
 import { Dialog } from "@base-ui/react/dialog";
 import { ArrowRight, X } from "lucide-react";
 import Link from "next/link";
+import { BlockSummary } from "@/components/items/block-summary";
 import { PlacementActions } from "@/components/items/placement-actions";
-import { PLACEMENT_STATE_LABELS } from "@/components/items/placement-state";
 import { SkipOccurrenceButton } from "@/components/items/skip-occurrence-button";
 import { TaskDoneButton } from "@/components/items/task-done-button";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { isTask } from "@/lib/items";
-import { formatLocalWeekday, formatTimeRange } from "@/lib/time/format";
-import { toLocal } from "@/lib/time/local-time";
 import { cn } from "@/lib/utils";
 import { type OpenedBlock, useBlockPanel } from "./block-panel-state";
 
@@ -22,7 +20,7 @@ const LABEL = "Block";
 
 function PanelContent({ block }: { block: OpenedBlock }) {
   const { timeZone, close } = useBlockPanel();
-  const { title, start, end, placement, target } = block;
+  const { title, placement, target } = block;
   const { item, occurrenceDate } = target;
 
   return (
@@ -33,16 +31,7 @@ function PanelContent({ block }: { block: OpenedBlock }) {
           <X />
         </Button>
       </div>
-      <p className="text-sm">
-        {formatLocalWeekday(toLocal(start, timeZone).date)} {formatTimeRange(start, end, timeZone)}
-        {placement && (
-          <span className="text-muted-foreground">
-            {" "}
-            · {PLACEMENT_STATE_LABELS[placement.state]}
-            {placement.pinned && ", pinned"}
-          </span>
-        )}
-      </p>
+      <BlockSummary block={block} timeZone={timeZone} />
       {placement && <PlacementActions placement={placement} onDone={close} />}
       {occurrenceDate && (
         <div className="flex flex-wrap gap-2">

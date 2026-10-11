@@ -1,8 +1,11 @@
 import { describe, expect } from "vitest";
+import type { Placement } from "@/lib/placements";
 import type { Recurrence } from "@/lib/recurrence";
 import { insertItem, setItemDone } from "@/server/db/items-repository";
+import { insertPlacements } from "@/server/db/placements-repository";
 import { settings } from "@/server/db/schema";
 import { loadCalendar } from "@/server/calendar";
+import { loadTaskBlocks } from "@/server/tasks";
 import { dbTest as it } from "../support/database";
 import { utc } from "../support/intervals";
 import { fixed, flexible, unsaved } from "../support/items";
@@ -45,5 +48,32 @@ describe("the task list", { tags: ["integration", "critical"] }, () => {
       item: { id: standup, start: new Date("2026-10-08T13:00Z") },
       occurrenceDate: null,
     });
+  });
+
+  it("loads a task's blocks by start, each in its state at now", async ({ tx }) => {
+    const essay = await insertItem(tx, unsaved(flexible("Essay", 180, utc("2026-10-05T04:00", "2026-10-09T21:00"))));
+    const other = await insertItem(tx, unsaved(flexible("Other", 60, utc("2026-10-05T04:00", "2026-10-09T21:00"))));
+    const block = (taskId: string, start: string, end: string, extra: Partial<Placement> = {}): Placement => ({
+      taskId,
+      ...utc(start, end),
+      source: "auto",
+      pinned: false,
+      status: "planned",
+      ...extra,
+    });
+    await insertPlacements(tx, [
+      block(essay, "2026-10-08T14:00", "2026-10-08T15:00", { pinned: true }),
+      block(essay, "2026-10-06T14:00", "2026-10-06T15:00"),
+      block(essay, "2026-10-05T14:00", "2026-10-05T15:00", { status: "done" }),
+      block(other, "2026-10-07T14:00", "2026-10-07T15:00"),
+    ]);
+
+    const blocks = await loadTaskBlocks(tx, essay, wednesdayNoon);
+
+    expect(blocks.map(({ start, placement: { state, pinned } }) => ({ start, state, pinned }))).toEqual([
+      { start: new Date("2026-10-05T14:00Z"), state: "done", pinned: false },
+      { start: new Date("2026-10-06T14:00Z"), state: "to-review", pinned: false },
+      { start: new Date("2026-10-08T14:00Z"), state: "planned", pinned: true },
+    ]);
   });
 });

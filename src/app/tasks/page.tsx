@@ -6,11 +6,19 @@ import { Workspace } from "@/components/workspace/workspace";
 import { loadCalendar } from "@/server/calendar";
 import { db } from "@/server/db/client";
 import { inPlanTransaction } from "@/server/db/plan-lock";
+import { loadTaskBlocks } from "@/server/tasks";
 
 export default async function Tasks({ searchParams }: PageProps<"/tasks">) {
   await connection();
   const params = await searchParams;
-  const calendar = await inPlanTransaction(db, (tx) => loadCalendar(tx, new Date()));
+  const now = new Date();
+  const { calendar, selected, blocks } = await inPlanTransaction(db, async (tx) => {
+    const calendar = await loadCalendar(tx, now);
+    const selected = calendar?.tasks.find((entry) => entry.id === params.id) ?? null;
+    // A series' blocks belong to its occurrences.
+    const blocks = selected?.kind === "task" && !selected.recurring ? await loadTaskBlocks(tx, selected.id, now) : [];
+    return { calendar, selected, blocks };
+  });
 
   if (!calendar) {
     return (
@@ -19,7 +27,6 @@ export default async function Tasks({ searchParams }: PageProps<"/tasks">) {
       </main>
     );
   }
-  const selected = calendar.tasks.find((entry) => entry.id === params.id) ?? null;
   const editing = selected !== null || params.new !== undefined;
   return (
     <BlockPanelProvider timeZone={calendar.timeZone}>
@@ -33,7 +40,7 @@ export default async function Tasks({ searchParams }: PageProps<"/tasks">) {
               <TaskList entries={calendar.tasks} selectedId={selected?.id ?? null} timeZone={calendar.timeZone} />
             </>
           }
-          editor={editing ? <TaskEditor task={selected} timeZone={calendar.timeZone} /> : null}
+          editor={editing ? <TaskEditor task={selected} blocks={blocks} timeZone={calendar.timeZone} /> : null}
         />
       </main>
     </BlockPanelProvider>

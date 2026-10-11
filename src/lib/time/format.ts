@@ -30,10 +30,13 @@ export function formatLocalDateRange(first: string, last: string): string {
   }).formatRange(new Date(`${first}T12:00:00Z`), new Date(`${last}T12:00:00Z`));
 }
 
+/** Its local weekday, date and 24-hour time. */
 export function formatDateTime(date: Date, timeZone: TimeZone): string {
   return new Intl.DateTimeFormat("en-US", {
     timeZone,
     weekday: "short",
+    month: "short",
+    day: "numeric",
     hour: "2-digit",
     minute: "2-digit",
     hourCycle: "h23",
