@@ -64,14 +64,16 @@ export function FormInput({
   ...props
 }: FieldProps & { clearable?: boolean } & React.ComponentProps<"input">) {
   const { values, errors } = use(FormStateContext);
-  const [empty, setEmpty] = useState(!values[name]);
+  // The input keeps what was typed after a failed submission; changing its default then would only warn.
+  const [initialValue] = useState(values[name]);
+  const [empty, setEmpty] = useState(!initialValue);
   const ref = useRef<HTMLInputElement>(null);
   const input = (
     <Input
       ref={ref}
       id={name}
       name={name}
-      defaultValue={values[name]}
+      defaultValue={initialValue}
       aria-invalid={errors[name] ? true : undefined}
       // Styled date and time inputs in WebKit show the current time when empty, in full colour unless muted here.
       data-empty={empty ? true : undefined}
