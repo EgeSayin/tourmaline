@@ -1,6 +1,6 @@
 "use client";
 
-import { useItemPanel } from "@/components/items/item-panel-state";
+import { useBlockPanel } from "./block-panel-state";
 import type { CalendarBlock } from "@/lib/calendar-blocks";
 import { formatLocalDate, formatLocalWeekday } from "@/lib/time/format";
 import type { TimeZone } from "@/lib/time/time-zone";
@@ -23,7 +23,7 @@ export function CalendarGrid({
   blocks: CalendarBlock[];
   timeZone: TimeZone;
 }) {
-  const { openEdit } = useItemPanel();
+  const { open } = useBlockPanel();
   const scale = timeScaleFor(blocks);
   const dates = [...new Set([...weekDates, ...dayDates])].sort();
   // Hidden columns take no grid track, so each breakpoint's column count matches its visible dates.
@@ -68,9 +68,7 @@ export function CalendarGrid({
             blocks={blocks.filter((block) => block.date === date)}
             scale={scale}
             timeZone={timeZone}
-            onSelect={({ target, placement, start, end }) =>
-              openEdit(target, placement && { ...placement, start, end })
-            }
+            onSelect={open}
           />
         ))}
       </div>

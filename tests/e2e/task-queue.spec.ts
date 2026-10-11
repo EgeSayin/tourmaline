@@ -1,8 +1,8 @@
 import { expect, test } from "@playwright/test";
-import { itemPanel, localDateTime, openAddItemForm, showQueue } from "./helpers";
+import { itemEditor, localDateTime, openAddItemForm, showQueue } from "./helpers";
 
 test.describe("task queue", () => {
-  test("lists a task that can't fit, opens it with its values and drops it once deleted", async ({
+  test("lists a task that can't fit, opens its task with its values and drops it once deleted", async ({
     page,
   }, testInfo) => {
     const title = `E2E all-nighter (${testInfo.project.name})`;
@@ -18,11 +18,11 @@ test.describe("task queue", () => {
     await expect(form).toBeHidden();
 
     const queue = await showQueue(page, testInfo);
-    const entry = queue.getByRole("button", { name: new RegExp(`^${RegExp.escape(title)}`) });
+    const entry = queue.getByRole("link", { name: new RegExp(`^${RegExp.escape(title)}`) });
     await expect(entry).toContainText("24h left");
 
     await entry.click();
-    const panel = itemPanel(page, testInfo, "Edit item");
+    const panel = itemEditor(page);
     await expect(panel.getByLabel("Title")).toHaveValue(title);
     await expect(panel.getByLabel("Duration (min)")).toHaveValue(String(24 * 60));
     await expect(panel.getByLabel("Chunks from (min)")).toHaveValue("30");
@@ -44,11 +44,11 @@ test.describe("task queue", () => {
     await form.getByRole("button", { name: "Add item" }).click();
     await expect(form).toBeHidden();
 
-    const entry = (await showQueue(page, testInfo)).getByRole("button", {
+    const entry = (await showQueue(page, testInfo)).getByRole("link", {
       name: new RegExp(`^${RegExp.escape(title)}`),
     });
     await entry.click();
-    const panel = itemPanel(page, testInfo, "Edit item");
+    const panel = itemEditor(page);
     await panel.getByRole("button", { name: "Mark done" }).click();
 
     await expect(panel).toBeHidden();

@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { itemPanel, localDate, localDateTime, openAddItemForm } from "./helpers";
+import { blockPanel, localDate, localDateTime, openAddItemForm } from "./helpers";
 
 test.describe("scheduled blocks", () => {
   test("pins and unpins a block, checks it off early and undoes that", async ({ page }, testInfo) => {
@@ -15,7 +15,7 @@ test.describe("scheduled blocks", () => {
     // Tomorrow is always shown from its own date, on phones and in its week.
     await page.goto(`/?date=${localDate(1)}`);
     const block = page.getByRole("button", { name: new RegExp(`^${RegExp.escape(title)} `) });
-    const panel = itemPanel(page, testInfo, "Edit item");
+    const panel = blockPanel(page, testInfo);
     const act = async (action: string) => {
       await block.click();
       await panel.getByRole("button", { name: action }).click();

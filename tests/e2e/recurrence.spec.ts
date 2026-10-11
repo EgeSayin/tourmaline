@@ -1,6 +1,15 @@
 import { expect, test } from "@playwright/test";
 import { WEEKDAY_NAMES } from "@/lib/time/format";
-import { earlySlot, itemPanel, localDate, localDateTime, openAddItemForm, TIME_ZONE, showQueue } from "./helpers";
+import {
+  blockPanel,
+  earlySlot,
+  itemEditor,
+  localDate,
+  localDateTime,
+  openAddItemForm,
+  TIME_ZONE,
+  showQueue,
+} from "./helpers";
 
 const weekdayLabel = (days: number) => WEEKDAY_NAMES[localDate(days).dayOfWeek - 1];
 /** As queue entries show a date, e.g. "Wed, Oct 7". */
@@ -39,7 +48,8 @@ test.describe("recurring items", () => {
     // Opens the series at its next occurrence: today's, unless it has already ended.
     await page.goto("/");
     await block.first().click();
-    const panel = itemPanel(page, testInfo, "Edit item");
+    await blockPanel(page, testInfo).getByRole("link", { name: "Open task" }).click();
+    const panel = itemEditor(page);
     const ended = Temporal.PlainTime.compare(Temporal.Now.plainTimeISO(TIME_ZONE), slot.end) >= 0;
     await expect(panel.getByLabel("Starts")).toHaveValue(localDateTime(ended ? 1 : 0, slot.start));
     await expect(panel.getByLabel("How often")).toHaveValue("weekly");
@@ -62,8 +72,9 @@ test.describe("recurring items", () => {
 
     const tomorrows = page.getByRole("group", { name: dateLabel(1) }).getByRole("button", { name: renamedLabel });
     await tomorrows.click();
-    await panel.getByRole("button", { name: `Skip ${dateLabel(1)}` }).click();
-    await expect(panel).toBeHidden();
+    const blockActions = blockPanel(page, testInfo);
+    await blockActions.getByRole("button", { name: `Skip ${dateLabel(1)}` }).click();
+    await expect(blockActions).toBeHidden();
     await expect(tomorrows).toHaveCount(0);
   });
 
@@ -82,17 +93,18 @@ test.describe("recurring items", () => {
     await expect(form).toBeHidden();
 
     const queue = await showQueue(page, testInfo);
-    const entries = queue.getByRole("button", { name: new RegExp(`^${RegExp.escape(title)} · \\w{3}, \\w{3} \\d+`) });
+    const entries = queue.getByRole("link", { name: new RegExp(`^${RegExp.escape(title)} · \\w{3}, \\w{3} \\d+`) });
     await expect(entries.first()).toContainText("15h left");
 
+    // Deleting ends the series yesterday: today's occurrence goes, while yesterday's may still be running.
+    const todays = queue.getByRole("link", { name: `${title} · ${dateLabel(0)}` });
+    await expect(todays).toBeVisible();
+
     await entries.first().click();
-    const panel = itemPanel(page, testInfo, "Edit item");
+    const panel = itemEditor(page);
     await expect(panel.getByLabel("How often")).toHaveValue("daily");
     await expect(panel.getByLabel("Due")).toHaveCount(0);
 
-    // Deleting ends the series yesterday: today's occurrence goes, while yesterday's may still be running.
-    const todays = queue.getByRole("button", { name: `${title} · ${dateLabel(0)}` });
-    await expect(todays).toBeVisible();
     await panel.getByRole("button", { name: "Delete" }).click();
     await panel.getByRole("button", { name: "Confirm delete" }).click();
     await expect(panel).toBeHidden();

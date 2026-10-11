@@ -1,16 +1,16 @@
 "use client";
 
 import { CircleCheck } from "lucide-react";
-import { useItemPanel } from "@/components/items/item-panel-state";
 import { PlacementActions } from "@/components/items/placement-actions";
 import { formatLocalWeekday, formatTimeRange } from "@/lib/time/format";
 import { toLocal } from "@/lib/time/local-time";
 import type { TimeZone } from "@/lib/time/time-zone";
 import type { ReviewEntry } from "@/server/calendar";
+import { useBlockPanel } from "./block-panel-state";
 
 /** Past blocks waiting to be checked off or marked missed; until then they keep counting toward their task. */
 export function ReviewList({ entries, timeZone }: { entries: ReviewEntry[]; timeZone: TimeZone }) {
-  const { openEdit } = useItemPanel();
+  const { open } = useBlockPanel();
 
   return entries.length === 0 ? (
     <p className="flex items-center gap-2 rounded-lg border border-dashed px-3 py-4 text-sm text-muted-foreground">
@@ -29,7 +29,7 @@ export function ReviewList({ entries, timeZone }: { entries: ReviewEntry[]; time
             <button
               type="button"
               className="flex flex-col gap-0.5 text-left text-sm hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
-              onClick={() => openEdit(target, { ...placement, start, end })}
+              onClick={() => open({ title, start, end, target, placement })}
             >
               <span className="font-medium">{title}</span>
               <span className="text-xs text-muted-foreground tabular-nums">

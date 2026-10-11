@@ -16,9 +16,14 @@ export function localDateTime(days: number, time: string): string {
   return `${localDate(days)}T${time}`;
 }
 
-/** The calendar's edit panel: docked beside the calendar on desktop, a bottom sheet on phones. */
-export function itemPanel(page: Page, testInfo: TestInfo, name: "Edit item") {
-  return page.getByRole(isPhone(testInfo) ? "dialog" : "complementary", { name });
+/** The calendar's block panel: docked beside the calendar on desktop, a bottom sheet on phones. */
+export function blockPanel(page: Page, testInfo: TestInfo) {
+  return page.getByRole(isPhone(testInfo) ? "dialog" : "complementary", { name: "Block" });
+}
+
+/** The tasks page's editor for an existing item. */
+export function itemEditor(page: Page) {
+  return page.getByRole("complementary", { name: "Edit item" });
 }
 
 /** Opens the new item form on the tasks page through the toolbar's Add item, from the calendar. */
@@ -55,9 +60,11 @@ export async function addFixedItemToday(
   await page.goto("/");
 }
 
+/** Opens the item of the calendar block titled `title` in the editor, through its block panel. */
 export async function openItemForEditing(page: Page, testInfo: TestInfo, title: string) {
   await page.getByRole("button", { name: new RegExp(`^${RegExp.escape(title)}`) }).click();
-  return itemPanel(page, testInfo, "Edit item");
+  await blockPanel(page, testInfo).getByRole("link", { name: "Open task" }).click();
+  return itemEditor(page);
 }
 
 /** Shows the calendar's task queue: the lists' Queue tab, behind the bottom tab on phones. */

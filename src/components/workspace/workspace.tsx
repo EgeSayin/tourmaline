@@ -3,8 +3,8 @@
 import { CalendarDays, Hourglass, ListTodo } from "lucide-react";
 import { useState } from "react";
 import { SegmentedControl } from "@/components/controls/segmented-control";
-import { ItemPanel } from "@/components/items/item-panel";
-import { useItemPanel } from "@/components/items/item-panel-state";
+import { BlockPanel } from "@/components/schedule/block-panel";
+import { useBlockPanel } from "@/components/schedule/block-panel-state";
 import { ReviewList } from "@/components/schedule/review-list";
 import { TaskQueue } from "@/components/schedule/task-queue";
 import { type AppPage, AppShell } from "@/components/shell/app-shell";
@@ -16,7 +16,7 @@ type List = "review" | "queue";
 
 /**
  * What every page shows around its middle: the lists on the left (blocks to review and the queue, opening on the
- * review while it has any) and, on the right, `editor` when given, or else the panel for what's clicked.
+ * review while it has any) and, on the right, `editor` when given, or else the panel for the block clicked.
  * Phones switch between the middle and the lists at the bottom; an open editor takes the screen.
  */
 export function Workspace({
@@ -34,7 +34,7 @@ export function Workspace({
   const { review, queue, timeZone } = calendar;
   const [phoneView, setPhoneView] = useState<"main" | "lists">("main");
   const [list, setList] = useState<List>(review.length > 0 ? "review" : "queue");
-  const panelOpen = useItemPanel().mode.kind !== "closed";
+  const panelOpen = useBlockPanel().block !== null;
   // The phone tab holds both lists.
   const waiting = queue.length + review.length;
   const MainIcon = page === "calendar" ? CalendarDays : ListTodo;
@@ -85,7 +85,7 @@ export function Workspace({
       }
       mainLabel={page === "calendar" ? "Calendar" : "Task list"}
       main={main}
-      side={editor ?? <ItemPanel />}
+      side={editor ?? <BlockPanel />}
       sideOpen={editor !== null || panelOpen}
       phoneSection={editor !== null ? "side" : phoneView === "main" ? "main" : "left"}
       phoneNav={

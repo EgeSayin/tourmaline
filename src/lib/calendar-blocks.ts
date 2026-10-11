@@ -5,7 +5,7 @@ import type { TimeZone } from "./time/time-zone";
 
 const MINUTES_PER_DAY = 24 * 60;
 
-/** What opens in the edit form, and which occurrence it was opened from. */
+/** The item a block or entry belongs to, as the editor opens it, and which occurrence it is. */
 export interface EditTarget {
   /** The stored item: a series at its next occurrence (as saved once it has ended), under the series' id. */
   item: Item;

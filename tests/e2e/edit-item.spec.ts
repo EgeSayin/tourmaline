@@ -18,6 +18,7 @@ test.describe("editing items", () => {
     await panel.getByRole("button", { name: "Save changes" }).click();
 
     await expect(panel).toBeHidden();
+    await page.goto("/");
     await expect(page.getByRole("button", { name: `${title} renamed ${slot.start}–${newEnd}` })).toBeVisible();
   });
 
@@ -33,6 +34,7 @@ test.describe("editing items", () => {
     await panel.getByRole("button", { name: "Save changes" }).click();
 
     await expect(panel).toBeHidden();
+    await page.goto("/");
     await expect(page.getByRole("button", { name: `${title} ${slot.label}` })).toHaveCount(0);
     await expect(page.getByText(title).first()).toBeAttached();
   });

@@ -1,5 +1,5 @@
 import { connection } from "next/server";
-import { ItemPanelProvider } from "@/components/items/item-panel-state";
+import { BlockPanelProvider } from "@/components/schedule/block-panel-state";
 import { CalendarGrid } from "@/components/schedule/calendar-grid";
 import { CalendarHeader } from "@/components/schedule/calendar-header";
 import { ScheduleLegend } from "@/components/schedule/schedule-legend";
@@ -23,7 +23,7 @@ export default async function Home({ searchParams }: PageProps<"/">) {
   }
 
   return (
-    <ItemPanelProvider timeZone={calendar.timeZone}>
+    <BlockPanelProvider timeZone={calendar.timeZone}>
       <main>
         <Workspace
           page="calendar"
@@ -48,6 +48,6 @@ export default async function Home({ searchParams }: PageProps<"/">) {
           }
         />
       </main>
-    </ItemPanelProvider>
+    </BlockPanelProvider>
   );
 }

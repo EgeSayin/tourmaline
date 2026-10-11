@@ -4,7 +4,6 @@ import { startTransition, useActionState, useState } from "react";
 import { FormInput, FormSelect, FormStateProvider } from "@/components/forms/form-fields";
 import { Button } from "@/components/ui/button";
 import { FieldGroup } from "@/components/ui/field";
-import type { EditTarget } from "@/lib/calendar-blocks";
 import { itemToFormValues, type Repeat } from "@/lib/item-form";
 import { isTask, type Item, PRIORITIES, type Priority } from "@/lib/items";
 import type { TimeZone } from "@/lib/time/time-zone";
@@ -13,7 +12,6 @@ import { DeleteItemButton } from "./delete-item-button";
 import { FixedItemFields } from "./fixed-item-fields";
 import { TaskFields } from "./task-fields";
 import { RepeatFields } from "./repeat-fields";
-import { SkipOccurrenceButton } from "./skip-occurrence-button";
 import { TaskDoneButton } from "./task-done-button";
 import { TimingSwitch } from "./timing-switch";
 
@@ -26,17 +24,8 @@ const PRIORITY_LABELS = {
 
 const PRIORITY_OPTIONS = PRIORITIES.map((value) => ({ value, label: PRIORITY_LABELS[value] }));
 
-/** Adds a new item, or edits the target's item when given, offering to skip the occurrence it was opened from. */
-export function ItemForm({
-  target,
-  timeZone,
-  onDone,
-}: {
-  target?: EditTarget;
-  timeZone: TimeZone;
-  onDone: () => void;
-}) {
-  const item = target?.item;
+/** Adds a new item, or edits `item` when given. */
+export function ItemForm({ item, timeZone, onDone }: { item?: Item; timeZone: TimeZone; onDone: () => void }) {
   const [timing, setTiming] = useState<Item["timing"]>(item?.timing ?? "flexible");
   const save = item ? updateItemAction.bind(null, item.id) : createItemAction;
   const [state, formAction, pending] = useActionState(
@@ -87,13 +76,8 @@ export function ItemForm({
         <Button type="submit" disabled={pending} className="flex-1">
           {pending ? "Saving…" : item ? "Save changes" : "Add item"}
         </Button>
-        {/* A series is done one occurrence at a time. */}
-        {item && isTask(item) && (!item.recurrence || target.occurrenceDate) && (
-          <TaskDoneButton task={item} date={target.occurrenceDate} onChanged={onDone} />
-        )}
-        {item && target.occurrenceDate && (
-          <SkipOccurrenceButton itemId={item.id} date={target.occurrenceDate} onSkipped={onDone} />
-        )}
+        {/* A series is done one occurrence at a time, from its blocks. */}
+        {item && isTask(item) && !item.recurrence && <TaskDoneButton task={item} date={null} onChanged={onDone} />}
         {item && <DeleteItemButton id={item.id} onDeleted={onDone} />}
       </div>
     </form>

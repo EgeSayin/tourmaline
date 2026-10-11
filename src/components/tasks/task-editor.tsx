@@ -28,7 +28,7 @@ export function TaskEditor({ task, timeZone }: { task: TaskEntry | null; timeZon
       </div>
       <ItemForm
         key={task?.id ?? "new"}
-        target={task?.target}
+        item={task?.target.item}
         timeZone={timeZone}
         onDone={() => router.push("/tasks")}
       />

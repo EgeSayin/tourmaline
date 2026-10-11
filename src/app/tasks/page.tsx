@@ -1,5 +1,5 @@
 import { connection } from "next/server";
-import { ItemPanelProvider } from "@/components/items/item-panel-state";
+import { BlockPanelProvider } from "@/components/schedule/block-panel-state";
 import { TaskEditor } from "@/components/tasks/task-editor";
 import { TaskList } from "@/components/tasks/task-list";
 import { Workspace } from "@/components/workspace/workspace";
@@ -22,7 +22,7 @@ export default async function Tasks({ searchParams }: PageProps<"/tasks">) {
   const selected = calendar.tasks.find((entry) => entry.id === params.id) ?? null;
   const editing = selected !== null || params.new !== undefined;
   return (
-    <ItemPanelProvider timeZone={calendar.timeZone}>
+    <BlockPanelProvider timeZone={calendar.timeZone}>
       <main>
         <Workspace
           page="tasks"
@@ -36,6 +36,6 @@ export default async function Tasks({ searchParams }: PageProps<"/tasks">) {
           editor={editing ? <TaskEditor task={selected} timeZone={calendar.timeZone} /> : null}
         />
       </main>
-    </ItemPanelProvider>
+    </BlockPanelProvider>
   );
 }
