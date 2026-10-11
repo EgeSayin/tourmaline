@@ -1,5 +1,5 @@
 import "server-only";
-import type { Task } from "@/lib/items";
+import type { SpreadStrategy, Task } from "@/lib/items";
 import { type Placement, SLOT_MIN } from "@/lib/placements";
 import { CHUNK_BREAK_MIN } from "@/lib/settings";
 import { addMinutes, minutesBetween } from "@/lib/time/duration";
@@ -15,9 +15,11 @@ export interface PlacementResult {
 }
 
 /**
- * Places each task, most urgent first, at its earliest fit in its window: as one block, or for a split task as
- * chunks (see `findEarliestChunks`) at least `CHUNK_BREAK_MIN` apart, also from its chunks in `placed`. A task is
- * placed whole or not at all.
+ * Places each task, most urgent first, as its `spread` asks: at its earliest fit (`asap`), centred in its share of
+ * the free time in its window (`even`, see `evenTargets`) or at its latest fit (`just-in-time`), falling back to
+ * `asap` when that finds no room. A task goes in one block, or for a split task in chunks (see
+ * `findEarliestChunks`) at least `CHUNK_BREAK_MIN` apart, also from its chunks in `placed`. It is placed whole or
+ * not at all.
  */
 export function placeTasks(tasks: Task[], free: IntervalSet, placed: readonly Placement[] = []): PlacementResult {
   let remaining = free;
@@ -25,7 +27,9 @@ export function placeTasks(tasks: Task[], free: IntervalSet, placed: readonly Pl
   const unplaced: Task[] = [];
 
   for (const task of orderByUrgency(tasks, remaining)) {
-    const blocks = findBlocks(task, remaining, placed);
+    const blocks =
+      (task.spread === "asap" ? null : findBlocks(task, task.spread, remaining, placed)) ??
+      findBlocks(task, "asap", remaining, placed);
     if (blocks) {
       placements.push(
         ...blocks.map((block) => ({ taskId: task.id, ...block, source: "auto" as const, pinned: false })),
@@ -38,19 +42,34 @@ export function placeTasks(tasks: Task[], free: IntervalSet, placed: readonly Pl
   return { placements, unplaced };
 }
 
-function findBlocks(task: Task, free: IntervalSet, placed: readonly Placement[]): Interval[] | null {
-  const window = { start: task.earliestStart, end: task.deadline };
-  if (!task.split) {
-    const slot = findEarliestSlot(free, task.durationMin, window);
+function findBlocks(
+  { id, durationMin, earliestStart, deadline, split }: Task,
+  spread: SpreadStrategy,
+  free: IntervalSet,
+  placed: readonly Placement[],
+): Interval[] | null {
+  const window = { start: earliestStart, end: deadline };
+  if (!split) {
+    const slot =
+      spread === "just-in-time"
+        ? findLatestSlot(free, durationMin, window)
+        : findEarliestSlot(
+            free,
+            durationMin,
+            spread === "even" ? { start: evenTargets(free, window, durationMin, 1)[0], end: deadline } : window,
+          );
     return slot && [slot];
   }
+
   const breaks = placed
-    .filter((placement) => placement.taskId === task.id)
+    .filter((placement) => placement.taskId === id)
     .map((placement) => ({
       start: addMinutes(placement.start, -CHUNK_BREAK_MIN),
       end: addMinutes(placement.end, CHUNK_BREAK_MIN),
     }));
-  return findEarliestChunks(subtractIntervals(free, breaks), task.durationMin, window, task.split, CHUNK_BREAK_MIN);
+  const open = subtractIntervals(free, breaks);
+  const find = spread === "even" ? findEvenChunks : spread === "just-in-time" ? findLatestChunks : findEarliestChunks;
+  return find(open, durationMin, window, split, CHUNK_BREAK_MIN);
 }
 
 /**
@@ -79,7 +98,6 @@ export function findLatestSlot(free: IntervalSet, durationMin: number, window: I
  * grid and at least `breakMin` after the one before. Chunks are `minChunkMin` to `maxChunkMin` long; only when
  * `durationMin` is less than `minChunkMin` is the single chunk shorter. Returns `null` unless all of it fits.
  * Assumes `durationMin` and the chunk sizes are multiples of `SLOT_MIN`, so every chunk ends on the grid too.
- * Chunk `i` starts no earlier than `targets[i]`, when given.
  */
 export function findEarliestChunks(
   free: IntervalSet,
@@ -87,11 +105,10 @@ export function findEarliestChunks(
   window: Interval,
   { minChunkMin, maxChunkMin }: NonNullable<Task["split"]>,
   breakMin: number,
-  targets: readonly Date[] = [],
 ): Interval[] | null {
   const chunks: Interval[] = [];
   let remaining = durationMin;
-  let earliest = later(window.start, targets[0]);
+  let earliest = window.start;
 
   for (const slot of free) {
     const end = slot.end < window.end ? slot.end : window.end;
@@ -106,12 +123,55 @@ export function findEarliestChunks(
       const chunk = { start, end: addMinutes(start, length) };
       chunks.push(chunk);
       remaining -= length;
-      earliest = later(addMinutes(chunk.end, breakMin), targets[chunks.length]);
+      earliest = addMinutes(chunk.end, breakMin);
       start = ceilToSlot(earliest);
     }
     if (remaining === 0) return chunks;
   }
   return null;
+}
+
+/**
+ * Cuts `durationMin` into as many equal chunks as `minChunkMin` allows, sizes differing by at most `SLOT_MIN`, each
+ * at its earliest fit from its `evenTargets` target and at least `breakMin` after the one before. When they don't
+ * all fit, tries one chunk fewer, down to as few as `maxChunkMin` allows, skipping counts whose equal sizes fall
+ * outside the chunk sizes; returns `null` if none fits. Assumes
+ * `durationMin` and the chunk sizes are multiples of `SLOT_MIN`.
+ */
+export function findEvenChunks(
+  free: IntervalSet,
+  durationMin: number,
+  window: Interval,
+  { minChunkMin, maxChunkMin }: NonNullable<Task["split"]>,
+  breakMin: number,
+): Interval[] | null {
+  const fewest = Math.max(1, Math.ceil(durationMin / maxChunkMin));
+  for (let count = Math.max(fewest, Math.floor(durationMin / minChunkMin)); count >= fewest; count--) {
+    const lengths = equalSlots(durationMin, count);
+    if (lengths[0] > maxChunkMin || (durationMin >= minChunkMin && lengths.at(-1)! < minChunkMin)) continue;
+
+    const targets = evenTargets(free, window, durationMin, count);
+    const chunks: Interval[] = [];
+    for (const [i, lengthMin] of lengths.entries()) {
+      const previous = chunks.at(-1);
+      const start = later(targets[i], previous && addMinutes(previous.end, breakMin));
+      const chunk = findEarliestSlot(free, lengthMin, { start, end: window.end });
+      if (!chunk) break;
+      chunks.push(chunk);
+    }
+    if (chunks.length === count) return chunks;
+  }
+  return null;
+}
+
+/** `durationMin` cut into `count` lengths on the `SLOT_MIN` grid, longest first, differing by at most one slot. */
+function equalSlots(durationMin: number, count: number): number[] {
+  const base = Math.floor(durationMin / count / SLOT_MIN) * SLOT_MIN;
+  const longer = Math.floor((durationMin - base * count) / SLOT_MIN);
+  const lengths = Array.from({ length: count }, (_, i) => (i < longer ? base + SLOT_MIN : base));
+  // Only off the grid when `durationMin` is, e.g. time left after a partly done chunk.
+  lengths[count - 1] += durationMin - lengths.reduce((sum, length) => sum + length, 0);
+  return lengths;
 }
 
 /**

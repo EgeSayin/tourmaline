@@ -1,5 +1,6 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
+import type { SpreadStrategy, Task } from "@/lib/items";
 import { SLOT_MIN } from "@/lib/placements";
 import { CHUNK_BREAK_MIN, type SchedulerSettings } from "@/lib/settings";
 import { minutesBetween } from "@/lib/time/duration";
@@ -8,6 +9,7 @@ import { freeTimeMap } from "@/server/scheduler/free-time";
 import {
   evenTargets,
   findEarliestChunks,
+  findEvenChunks,
   findEarliestSlot,
   findLatestChunks,
   findLatestSlot,
@@ -108,10 +110,11 @@ describe("findEarliestChunks", { tags: ["unit", "critical"] }, () => {
               if (i > 0) expect(target >= targets[i - 1]).toBe(true);
             }
 
+            const even = findEvenChunks(free, durationMin, window, split, breakMin);
             const searches = [
               findEarliestChunks(free, durationMin, window, split, breakMin),
               findLatestChunks(free, durationMin, window, split, breakMin),
-              findEarliestChunks(free, durationMin, window, split, breakMin, targets),
+              even,
             ];
             for (const chunks of searches) {
               if (chunks === null) continue;
@@ -128,7 +131,10 @@ describe("findEarliestChunks", { tags: ["unit", "critical"] }, () => {
                 if (i > 0) expect(minutesBetween(chunks[i - 1].end, chunk.start)).toBeGreaterThanOrEqual(breakMin);
               }
             }
-            searches[2]?.forEach((chunk, i) => i < targets.length && expect(chunk.start >= targets[i]).toBe(true));
+            if (even) {
+              const lengths = even.map((chunk) => minutesBetween(chunk.start, chunk.end));
+              expect(Math.max(...lengths) - Math.min(...lengths)).toBeLessThanOrEqual(SLOT_MIN);
+            }
           },
         ),
       );
@@ -148,15 +154,6 @@ describe("evenTargets", { tags: ["unit", "critical"] }, () => {
       new Date("2026-10-06T15:30Z"),
       new Date("2026-10-07T15:30Z"),
     ]);
-    const chunks = findEarliestChunks(
-      free,
-      180,
-      threeDays,
-      { minChunkMin: 60, maxChunkMin: 60 },
-      30,
-      evenTargets(free, threeDays, 180, 3),
-    );
-    expect(chunks?.map((chunk) => chunk.start)).toEqual(evenTargets(free, threeDays, 180, 3));
 
     // Tuesday is full, so two chunks share Monday's and Wednesday's free time.
     const busyTuesday = freeTimeMap(
@@ -173,6 +170,33 @@ describe("evenTargets", { tags: ["unit", "critical"] }, () => {
     const monday = utc("2026-10-05T00:00", "2026-10-06T00:00");
     expect(evenTargets(freeTimeMap(monday, [], settings), monday, 90, 1)).toEqual([new Date("2026-10-05T15:15Z")]);
     expect(evenTargets(mergeIntervals([]), monday, 90, 2)).toEqual([monday.start, monday.start]);
+  });
+});
+
+describe("findEvenChunks", { tags: ["unit", "critical"] }, () => {
+  const settings: SchedulerSettings = { timeZone: "UTC", downtime: { startMinute: 22 * 60, endMinute: 10 * 60 } };
+  const fiveDays = utc("2026-10-05T00:00", "2026-10-10T00:00"); // free 10:00–22:00 each day
+  const split = { minChunkMin: 60, maxChunkMin: 120 };
+
+  it("cuts as many equal chunks as the minimum allows, each centred in its share of the free time", () => {
+    const free = freeTimeMap(fiveDays, [], settings);
+    const days = ["05", "06", "07", "08", "09"];
+
+    expect(findEvenChunks(free, 5 * 60, fiveDays, split, 30)).toEqual(
+      days.map((day) => utc(`2026-10-${day}T15:30`, `2026-10-${day}T16:30`)),
+    );
+    const uneven = findEvenChunks(free, 340, fiveDays, split, 30)!;
+    expect(uneven.map((chunk) => minutesBetween(chunk.start, chunk.end))).toEqual([70, 70, 70, 65, 65]);
+  });
+
+  it("uses fewer, longer chunks when that many don't fit, and returns null when none do", () => {
+    const morning = mergeIntervals([iv("10:00", "14:00")]);
+    // Three hours as 3 × 60 needs 4 hours with its breaks, from targets at 10:10, 11:30 and 12:50; 2 × 90 fits.
+    expect(findEvenChunks(morning, 180, iv("00:00", "23:59"), split, 30)).toEqual([
+      iv("10:15", "11:45"),
+      iv("12:15", "13:45"),
+    ]);
+    expect(findEvenChunks(mergeIntervals([iv("10:00", "11:00")]), 180, iv("00:00", "23:59"), split, 30)).toBeNull();
   });
 });
 
@@ -251,6 +275,41 @@ describe("placeTasks", { tags: ["unit", "critical"] }, () => {
       { taskId: "Thesis", ...iv("13:00", "14:00") },
     ]);
     expect(unplaced.map((task) => task.id)).toEqual(["Revision"]);
+  });
+
+  it("follows each task's spread, falling back to asap when it finds no room", () => {
+    const settings: SchedulerSettings = { timeZone: "UTC", downtime: { startMinute: 22 * 60, endMinute: 10 * 60 } };
+    const threeDays = utc("2026-10-05T00:00", "2026-10-08T00:00"); // free 10:00–22:00 each day
+    const task = (id: string, durationMin: number, spread: SpreadStrategy, split: Task["split"] = null) => ({
+      ...flexible(id, durationMin, threeDays),
+      spread,
+      split,
+    });
+    const tasks = [
+      task("Essay", 60, "even"),
+      task("Practice", 60, "just-in-time"),
+      task("Reading", 60, "asap"),
+      task("Thesis", 180, "even", { minChunkMin: 60, maxChunkMin: 60 }), // the most pressure, so placed first
+    ];
+
+    const { placements } = placeTasks(tasks, freeTimeMap(threeDays, [], settings));
+
+    expect(placements.map(({ taskId, start, end }) => ({ taskId, start, end }))).toEqual([
+      // Centred in each day's free time.
+      { taskId: "Thesis", ...utc("2026-10-05T15:30", "2026-10-05T16:30") },
+      { taskId: "Thesis", ...utc("2026-10-06T15:30", "2026-10-06T16:30") },
+      { taskId: "Thesis", ...utc("2026-10-07T15:30", "2026-10-07T16:30") },
+      // Its centre is Tuesday 15:00, so it goes in the first fit from there.
+      { taskId: "Essay", ...utc("2026-10-06T16:30", "2026-10-06T17:30") },
+      { taskId: "Practice", ...utc("2026-10-07T21:00", "2026-10-07T22:00") },
+      { taskId: "Reading", ...utc("2026-10-05T10:00", "2026-10-05T11:00") },
+    ]);
+
+    // Its centre is 10:15, and nothing fits from there on, so it goes in the earliest fit.
+    const tight = mergeIntervals([iv("10:00", "11:00"), iv("11:30", "12:00")]);
+    expect(placeTasks([{ ...flexible("Call", 60, iv("00:00", "23:59")), spread: "even" }], tight).placements).toEqual([
+      { taskId: "Call", ...iv("10:00", "11:00"), source: "auto", pinned: false },
+    ]);
   });
 
   it(

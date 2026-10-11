@@ -1,5 +1,13 @@
 import fc from "fast-check";
-import { type FixedItem, type Task, type Item, type NewItem, PRIORITIES, type Priority } from "@/lib/items";
+import {
+  type FixedItem,
+  type Task,
+  type Item,
+  type NewItem,
+  PRIORITIES,
+  type Priority,
+  SPREAD_STRATEGIES,
+} from "@/lib/items";
 import { SLOT_MIN } from "@/lib/placements";
 import type { Interval } from "@/lib/time/interval";
 import { intervalArb, SPAN_MIN } from "./intervals";
@@ -66,12 +74,14 @@ export const flexibleItemsArb = fc
       intervalArb(SPAN_MIN),
       fc.constantFrom(...PRIORITIES),
       fc.option(splitArb, { nil: null }),
+      fc.constantFrom(...SPREAD_STRATEGIES),
     ),
     { maxLength: 10 },
   )
   .map((tasks) =>
-    tasks.map(([durationMin, window, priority, split], i) => ({
+    tasks.map(([durationMin, window, priority, split, spread], i) => ({
       ...flexible(`Task ${i}`, durationMin, window, priority),
       split,
+      spread,
     })),
   );
