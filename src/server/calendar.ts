@@ -2,6 +2,7 @@ import { type CalendarBlock, type EditTarget, toCalendarBlocks } from "@/lib/cal
 import { isFixed, type Item } from "@/lib/items";
 import type { PlacementRef } from "@/lib/placements";
 import { parseOccurrenceId } from "@/lib/recurrence";
+import type { Downtime } from "@/lib/downtime";
 import type { FocusCaps } from "@/lib/settings";
 import { later } from "@/lib/time/interval";
 import type { TimeZone } from "@/lib/time/time-zone";
@@ -62,6 +63,7 @@ export interface Calendar {
   blocks: CalendarBlock[];
   loads: Record<string, DayLoad>;
   focusCaps: FocusCaps;
+  downtime: Downtime;
   /** Planned tasks due after now whose remaining time doesn't fit before their deadline. */
   queue: QueueEntry[];
   /** Every past block still to review, oldest first. */
@@ -106,6 +108,7 @@ export async function loadCalendar(executor: Executor, now: Date, shownDate?: Te
       ]),
     ),
     focusCaps: settings.focusCaps,
+    downtime: settings.downtime,
     queue: plan.unplaced
       .filter((task) => task.deadline > now)
       .map((task) => ({

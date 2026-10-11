@@ -1,3 +1,4 @@
+import { nightly } from "@/lib/downtime";
 import { describe, expect } from "vitest";
 import type { Placement } from "@/lib/placements";
 import type { Recurrence } from "@/lib/recurrence";
@@ -22,9 +23,7 @@ const show = (calendar: Calendar | null) =>
   calendar!.blocks.map((block) => `${block.title} ${block.date} ${block.startMinute / 60}`);
 
 async function saveSettings(tx: Transaction) {
-  await tx
-    .update(settings)
-    .set({ timeZone: "America/New_York", downtimeStartMinute: 23 * 60, downtimeEndMinute: 10 * 60 });
+  await tx.update(settings).set({ timeZone: "America/New_York", downtime: nightly(23 * 60, 10 * 60) });
 }
 
 describe("loadCalendar", () => {

@@ -1,3 +1,4 @@
+import { nightly } from "@/lib/downtime";
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import { SLOT_MIN } from "@/lib/placements";
@@ -90,7 +91,7 @@ describe("findEarliestChunks", () => {
 describe("evenTargets", () => {
   const settings: SchedulerSettings = {
     timeZone: "UTC",
-    downtime: { startMinute: 22 * 60, endMinute: 10 * 60 },
+    downtime: nightly(22 * 60, 10 * 60),
     focusCaps: NO_FOCUS_CAPS,
   };
   const threeDays = utc("2026-10-05T00:00", "2026-10-08T00:00"); // free 10:00–22:00 each day
@@ -125,7 +126,7 @@ describe("evenTargets", () => {
 describe("findEvenChunks", () => {
   const settings: SchedulerSettings = {
     timeZone: "UTC",
-    downtime: { startMinute: 22 * 60, endMinute: 10 * 60 },
+    downtime: nightly(22 * 60, 10 * 60),
     focusCaps: NO_FOCUS_CAPS,
   };
   const fiveDays = utc("2026-10-05T00:00", "2026-10-10T00:00"); // free 10:00–22:00 each day

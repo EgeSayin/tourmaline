@@ -15,6 +15,7 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 import { CATEGORY_COLORS } from "@/lib/categories";
+import type { Downtime } from "@/lib/downtime";
 import { type Item, PRIORITIES, SPREAD_STRATEGIES } from "@/lib/items";
 import { PLACEMENT_STATUSES, SLOT_MIN } from "@/lib/placements";
 import type { Recurrence } from "@/lib/recurrence";
@@ -46,18 +47,14 @@ export const settings = pgTable(
   {
     id: integer("id").primaryKey().default(1),
     timeZone: text("time_zone").$type<TimeZone>().notNull().default(DEFAULT_SETTINGS.timeZone),
-    downtimeStartMinute: integer("downtime_start_minute").notNull().default(DEFAULT_SETTINGS.downtime.startMinute),
-    downtimeEndMinute: integer("downtime_end_minute").notNull().default(DEFAULT_SETTINGS.downtime.endMinute),
+    downtime: jsonb("downtime").$type<Downtime>().notNull().default(DEFAULT_SETTINGS.downtime),
     focusCapsMin: jsonb("focus_caps_min").$type<FocusCaps>().notNull().default(DEFAULT_SETTINGS.focusCaps),
     ...auditColumns,
   },
   (t) => [
     check("settings_single_row", sql`${t.id} = 1`),
     check("settings_focus_caps_week", sql`jsonb_array_length(${t.focusCapsMin}) = 7`),
-    check(
-      "settings_downtime_minutes",
-      sql`${t.downtimeStartMinute} between 0 and 1439 and ${t.downtimeEndMinute} between 0 and 1439`,
-    ),
+    check("settings_downtime_week", sql`jsonb_array_length(${t.downtime}) = 7`),
   ],
 );
 

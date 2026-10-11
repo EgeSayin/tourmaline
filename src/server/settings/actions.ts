@@ -2,21 +2,34 @@
 
 import { refresh } from "next/cache";
 import { type FormState, formFields } from "@/lib/form-state";
+import { isTimeZone } from "@/lib/time/time-zone";
 import { db } from "@/server/db/client";
 import { replacePendingPlacements } from "@/server/db/placements-repository";
 import { inPlanTransaction } from "@/server/db/plan-lock";
-import { saveFocusCaps } from "@/server/db/settings-repository";
-import { parseFocusCaps } from "./parse-focus-caps";
+import { loadSettings, moveToTimeZone, saveWeekSettings } from "@/server/db/settings-repository";
+import { parseWeekSettings } from "./parse-week-settings";
 
-export async function saveFocusCapsAction(_previous: FormState, formData: FormData): Promise<FormState> {
+export async function saveWeekSettingsAction(_previous: FormState, formData: FormData): Promise<FormState> {
   const fields = formFields(formData);
-  const parsed = parseFocusCaps(fields);
+  const parsed = parseWeekSettings(fields);
   if (!parsed.ok) return { status: "invalid", errors: parsed.errors, fields };
 
   await inPlanTransaction(db, async (tx) => {
-    await saveFocusCaps(tx, parsed.focusCaps);
-    // Kept blocks stay where they are while they fit, so only dropping them spreads the plan under the new caps.
+    await saveWeekSettings(tx, parsed.settings);
+    // Kept blocks stay where they are while they fit, so only dropping them spreads the plan under new caps.
     await replacePendingPlacements(tx, new Date(), []);
+  });
+  refresh();
+  return { status: "saved" };
+}
+
+export async function saveTimeZoneAction(_previous: FormState, formData: FormData): Promise<FormState> {
+  const fields = formFields(formData);
+  const timeZone = fields.timeZone ?? "";
+  if (!isTimeZone(timeZone)) return { status: "invalid", errors: { timeZone: ["Pick a time zone"] }, fields };
+
+  await inPlanTransaction(db, async (tx) => {
+    if ((await loadSettings(tx)).timeZone !== timeZone) await moveToTimeZone(tx, timeZone);
   });
   refresh();
   return { status: "saved" };

@@ -19,8 +19,7 @@ async function seed() {
   const sample = sampleWeek(now);
   const settingsRow = {
     timeZone: sample.settings.timeZone,
-    downtimeStartMinute: sample.settings.downtime.startMinute,
-    downtimeEndMinute: sample.settings.downtime.endMinute,
+    downtime: sample.settings.downtime,
     focusCapsMin: sample.settings.focusCaps,
   };
 

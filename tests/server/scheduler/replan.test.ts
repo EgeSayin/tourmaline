@@ -1,3 +1,4 @@
+import { nightly } from "@/lib/downtime";
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import { minutesBetween } from "@/lib/time/duration";
@@ -52,7 +53,7 @@ describe("replan", () => {
   it("keeps done, pinned, in-progress, unreviewed and still-valid placements, and places the rest from now", () => {
     const settings: SchedulerSettings = {
       timeZone: "UTC",
-      downtime: { startMinute: 23 * 60, endMinute: 10 * 60 },
+      downtime: nightly(23 * 60, 10 * 60),
       focusCaps: NO_FOCUS_CAPS,
     };
     const horizon = utc("2026-10-05T15:00", "2026-10-07T00:00"); // Mon 15:00 to the end of Tue
@@ -109,7 +110,7 @@ describe("replan", () => {
     // Free only 10:00–14:00.
     const settings: SchedulerSettings = {
       timeZone: "UTC",
-      downtime: { startMinute: 14 * 60, endMinute: 10 * 60 },
+      downtime: nightly(14 * 60, 10 * 60),
       focusCaps: NO_FOCUS_CAPS,
     };
     const day = utc("2026-10-05T00:00", "2026-10-06T00:00");
@@ -151,7 +152,7 @@ describe("replan", () => {
     // Free only 10:00–14:00, filled with an essay and some reading before the exam prep comes in.
     const settings: SchedulerSettings = {
       timeZone: "UTC",
-      downtime: { startMinute: 14 * 60, endMinute: 10 * 60 },
+      downtime: nightly(14 * 60, 10 * 60),
       focusCaps: NO_FOCUS_CAPS,
     };
     const day = utc("2026-10-05T00:00", "2026-10-06T00:00");
@@ -198,7 +199,7 @@ describe("replan", () => {
   it("keeps a break between a split task's new chunks and its earlier ones", () => {
     const settings: SchedulerSettings = {
       timeZone: "UTC",
-      downtime: { startMinute: 22 * 60, endMinute: 10 * 60 },
+      downtime: nightly(22 * 60, 10 * 60),
       focusCaps: NO_FOCUS_CAPS,
     };
     const thesis = {

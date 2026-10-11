@@ -36,6 +36,7 @@ export default async function Home({ searchParams }: PageProps<"/">) {
             dayDates={calendar.dayDates}
             blocks={calendar.blocks}
             loads={calendar.loads}
+            downtime={calendar.downtime}
             timeZone={calendar.timeZone}
           />
         </>

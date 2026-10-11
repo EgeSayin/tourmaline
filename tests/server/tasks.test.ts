@@ -1,3 +1,4 @@
+import { nightly } from "@/lib/downtime";
 import { describe, expect } from "vitest";
 import type { Placement } from "@/lib/placements";
 import type { Recurrence } from "@/lib/recurrence";
@@ -18,9 +19,7 @@ describe("the task list", () => {
   it("lists every item by its next date, with its kind and status, each opening as the calendar would", async ({
     tx,
   }) => {
-    await tx
-      .update(settings)
-      .set({ timeZone: "America/New_York", downtimeStartMinute: 23 * 60, downtimeEndMinute: 10 * 60 });
+    await tx.update(settings).set({ timeZone: "America/New_York", downtime: nightly(23 * 60, 10 * 60) });
 
     const essay = await insertItem(tx, unsaved(flexible("Essay", 90, utc("2026-10-05T04:00", "2026-10-09T21:00"))));
     const marathon = await insertItem(

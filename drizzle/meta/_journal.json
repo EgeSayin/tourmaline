@@ -141,6 +141,13 @@
       "when": 1791749869352,
       "tag": "0019_items_one_table",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1791751206226,
+      "tag": "0020_settings_weekly_downtime",
+      "breakpoints": true
     }
   ]
 }

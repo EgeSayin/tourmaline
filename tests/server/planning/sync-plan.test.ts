@@ -1,3 +1,4 @@
+import { nightly } from "@/lib/downtime";
 import { describe, expect } from "vitest";
 import { isFixed } from "@/lib/items";
 import type { Placement, PlacementStatus } from "@/lib/placements";
@@ -15,7 +16,7 @@ import { fixed, flexible } from "../../support/items";
 
 const settings: SchedulerSettings = {
   timeZone: "America/New_York",
-  downtime: { startMinute: 23 * 60, endMinute: 10 * 60 },
+  downtime: nightly(23 * 60, 10 * 60),
   focusCaps: NO_FOCUS_CAPS,
 };
 const wednesdayNoon = new Date("2026-10-07T16:00Z"); // Wed Oct 7, 12:00 EDT

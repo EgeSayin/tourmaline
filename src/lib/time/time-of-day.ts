@@ -1,5 +1,7 @@
-/** Local time of day in minutes after midnight. Wraps past midnight when `endMinute < startMinute`. */
-export interface DailyWindow {
+export const MINUTES_PER_DAY = 24 * 60;
+
+/** Local minutes after midnight, `startMinute` up to `endMinute`, which may be `MINUTES_PER_DAY` (the next midnight). */
+export interface DayRange {
   startMinute: number;
   endMinute: number;
 }

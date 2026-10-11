@@ -2,7 +2,8 @@
 
 import { useBlockPanel } from "./block-panel-state";
 import type { CalendarBlock } from "@/lib/calendar-blocks";
-import { formatDuration, formatLocalDate, formatLocalWeekday } from "@/lib/time/format";
+import type { Downtime } from "@/lib/downtime";
+import { formatDuration, formatLocalDate, formatLocalWeekday, localWeekdayIndex } from "@/lib/time/format";
 import type { TimeZone } from "@/lib/time/time-zone";
 import type { DayLoad } from "@/server/calendar";
 import { DayColumn } from "./day-column";
@@ -16,6 +17,7 @@ export function CalendarGrid({
   dayDates,
   blocks,
   loads,
+  downtime,
   timeZone,
 }: {
   today: string;
@@ -23,10 +25,11 @@ export function CalendarGrid({
   dayDates: string[];
   blocks: CalendarBlock[];
   loads: Record<string, DayLoad>;
+  downtime: Downtime;
   timeZone: TimeZone;
 }) {
   const { open } = useBlockPanel();
-  const scale = timeScaleFor(blocks);
+  const scale = timeScaleFor(blocks, downtime);
   const dates = [...new Set([...weekDates, ...dayDates])].sort();
   // Hidden columns take no grid track, so each breakpoint's column count matches its visible dates.
   const shownOn = (date: string) =>
@@ -70,6 +73,7 @@ export function CalendarGrid({
             label={formatLocalDate(date)}
             className={shownOn(date)}
             blocks={blocks.filter((block) => block.date === date)}
+            downtime={downtime[localWeekdayIndex(date)]}
             scale={scale}
             timeZone={timeZone}
             onSelect={open}

@@ -1,10 +1,11 @@
+import type { Downtime } from "@/lib/downtime";
 import { addMinutes } from "@/lib/time/duration";
 import type { FixedItem } from "@/lib/items";
 import type { SchedulerSettings } from "@/lib/settings";
-import type { DailyWindow } from "@/lib/time/time-of-day";
+import { MINUTES_PER_DAY } from "@/lib/time/time-of-day";
 import type { TimeZone } from "@/lib/time/time-zone";
-import { localDate, toDate } from "@/server/time/temporal";
-import { clipIntervals, type Interval, type IntervalSet, subtractIntervals } from "@/lib/time/interval";
+import { localDate, startOfDay, toDate } from "@/server/time/temporal";
+import { clipIntervals, type Interval, type IntervalSet, mergeIntervals, subtractIntervals } from "@/lib/time/interval";
 
 /** Returns the parts of `range` outside downtime and fixed items (including their buffers), sorted by start. */
 export function freeTimeMap(range: Interval, fixedItems: FixedItem[], settings: SchedulerSettings): IntervalSet {
@@ -12,27 +13,27 @@ export function freeTimeMap(range: Interval, fixedItems: FixedItem[], settings: 
     start: addMinutes(item.start, -item.bufferBeforeMin),
     end: addMinutes(item.end, item.bufferAfterMin),
   }));
-  return subtractIntervals([range], [...dailyIntervals(range, settings.downtime, settings.timeZone), ...busy]);
+  return subtractIntervals([range], [...downtimeIntervals(range, settings.downtime, settings.timeZone), ...busy]);
 }
 
-export function dailyIntervals(range: Interval, window: DailyWindow, timeZone: TimeZone): Interval[] {
-  const wrapsMidnight = window.endMinute < window.startMinute;
-
-  // A window that wraps midnight may have started the evening before the range.
-  let day = localDate(range.start, timeZone).subtract({ days: wrapsMidnight ? 1 : 0 });
+export function downtimeIntervals(range: Interval, downtime: Downtime, timeZone: TimeZone): IntervalSet {
   const lastDay = localDate(range.end, timeZone);
-  const windows: Interval[] = [];
+  const intervals: Interval[] = [];
 
-  for (; Temporal.PlainDate.compare(day, lastDay) <= 0; day = day.add({ days: 1 })) {
-    windows.push({
-      start: atLocalTime(day, window.startMinute, timeZone),
-      end: atLocalTime(wrapsMidnight ? day.add({ days: 1 }) : day, window.endMinute, timeZone),
-    });
+  for (
+    let day = localDate(range.start, timeZone);
+    Temporal.PlainDate.compare(day, lastDay) <= 0;
+    day = day.add({ days: 1 })
+  ) {
+    for (const { startMinute, endMinute } of downtime[day.dayOfWeek - 1]) {
+      intervals.push({ start: atLocalTime(day, startMinute, timeZone), end: atLocalTime(day, endMinute, timeZone) });
+    }
   }
-  return clipIntervals(windows, range);
+  return mergeIntervals(clipIntervals(intervals, range));
 }
 
 function atLocalTime(day: Temporal.PlainDate, minuteOfDay: number, timeZone: TimeZone): Date {
+  if (minuteOfDay === MINUTES_PER_DAY) return startOfDay(day.add({ days: 1 }), timeZone);
   const plainTime = new Temporal.PlainTime(Math.floor(minuteOfDay / 60), minuteOfDay % 60);
   return toDate(day.toZonedDateTime({ timeZone, plainTime }));
 }

@@ -1,3 +1,4 @@
+import { nightly } from "@/lib/downtime";
 import { describe, expect, it } from "vitest";
 import { NO_FOCUS_CAPS, type SchedulerSettings } from "@/lib/settings";
 import { freeTimeMap } from "@/server/scheduler/free-time";
@@ -25,7 +26,7 @@ describe("focus caps", () => {
   it("keeps tasks under each day's cap where they fit before their deadline, and goes over only where they don't", () => {
     const settings: SchedulerSettings = {
       timeZone: "UTC",
-      downtime: { startMinute: 22 * 60, endMinute: 10 * 60 },
+      downtime: nightly(22 * 60, 10 * 60),
       focusCaps: [240, 240, null, ...NO_FOCUS_CAPS.slice(3)], // 4h Monday and Tuesday, no cap Wednesday
     };
     const range = utc("2026-10-05T00:00", "2026-10-08T00:00");

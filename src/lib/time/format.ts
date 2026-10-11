@@ -21,8 +21,13 @@ export function formatTimeRange(start: Date, end: Date, timeZone: TimeZone): str
 
 export const WEEKDAY_NAMES = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] as const;
 
+/** 0 for Monday up to 6 for Sunday. */
+export function localWeekdayIndex(date: string): number {
+  return (noon(date).getUTCDay() + 6) % 7;
+}
+
 export function formatLocalWeekday(date: string): string {
-  return WEEKDAY_NAMES[(noon(date).getUTCDay() + 6) % 7];
+  return WEEKDAY_NAMES[localWeekdayIndex(date)];
 }
 
 export function formatLocalDate(date: string): string {

@@ -1,12 +1,15 @@
 import type { CalendarBlock } from "@/lib/calendar-blocks";
+import type { DayRange } from "@/lib/time/time-of-day";
 import type { TimeZone } from "@/lib/time/time-zone";
+import { DowntimeBands } from "./downtime-bands";
 import { NowLine } from "./now-line";
 import { ScheduleBlock } from "./schedule-block";
-import type { TimeScale } from "./time-scale";
+import { hourLines, type TimeScale } from "./time-scale";
 
 export function DayColumn({
   date,
   blocks,
+  downtime,
   scale,
   timeZone,
   onSelect,
@@ -16,24 +19,15 @@ export function DayColumn({
   date: string;
   label: string;
   blocks: CalendarBlock[];
+  downtime: readonly DayRange[];
   scale: TimeScale;
   timeZone: TimeZone;
   onSelect: (block: CalendarBlock) => void;
   className?: string;
 }) {
   return (
-    <div
-      role="group"
-      aria-label={label}
-      className={`relative border-l ${className}`}
-      style={{
-        height: scale.height,
-        // A line every hour, and a fainter one every quarter.
-        backgroundImage:
-          "linear-gradient(var(--border) 1px, transparent 1px), linear-gradient(color-mix(in oklch, var(--border) 40%, transparent) 1px, transparent 1px)",
-        backgroundSize: `100% ${scale.hourHeight}px, 100% ${scale.hourHeight / 4}px`,
-      }}
-    >
+    <div role="group" aria-label={label} className={`relative border-l ${className}`} style={hourLines(scale, 4)}>
+      <DowntimeBands ranges={downtime} scale={scale} />
       <NowLine date={date} scale={scale} timeZone={timeZone} />
       {blocks.map((block) => (
         <ScheduleBlock

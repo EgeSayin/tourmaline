@@ -1,4 +1,4 @@
-import type { DailyWindow } from "@/lib/time/time-of-day";
+import { type Downtime, nightly } from "@/lib/downtime";
 import type { TimeZone } from "@/lib/time/time-zone";
 
 /**
@@ -11,15 +11,18 @@ export const NO_FOCUS_CAPS: FocusCaps = [null, null, null, null, null, null, nul
 
 export const focusCapField = (weekday: number) => `cap${weekday}`;
 
+/** Submitted as one "0" or "1" per `DOWNTIME_STEP_MIN` of the day. */
+export const downtimeField = (weekday: number) => `downtime${weekday}`;
+
 export interface SchedulerSettings {
   timeZone: TimeZone;
-  downtime: DailyWindow;
+  downtime: Downtime;
   focusCaps: FocusCaps;
 }
 
 export const DEFAULT_SETTINGS: SchedulerSettings = {
   timeZone: "UTC",
-  downtime: { startMinute: 23 * 60, endMinute: 10 * 60 },
+  downtime: nightly(23 * 60, 10 * 60),
   focusCaps: NO_FOCUS_CAPS,
 };
 
