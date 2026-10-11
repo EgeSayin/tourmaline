@@ -1,6 +1,6 @@
 import "server-only";
-import { and, asc, eq, gt, gte, lt } from "drizzle-orm";
-import { isPending, type Placement } from "@/lib/placements";
+import { and, asc, eq, gt, gte, isNull, lt } from "drizzle-orm";
+import { isPending, type Placement, type PlacementRef } from "@/lib/placements";
 import { occurrenceId, parseOccurrenceId } from "@/lib/recurrence";
 import type { Interval } from "@/lib/time/interval";
 import type { Database, Transaction } from "./connection";
@@ -13,15 +13,44 @@ export async function loadPlacements(executor: Database | Transaction, range: In
     .from(placements)
     .where(and(lt(placements.startAt, range.end), gt(placements.endAt, range.start)))
     .orderBy(asc(placements.startAt));
+  return rows.map(toPlacement);
+}
 
-  return rows.map((row) => ({
+/** The placement `ref` points to, or `undefined` if there is none. */
+export async function loadPlacement(
+  executor: Database | Transaction,
+  ref: PlacementRef,
+): Promise<Placement | undefined> {
+  const [row] = await executor.select().from(placements).where(matching(ref));
+  return row && toPlacement(row);
+}
+
+export async function updatePlacement(
+  executor: Database | Transaction,
+  ref: PlacementRef,
+  changes: Partial<Pick<Placement, "status" | "pinned">>,
+): Promise<void> {
+  await executor.update(placements).set(changes).where(matching(ref));
+}
+
+function matching({ taskId, start }: PlacementRef) {
+  const { itemId, date } = parseOccurrenceId(taskId);
+  return and(
+    eq(placements.itemId, itemId),
+    date ? eq(placements.occurrenceDate, date) : isNull(placements.occurrenceDate),
+    eq(placements.startAt, start),
+  );
+}
+
+function toPlacement(row: typeof placements.$inferSelect): Placement {
+  return {
     taskId: row.occurrenceDate ? occurrenceId(row.itemId, row.occurrenceDate) : row.itemId,
     start: row.startAt,
     end: row.endAt,
     source: row.source,
     pinned: row.pinned,
     status: row.status,
-  }));
+  };
 }
 
 export async function insertPlacements(executor: Database | Transaction, toInsert: Placement[]): Promise<void> {

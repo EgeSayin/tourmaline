@@ -5,8 +5,10 @@ import { deleteItem, insertItem } from "@/server/db/items-repository";
 import {
   deletePlacements,
   insertPlacements,
+  loadPlacement,
   loadPlacements,
   replacePendingPlacements,
+  updatePlacement,
 } from "@/server/db/placements-repository";
 import { dbTest as it } from "../../support/database";
 import { fixed, flexible } from "../../support/items";
@@ -35,7 +37,9 @@ describe("placements repository", { tags: ["integration", "critical"] }, () => {
     expect(await loadPlacements(tx, week)).toEqual([acrossWeekStart, monday, wednesday]);
   });
 
-  it("keeps track of which occurrence of a recurring task each placement is for", async ({ tx }) => {
+  it("keeps track of which occurrence of a recurring task each placement is for, and finds each by it", async ({
+    tx,
+  }) => {
     const essayId = await insertItem(tx, flexible("Essay", 60, week));
     const gymId = await insertItem(tx, {
       ...flexible("Gym", 60, utc("2026-10-05T04:00", "2026-10-06T04:00")),
@@ -57,6 +61,14 @@ describe("placements repository", { tags: ["integration", "critical"] }, () => {
     await insertPlacements(tx, placed);
 
     expect(await loadPlacements(tx, week)).toEqual(placed);
+
+    // One placement, found and updated by its occurrence and start.
+    const [, essay, tuesdayGym] = placed;
+    await updatePlacement(tx, tuesdayGym, { status: "done", pinned: true });
+    expect(await loadPlacement(tx, tuesdayGym)).toEqual({ ...tuesdayGym, status: "done", pinned: true });
+    expect(await loadPlacement(tx, essay)).toEqual(essay);
+    expect(await loadPlacement(tx, { ...tuesdayGym, taskId: occurrenceId(gymId, "2026-10-05") })).toBeUndefined();
+    expect(await loadPlacement(tx, { ...essay, taskId: gymId })).toBeUndefined();
   });
 
   it("deletes a task's placements, or only its pending ones from a time", async ({ tx }) => {

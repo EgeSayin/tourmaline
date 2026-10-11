@@ -20,6 +20,9 @@ export interface Placement {
   status: PlacementStatus;
 }
 
+/** Identifies a placement: a task has at most one starting at any time. */
+export type PlacementRef = Pick<Placement, "taskId" | "start">;
+
 /** Re-planning may move it: planned, not pinned, and not started by `now`. */
 export function isPending(placement: Placement, now: Date): boolean {
   return placement.status === "planned" && !placement.pinned && placement.start >= now;

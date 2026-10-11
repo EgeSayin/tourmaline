@@ -5,7 +5,16 @@ import { refresh } from "next/cache";
 import { z } from "zod";
 import { db } from "@/server/db/client";
 import { loadSettings } from "@/server/db/settings-repository";
-import { createItem, editItem, removeItem, skipOccurrence } from "./item-commands";
+import { PLACEMENT_STATUSES, type PlacementRef, type PlacementStatus } from "@/lib/placements";
+import { parseOccurrenceId } from "@/lib/recurrence";
+import {
+  createItem,
+  editItem,
+  removeItem,
+  setPlacementPinned,
+  setPlacementStatus,
+  skipOccurrence,
+} from "./item-commands";
 import { type ItemFormErrors, type ParsedItemForm, parseItemForm } from "./parse-item-form";
 
 export type ItemFormState =
@@ -14,6 +23,13 @@ export type ItemFormState =
   | { status: "invalid"; errors: ItemFormErrors; fields: Record<string, string> };
 
 const itemId = z.uuid();
+const placementRef = z.object({
+  taskId: z.string().refine((id) => {
+    const { itemId: item, date } = parseOccurrenceId(id);
+    return itemId.safeParse(item).success && (date === null || z.iso.date().safeParse(date).success);
+  }),
+  start: z.date(),
+});
 
 async function loadTimeZone() {
   const settings = await loadSettings(db);
@@ -69,5 +85,20 @@ export async function skipOccurrenceAction(id: string, date: string): Promise<vo
   const validDate = z.iso.date().parse(date);
   const found = await db.transaction((tx) => skipOccurrence(tx, validId, validDate));
   if (!found) throw new Error(`Series ${validId} not found`);
+  refresh();
+}
+
+export async function setPlacementStatusAction(ref: PlacementRef, status: PlacementStatus): Promise<void> {
+  const validRef = placementRef.parse(ref);
+  const validStatus = z.enum(PLACEMENT_STATUSES).parse(status);
+  const found = await db.transaction((tx) => setPlacementStatus(tx, validRef, validStatus, new Date()));
+  if (!found) throw new Error(`Placement of ${validRef.taskId} at ${validRef.start.toISOString()} not found`);
+  refresh();
+}
+
+export async function setPlacementPinnedAction(ref: PlacementRef, pinned: boolean): Promise<void> {
+  const validRef = placementRef.parse(ref);
+  const found = await db.transaction((tx) => setPlacementPinned(tx, validRef, z.boolean().parse(pinned), new Date()));
+  if (!found) throw new Error(`Placement of ${validRef.taskId} at ${validRef.start.toISOString()} not found`);
   refresh();
 }

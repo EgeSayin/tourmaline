@@ -1,5 +1,6 @@
 import "server-only";
 import { isFixed, type Item, itemSpan, type NewItem } from "@/lib/items";
+import type { PlacementRef, PlacementStatus } from "@/lib/placements";
 import { parseOccurrenceId } from "@/lib/recurrence";
 import type { TimeZone } from "@/lib/time/time-zone";
 import type { Transaction } from "@/server/db/connection";
@@ -12,7 +13,7 @@ import {
   skipOccurrence as saveSkip,
   updateItem,
 } from "@/server/db/items-repository";
-import { deletePlacements } from "@/server/db/placements-repository";
+import { deletePlacements, loadPlacement, updatePlacement } from "@/server/db/placements-repository";
 import { firstOccurrence } from "@/server/recurrence";
 import { localDate } from "@/server/time/temporal";
 
@@ -65,6 +66,44 @@ export async function skipOccurrence(tx: Transaction, itemId: string, date: stri
   if (!item?.recurrence) return false;
 
   await saveSkip(tx, itemId, date);
+  return true;
+}
+
+/**
+ * Checks off, marks missed or plans again the placement `ref` points to. Only one that has started by `now` can be
+ * missed. Returns `false` if there is no such placement.
+ */
+export async function setPlacementStatus(
+  tx: Transaction,
+  ref: PlacementRef,
+  status: PlacementStatus,
+  now: Date,
+): Promise<boolean> {
+  const placement = await loadPlacement(tx, ref);
+  if (!placement) return false;
+  if (status === "missed" && placement.start > now) throw new Error("Only a started placement can be missed");
+
+  await updatePlacement(tx, ref, { status });
+  return true;
+}
+
+/**
+ * Pins or unpins the placement `ref` points to. Only a planned one that hasn't ended by `now` can be pinned.
+ * Returns `false` if there is no such placement.
+ */
+export async function setPlacementPinned(
+  tx: Transaction,
+  ref: PlacementRef,
+  pinned: boolean,
+  now: Date,
+): Promise<boolean> {
+  const placement = await loadPlacement(tx, ref);
+  if (!placement) return false;
+  if (pinned && (placement.status !== "planned" || placement.end <= now)) {
+    throw new Error("Only a planned placement that hasn't ended can be pinned");
+  }
+
+  await updatePlacement(tx, ref, { pinned });
   return true;
 }
 
