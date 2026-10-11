@@ -3,7 +3,7 @@ import { PLACEMENT_STATE_LABELS } from "@/components/items/placement-state";
 import type { CalendarBlock } from "@/lib/calendar-blocks";
 import { formatTimeRange } from "@/lib/time/format";
 import type { TimeZone } from "@/lib/time/time-zone";
-import { BLOCK_STYLES } from "./block-styles";
+import { BLOCK_FILL, BLOCK_STYLES } from "./block-styles";
 import type { TimeScale } from "./time-scale";
 
 export function ScheduleBlock({
@@ -34,7 +34,7 @@ export function ScheduleBlock({
       title={label}
       className={`absolute inset-x-0.5 flex cursor-pointer flex-col justify-start overflow-hidden rounded-md px-1 text-left text-xs md:inset-x-1 md:px-2 ${
         isTiny ? "leading-3" : "py-1"
-      } transition hover:brightness-95 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none dark:hover:brightness-125 ${BLOCK_STYLES[block.style].className} ${
+      } transition hover:brightness-95 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none dark:hover:brightness-125 ${BLOCK_FILL} ${BLOCK_STYLES[block.style].className} ${
         block.faded ? "opacity-60" : ""
       }`}
       style={{ top: top + 1, height: scale.top(block.endMinute) - top - 2 }}
