@@ -8,7 +8,13 @@ import { fixedItemDetails, flexibleItemDetails, items, occurrenceOverrides } fro
 export async function insertItem(tx: Transaction, item: NewItem): Promise<string> {
   const [{ id }] = await tx
     .insert(items)
-    .values({ title: item.title, priority: item.priority, timing: item.timing, recurrence: item.recurrence })
+    .values({
+      title: item.title,
+      priority: item.priority,
+      timing: item.timing,
+      recurrence: item.recurrence,
+      categoryId: item.categoryId,
+    })
     .returning({ id: items.id });
 
   await insertDetails(tx, id, item);
@@ -30,6 +36,7 @@ export async function updateItem(tx: Transaction, id: string, item: NewItem): Pr
       priority: item.priority,
       timing: item.timing,
       recurrence: item.recurrence,
+      categoryId: item.categoryId,
     })
     .where(eq(items.id, id))
     .returning({ id: items.id });
@@ -131,12 +138,13 @@ async function findItems(executor: Database | Transaction, where?: SQL): Promise
   });
 
   return rows.map(
-    ({ id, title, priority, timing, recurrence, done, overrides, fixedDetails, flexibleDetails }): Item => {
+    ({ id, title, priority, timing, recurrence, categoryId, done, overrides, fixedDetails, flexibleDetails }): Item => {
       const shared = {
         id,
         title,
         priority,
         recurrence,
+        categoryId,
         overrides: overrides.map(({ occurrenceDate, skipped, done }) => ({ date: occurrenceDate, skipped, done })),
       };
       if (timing === "fixed") {

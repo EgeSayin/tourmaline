@@ -30,6 +30,7 @@ describe("parseItemForm", { tags: ["unit", "critical"] }, () => {
         priority: "normal",
         timing: "fixed",
         recurrence: null,
+        categoryId: null,
         start: new Date("2026-10-05T15:00Z"), // 11:00 EDT
         end: new Date("2026-10-05T16:15Z"),
         location: null,
@@ -61,6 +62,7 @@ describe("parseItemForm", { tags: ["unit", "critical"] }, () => {
         priority: "high",
         timing: "flexible",
         recurrence: null,
+        categoryId: null,
         durationMin: 120,
         earliestStart: new Date("2026-10-31T13:00Z"), // 09:00 EDT
         deadline: new Date("2026-11-02T22:00Z"), // 17:00 EST, after clocks go back

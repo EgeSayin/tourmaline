@@ -92,6 +92,13 @@
       "when": 1791695319007,
       "tag": "0012_task_done",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1791699801177,
+      "tag": "0013_categories",
+      "breakpoints": true
     }
   ]
 }

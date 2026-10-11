@@ -16,6 +16,7 @@ import {
   unique,
   uuid,
 } from "drizzle-orm/pg-core";
+import { CATEGORY_COLORS } from "@/lib/categories";
 import { type Item, PRIORITIES, SPREAD_STRATEGIES } from "@/lib/items";
 import { PLACEMENT_SOURCES, PLACEMENT_STATUSES, SLOT_MIN } from "@/lib/placements";
 import type { Recurrence } from "@/lib/recurrence";
@@ -26,6 +27,7 @@ export const timingEnum = pgEnum("timing", ["fixed", "flexible"] as const satisf
 export const spreadEnum = pgEnum("spread", SPREAD_STRATEGIES);
 export const placementSourceEnum = pgEnum("placement_source", PLACEMENT_SOURCES);
 export const placementStatusEnum = pgEnum("placement_status", PLACEMENT_STATUSES);
+export const categoryColorEnum = pgEnum("category_color", CATEGORY_COLORS);
 
 // A literal: check constraints can't take parameters.
 const slotMin = sql.raw(String(SLOT_MIN));
@@ -59,6 +61,13 @@ export const settings = pgTable(
   ],
 );
 
+export const categories = pgTable("categories", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  name: text("name").notNull().unique(),
+  color: categoryColorEnum("color").notNull(),
+  ...auditColumns,
+});
+
 /**
  * Fields shared by every item. Each item has exactly one details row matching its `timing`;
  * the composite foreign keys below guarantee the kind matches, the repository guarantees the row exists.
@@ -71,6 +80,7 @@ export const items = pgTable(
     priority: priorityEnum("priority").notNull().default("normal"),
     timing: timingEnum("timing").notNull(),
     recurrence: jsonb("recurrence").$type<Recurrence>(),
+    categoryId: uuid("category_id").references(() => categories.id, { onDelete: "set null" }),
     /** A one-off task marked done; occurrences use their override. Not part of the item's own fields. */
     done: boolean("done").notNull().default(false),
     ...auditColumns,

@@ -18,6 +18,8 @@ interface BaseItem {
   recurrence: Recurrence | null;
   /** At most one per occurrence date, sorted by date; empty for a one-off item. */
   overrides: OccurrenceOverride[];
+  /** The `Category` it belongs to, if any. */
+  categoryId: string | null;
 }
 
 export interface FixedItem extends BaseItem {
