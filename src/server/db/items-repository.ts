@@ -63,7 +63,6 @@ async function insertDetails(tx: Transaction, itemId: string, item: NewItem) {
       deadline: item.deadline,
       splitMinChunkMin: item.split?.minChunkMin ?? null,
       splitMaxChunkMin: item.split?.maxChunkMin ?? null,
-      preferredWindows: item.preferredWindows,
       spread: item.spread,
     });
   }
@@ -146,7 +145,6 @@ async function findItems(executor: Database | Transaction, where?: SQL): Promise
         splitMinChunkMin !== null && splitMaxChunkMin !== null
           ? { minChunkMin: splitMinChunkMin, maxChunkMin: splitMaxChunkMin }
           : null,
-      preferredWindows: flexibleDetails.preferredWindows,
       spread: flexibleDetails.spread,
     };
   });

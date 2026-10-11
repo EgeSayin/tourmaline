@@ -56,10 +56,6 @@ export function parseItemForm(fields: Record<string, unknown>, timeZone: TimeZon
       form.minChunkMin !== undefined && form.maxChunkMin !== undefined
         ? { minChunkMin: form.minChunkMin, maxChunkMin: form.maxChunkMin }
         : null,
-    preferredWindows:
-      form.preferredFrom !== undefined && form.preferredUntil !== undefined
-        ? [{ startMinute: form.preferredFrom, endMinute: form.preferredUntil }]
-        : [],
     spread: form.spread,
   };
   const earliestStart = form.earliestStart ? at(form.earliestStart) : now;

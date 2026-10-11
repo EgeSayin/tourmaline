@@ -34,7 +34,6 @@ const essay: Omit<Task, "id" | "overrides"> = {
   earliestStart: new Date("2026-10-05T04:00:00Z"),
   deadline: new Date("2026-10-09T21:00:00Z"),
   split: { minChunkMin: 30, maxChunkMin: 90 },
-  preferredWindows: [{ startMinute: 18 * 60, endMinute: 22 * 60 }],
   spread: "just-in-time",
 };
 

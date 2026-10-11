@@ -4,8 +4,6 @@ import { type Placement, SLOT_MIN } from "@/lib/placements";
 import { CHUNK_BREAK_MIN } from "@/lib/settings";
 import { addMinutes, minutesBetween } from "@/lib/time/duration";
 import { type Interval, type IntervalSet, mergeIntervals, subtractIntervals } from "@/lib/time/interval";
-import type { TimeZone } from "@/lib/time/time-zone";
-import { dailyIntervals } from "./free-time";
 import { orderByUrgency } from "./urgency";
 
 const SLOT_MS = SLOT_MIN * 60_000;
@@ -17,22 +15,17 @@ export interface PlacementResult {
 }
 
 /**
- * Places each task, most urgent first, inside its preferred windows if it fits there, or else anywhere in its window:
- * as one block, or for a split task as chunks (see `findEarliestChunks`) at least `CHUNK_BREAK_MIN` apart, also
- * from its chunks in `placed`. A task is placed whole or not at all.
+ * Places each task, most urgent first, at its earliest fit in its window: as one block, or for a split task as
+ * chunks (see `findEarliestChunks`) at least `CHUNK_BREAK_MIN` apart, also from its chunks in `placed`. A task is
+ * placed whole or not at all.
  */
-export function placeTasks(
-  tasks: Task[],
-  free: IntervalSet,
-  timeZone: TimeZone,
-  placed: readonly Placement[] = [],
-): PlacementResult {
+export function placeTasks(tasks: Task[], free: IntervalSet, placed: readonly Placement[] = []): PlacementResult {
   let remaining = free;
   const placements: Placement[] = [];
   const unplaced: Task[] = [];
 
   for (const task of orderByUrgency(tasks, remaining)) {
-    const blocks = findBlocks(task, remaining, timeZone, placed);
+    const blocks = findBlocks(task, remaining, placed);
     if (blocks) {
       placements.push(
         ...blocks.map((block) => ({ taskId: task.id, ...block, source: "auto" as const, pinned: false })),
@@ -45,27 +38,19 @@ export function placeTasks(
   return { placements, unplaced };
 }
 
-function findBlocks(
-  task: Task,
-  free: IntervalSet,
-  timeZone: TimeZone,
-  placed: readonly Placement[],
-): Interval[] | null {
+function findBlocks(task: Task, free: IntervalSet, placed: readonly Placement[]): Interval[] | null {
   const window = { start: task.earliestStart, end: task.deadline };
-  const { split } = task;
+  if (!task.split) {
+    const slot = findEarliestSlot(free, task.durationMin, window);
+    return slot && [slot];
+  }
   const breaks = placed
-    .filter((placement) => split && placement.taskId === task.id)
+    .filter((placement) => placement.taskId === task.id)
     .map((placement) => ({
       start: addMinutes(placement.start, -CHUNK_BREAK_MIN),
       end: addMinutes(placement.end, CHUNK_BREAK_MIN),
     }));
-  const find = (time: IntervalSet): Interval[] | null => {
-    if (split)
-      return findEarliestChunks(subtractIntervals(time, breaks), task.durationMin, window, split, CHUNK_BREAK_MIN);
-    const slot = findEarliestSlot(time, task.durationMin, window);
-    return slot && [slot];
-  };
-  return find(preferredTime(free, task, timeZone)) ?? find(free);
+  return findEarliestChunks(subtractIntervals(free, breaks), task.durationMin, window, task.split, CHUNK_BREAK_MIN);
 }
 
 /**
@@ -146,14 +131,6 @@ function mirror({ start, end }: Interval): Interval {
 
 function mirrorAll(intervals: IntervalSet): IntervalSet {
   return mergeIntervals(intervals.map(mirror));
-}
-
-/** The part of `free` inside the task's preferred windows; all of `free` when it has none. */
-function preferredTime(free: IntervalSet, task: Task, timeZone: TimeZone): IntervalSet {
-  if (task.preferredWindows.length === 0) return free;
-  const window = { start: task.earliestStart, end: task.deadline };
-  const preferred = task.preferredWindows.flatMap((daily) => dailyIntervals(window, daily, timeZone));
-  return subtractIntervals(free, subtractIntervals([window], preferred));
 }
 
 function ceilToSlot(date: Date): Date {

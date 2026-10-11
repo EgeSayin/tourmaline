@@ -3,7 +3,6 @@ import { minutesBetween } from "@/lib/time/duration";
 import type { FixedItem, Task } from "@/lib/items";
 import type { Placement } from "@/lib/placements";
 import type { SchedulerSettings } from "@/lib/settings";
-import type { TimeZone } from "@/lib/time/time-zone";
 import { freeTimeMap } from "./free-time";
 import { type Interval, type IntervalSet, mergeIntervals, subtractIntervals } from "@/lib/time/interval";
 import { placeTasks } from "./placement";
@@ -43,18 +42,12 @@ export function replan({ horizon, fixedItems, tasks, existing, settings }: Repla
     earliestStart: task.earliestStart > now ? task.earliestStart : now,
   }));
 
-  const stable = fillAround(startingNow, kept, movable, free, settings.timeZone);
-  return stable.unplaced.length === 0 ? stable : fillAround(startingNow, kept, [], free, settings.timeZone);
+  const stable = fillAround(startingNow, kept, movable, free);
+  return stable.unplaced.length === 0 ? stable : fillAround(startingNow, kept, [], free);
 }
 
 /** Keeps `kept`, keeps each of `preferred` that still fits, then places every task's remaining time. */
-function fillAround(
-  tasks: Task[],
-  kept: Placement[],
-  preferred: Placement[],
-  free: IntervalSet,
-  timeZone: TimeZone,
-): ReplanResult {
+function fillAround(tasks: Task[], kept: Placement[], preferred: Placement[], free: IntervalSet): ReplanResult {
   const tasksById = new Map(tasks.map((task) => [task.id, task]));
   const placedMinutes = new Map<string, number>();
   const addMinutes = (placement: Placement) =>
@@ -85,7 +78,7 @@ function fillAround(
   const remainingTasks = tasks
     .map((task) => ({ ...task, durationMin: task.durationMin - (placedMinutes.get(task.id) ?? 0) }))
     .filter((task) => task.durationMin > 0);
-  const { placements: added, unplaced } = placeTasks(remainingTasks, open, timeZone, [...kept, ...preserved]);
+  const { placements: added, unplaced } = placeTasks(remainingTasks, open, [...kept, ...preserved]);
 
   const placements = [...kept, ...preserved, ...added].sort((a, b) => a.start.getTime() - b.start.getTime());
   return { placements, unplaced };

@@ -1,10 +1,8 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
-import type { Task } from "@/lib/items";
 import { SLOT_MIN } from "@/lib/placements";
 import { CHUNK_BREAK_MIN, type SchedulerSettings } from "@/lib/settings";
 import { minutesBetween } from "@/lib/time/duration";
-import type { DailyWindow } from "@/lib/time/time-of-day";
 import { type Interval, mergeIntervals, subtractIntervals } from "@/lib/time/interval";
 import { freeTimeMap } from "@/server/scheduler/free-time";
 import {
@@ -172,7 +170,7 @@ describe("placeTasks", { tags: ["unit", "critical"] }, () => {
       flexible("Lab report", 5 * 60, utc("2026-10-05T04:00", "2026-10-05T22:00")), // due 18:00
     ];
 
-    const result = placeTasks(tasks, freeTimeMap(range, fixedItems, settings), settings.timeZone);
+    const result = placeTasks(tasks, freeTimeMap(range, fixedItems, settings));
 
     expect(result.placements).toEqual([
       { taskId: "Lunch", ...utc("2026-10-05T16:30", "2026-10-05T17:15"), source: "auto", pinned: false }, // 12:30
@@ -183,57 +181,22 @@ describe("placeTasks", { tags: ["unit", "critical"] }, () => {
     expect(result.unplaced.map((task) => task.id)).toEqual(["Lab report"]);
   });
 
-  it("prefers each task's preferred windows and falls back to its whole window when none fits", () => {
-    const settings: SchedulerSettings = { timeZone: "UTC", downtime: { startMinute: 22 * 60, endMinute: 10 * 60 } };
-    const day = iv("00:00", "23:59");
-    const free = freeTimeMap(day, [fixed("Seminar", iv("18:00", "19:00"))], settings);
-    const window = (startHour: number, endHour: number) => ({ startMinute: startHour * 60, endMinute: endHour * 60 });
-    const withWindows = (task: Task, preferredWindows: DailyWindow[]) => ({ ...task, preferredWindows });
-    const tasks = [
-      withWindows(flexible("Lunch", 45, day), [window(12, 14)]),
-      withWindows(flexible("Dinner", 60, day), [window(18, 19)]), // taken by the seminar
-      withWindows(flexible("Reading", 30, day), [window(8, 9), window(20, 21)]), // the first is in downtime
-      flexible("Email", 20, day),
-    ];
-
-    const { placements } = placeTasks(tasks, free, settings.timeZone);
-
-    expect(placements.map(({ taskId, start, end }) => ({ taskId, start, end }))).toEqual([
-      { taskId: "Dinner", ...iv("10:00", "11:00") },
-      { taskId: "Lunch", ...iv("12:00", "12:45") },
-      { taskId: "Reading", ...iv("20:00", "20:30") },
-      { taskId: "Email", ...iv("11:00", "11:20") },
-    ]);
-  });
-
-  it("places a split task whole as chunks, in its preferred windows if they fit there", () => {
+  it("places a split task whole as chunks with breaks, or not at all", () => {
     const settings: SchedulerSettings = { timeZone: "UTC", downtime: { startMinute: 22 * 60, endMinute: 10 * 60 } };
     const day = iv("00:00", "23:59");
     const free = freeTimeMap(day, [fixed("Seminar", iv("12:00", "13:00"))], settings);
     const tasks = [
-      {
-        ...flexible("Thesis", 150, day),
-        split: { minChunkMin: 30, maxChunkMin: 60 },
-        preferredWindows: [{ startMinute: 14 * 60, endMinute: 18 * 60 }],
-      },
-      // Only 60 minutes free in its preferred window.
-      {
-        ...flexible("Practice", 90, day),
-        split: { minChunkMin: 30, maxChunkMin: 45 },
-        preferredWindows: [{ startMinute: 21 * 60, endMinute: 22 * 60 }],
-      },
+      { ...flexible("Thesis", 150, day), split: { minChunkMin: 30, maxChunkMin: 60 } },
       // Would fit 10:00–12:00 as one block, but not as two hours with a break between.
       { ...flexible("Revision", 120, iv("10:00", "13:00")), split: { minChunkMin: 60, maxChunkMin: 60 } },
     ];
 
-    const { placements, unplaced } = placeTasks(tasks, free, settings.timeZone);
+    const { placements, unplaced } = placeTasks(tasks, free);
 
     expect(placements.map(({ taskId, start, end }) => ({ taskId, start, end }))).toEqual([
-      { taskId: "Thesis", ...iv("14:00", "15:00") },
-      { taskId: "Thesis", ...iv("15:30", "16:30") },
-      { taskId: "Thesis", ...iv("17:00", "17:30") },
-      { taskId: "Practice", ...iv("10:00", "10:45") },
-      { taskId: "Practice", ...iv("11:15", "12:00") },
+      { taskId: "Thesis", ...iv("10:00", "11:00") },
+      { taskId: "Thesis", ...iv("11:30", "12:00") },
+      { taskId: "Thesis", ...iv("13:00", "14:00") },
     ]);
     expect(unplaced.map((task) => task.id)).toEqual(["Revision"]);
   });
@@ -252,7 +215,7 @@ describe("placeTasks", { tags: ["unit", "critical"] }, () => {
           flexibleItemsArb,
           (range, settings, fixedItems, tasks) => {
             const free = freeTimeMap(range, fixedItems, settings);
-            const { placements, unplaced } = placeTasks(tasks, free, settings.timeZone);
+            const { placements, unplaced } = placeTasks(tasks, free);
             const tasksById = new Map(tasks.map((task) => [task.id, task]));
 
             const placedIds = new Set(placements.map((p) => p.taskId));

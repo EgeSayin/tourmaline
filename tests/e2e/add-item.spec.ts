@@ -12,9 +12,16 @@ test.describe("adding items", () => {
     await expect(form.getByText("Enter a date and time")).toBeVisible();
   });
 
-  test("schedules a new flexible task", async ({ page }, testInfo) => {
+  test("schedules a new flexible task, with an optional time cleared again", async ({ page }, testInfo) => {
     const title = `E2E homework (${testInfo.project.name})`;
     const form = await openAddItemForm(page, testInfo);
+    const clearNotBefore = form.getByRole("button", { name: "Clear Not before" });
+
+    await expect(clearNotBefore).toBeDisabled();
+    await form.getByLabel("Not before", { exact: true }).fill(localDateTime(1, "09:00"));
+    await clearNotBefore.click();
+    await expect(form.getByLabel("Not before", { exact: true })).toHaveValue("");
+    await expect(clearNotBefore).toBeDisabled();
 
     await form.getByLabel("Title").fill(title);
     await form.getByLabel("Duration (min)").fill("60");

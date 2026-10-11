@@ -23,16 +23,6 @@ export function TaskFields({ repeating }: { repeating: boolean }) {
       {!repeating && <FormInput name="deadline" label="Due" type="datetime-local" />}
       <div className="grid grid-cols-2 gap-4">
         <FormInput
-          name="preferredFrom"
-          clearable
-          label="Preferred from"
-          type="time"
-          description="Leave both empty for any time."
-        />
-        <FormInput name="preferredUntil" clearable label="Preferred to" type="time" />
-      </div>
-      <div className="grid grid-cols-2 gap-4">
-        <FormInput
           name="minChunkMin"
           label="Chunks from (min)"
           type="number"

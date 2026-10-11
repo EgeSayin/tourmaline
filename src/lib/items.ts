@@ -1,6 +1,5 @@
 import type { OccurrenceOverride, Recurrence } from "./recurrence";
 import type { Interval } from "./time/interval";
-import type { DailyWindow } from "@/lib/time/time-of-day";
 
 /** Most to least important. */
 export const PRIORITIES = ["mandatory", "high", "normal", "low"] as const;
@@ -38,8 +37,6 @@ export interface Task extends BaseItem {
   deadline: Date;
   /** `null` means the item must be placed as a single block. */
   split: { minChunkMin: number; maxChunkMin: number } | null;
-  /** Empty means no preference. */
-  preferredWindows: DailyWindow[];
   spread: SpreadStrategy;
 }
 

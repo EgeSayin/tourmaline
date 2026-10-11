@@ -42,7 +42,6 @@ export function flexible(title: string, durationMin: number, window: Interval, p
     earliestStart: window.start,
     deadline: window.end,
     split: null,
-    preferredWindows: [],
     spread: "asap",
   };
 }
@@ -50,9 +49,6 @@ export function flexible(title: string, durationMin: number, window: Interval, p
 export const fixedItemArb = fc
   .tuple(intervalArb(), fc.integer({ min: 0, max: 90 }), fc.integer({ min: 0, max: 90 }))
   .map(([interval, before, after]) => fixed("Fixed", interval, before, after));
-
-const minuteOfDayArb = fc.integer({ min: 0, max: 24 * 60 - 1 });
-const dailyWindowArb = fc.record({ startMinute: minuteOfDayArb, endMinute: minuteOfDayArb });
 
 /** Whole slots, as task durations and chunk sizes are. */
 export const taskMinutesArb = (min: number, max: number) =>
@@ -69,15 +65,13 @@ export const flexibleItemsArb = fc
       taskMinutesArb(SLOT_MIN, 4 * 60),
       intervalArb(SPAN_MIN),
       fc.constantFrom(...PRIORITIES),
-      fc.array(dailyWindowArb, { maxLength: 2 }),
       fc.option(splitArb, { nil: null }),
     ),
     { maxLength: 10 },
   )
   .map((tasks) =>
-    tasks.map(([durationMin, window, priority, preferredWindows, split], i) => ({
+    tasks.map(([durationMin, window, priority, split], i) => ({
       ...flexible(`Task ${i}`, durationMin, window, priority),
-      preferredWindows,
       split,
     })),
   );

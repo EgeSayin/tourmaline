@@ -49,8 +49,6 @@ describe("parseItemForm", { tags: ["unit", "critical"] }, () => {
           deadline: "2026-11-02T17:00",
           minChunkMin: "30",
           maxChunkMin: "60",
-          preferredFrom: "18:00",
-          preferredUntil: "21:30",
         },
         tz,
         now,
@@ -66,7 +64,6 @@ describe("parseItemForm", { tags: ["unit", "critical"] }, () => {
         earliestStart: new Date("2026-10-31T13:00Z"), // 09:00 EDT
         deadline: new Date("2026-11-02T22:00Z"), // 17:00 EST, after clocks go back
         split: { minChunkMin: 30, maxChunkMin: 60 },
-        preferredWindows: [{ startMinute: 18 * 60, endMinute: 21 * 60 + 30 }],
         spread: "asap",
       },
     });
@@ -107,18 +104,6 @@ describe("parseItemForm", { tags: ["unit", "critical"] }, () => {
     expect(parseItemForm({ ...dueTomorrow, minChunkMin: "45", maxChunkMin: "30" }, tz, now)).toEqual({
       ok: false,
       errors: { maxChunkMin: ["Maximum chunk must be at least the minimum"] },
-    });
-    expect(parseItemForm({ ...dueTomorrow, preferredFrom: "12:00" }, tz, now)).toEqual({
-      ok: false,
-      errors: { preferredUntil: ["Set both times or neither"] },
-    });
-    expect(parseItemForm({ ...dueTomorrow, preferredFrom: "12:00", preferredUntil: "12:00" }, tz, now)).toEqual({
-      ok: false,
-      errors: { preferredUntil: ["Use a different time than the start"] },
-    });
-    expect(parseItemForm({ ...dueTomorrow, preferredFrom: "25:00", preferredUntil: "noon" }, tz, now)).toEqual({
-      ok: false,
-      errors: { preferredFrom: ["Enter a time"], preferredUntil: ["Enter a time"] },
     });
 
     for (const earliestStart of ["", "2026-10-04T09:00"]) {
@@ -202,16 +187,11 @@ describe("parseItemForm", { tags: ["unit", "critical"] }, () => {
 
     // Missing fields are all reported at once, whichever check finds them.
     expect(
-      parseItemForm(
-        { timing: "flexible", title: "", repeat: "weekly", preferredFrom: "12:00", minChunkMin: "30" },
-        tz,
-        now,
-      ),
+      parseItemForm({ timing: "flexible", title: "", repeat: "weekly", minChunkMin: "30" }, tz, now),
     ).toMatchObject({
       ok: false,
       errors: {
         title: [expect.any(String)],
-        preferredUntil: ["Set both times or neither"],
         maxChunkMin: ["Set both chunk sizes or neither"],
         durationMin: [expect.any(String)],
         earliestStart: [expect.any(String)],
@@ -239,7 +219,6 @@ describe("parseItemForm", { tags: ["unit", "critical"] }, () => {
     const essay = {
       ...flexible("Essay", 120, { start: new Date("2026-10-31T13:00Z"), end: new Date("2026-11-02T22:00Z") }, "high"),
       split: { minChunkMin: 30, maxChunkMin: 60 },
-      preferredWindows: [{ startMinute: 22 * 60 + 5, endMinute: 60 }], // wraps past midnight
     };
 
     const weeklyLecture = {

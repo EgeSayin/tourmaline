@@ -1,7 +1,6 @@
 import { z } from "zod";
 import { type Item, PRIORITIES, SPREAD_STRATEGIES } from "./items";
 import { toDateTimeInputValue } from "@/lib/time/local-time";
-import { fromTimeInputValue, toTimeInputValue } from "@/lib/time/time-of-day";
 import { SLOT_MIN } from "./placements";
 import { WEEKDAYS } from "./recurrence";
 import type { TimeZone } from "@/lib/time/time-zone";
@@ -14,8 +13,6 @@ const toNumber = (value: unknown) => {
 
 /** Local wall-clock time as sent by `<input type="datetime-local">`, e.g. "2026-10-01T14:00". */
 const localDateTime = z.iso.datetime({ local: true, error: "Enter a date and time" });
-/** As sent by `<input type="time">`, e.g. "12:30". */
-const timeOfDay = z.iso.time({ precision: -1, error: "Enter a time" }).transform(fromTimeInputValue);
 const minutes = (min: number) => z.number({ error: "Enter a whole number of minutes" }).int().min(min);
 const taskMinutes = z
   .number({ error: "Enter a whole number of minutes" })
@@ -74,8 +71,6 @@ const flexibleForm = z
     minChunkMin: z.preprocess(toNumber, taskMinutes.optional()),
     maxChunkMin: z.preprocess(toNumber, taskMinutes.optional()),
     spread: z.preprocess(emptyToUndefined, z.enum(SPREAD_STRATEGIES).default("asap")),
-    preferredFrom: z.preprocess(emptyToUndefined, timeOfDay.optional()),
-    preferredUntil: z.preprocess(emptyToUndefined, timeOfDay.optional()),
   })
   .refine(weekdaysChosen.check, weekdaysChosen.params)
   .refine((form) => form.repeat !== "none" || form.deadline !== undefined, {
@@ -92,15 +87,6 @@ const flexibleForm = z
     path: ["maxChunkMin"],
     message: "Set both chunk sizes or neither",
     ...evenIfInvalid,
-  })
-  .refine((form) => (form.preferredFrom === undefined) === (form.preferredUntil === undefined), {
-    path: ["preferredUntil"],
-    message: "Set both times or neither",
-    ...evenIfInvalid,
-  })
-  .refine((form) => form.preferredFrom === undefined || form.preferredFrom !== form.preferredUntil, {
-    path: ["preferredUntil"],
-    message: "Use a different time than the start",
   })
   .refine(
     (form) => form.minChunkMin === undefined || form.maxChunkMin === undefined || form.minChunkMin <= form.maxChunkMin,
@@ -136,8 +122,6 @@ export function itemToFormValues(item: Item, timeZone: TimeZone): Record<string,
       bufferAfterMin: String(item.bufferAfterMin),
     };
   }
-  // The form edits one window; nothing creates more yet.
-  const [preferred] = item.preferredWindows;
   return {
     ...shared,
     durationMin: String(item.durationMin),
@@ -146,7 +130,5 @@ export function itemToFormValues(item: Item, timeZone: TimeZone): Record<string,
     minChunkMin: item.split ? String(item.split.minChunkMin) : "",
     maxChunkMin: item.split ? String(item.split.maxChunkMin) : "",
     spread: item.spread,
-    preferredFrom: preferred ? toTimeInputValue(preferred.startMinute) : "",
-    preferredUntil: preferred ? toTimeInputValue(preferred.endMinute) : "",
   };
 }

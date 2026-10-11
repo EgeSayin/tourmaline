@@ -19,7 +19,6 @@ import {
 import { type Item, PRIORITIES, SPREAD_STRATEGIES } from "@/lib/items";
 import { PLACEMENT_SOURCES } from "@/lib/placements";
 import type { Recurrence } from "@/lib/recurrence";
-import type { DailyWindow } from "@/lib/time/time-of-day";
 import type { TimeZone } from "@/lib/time/time-zone";
 
 export const priorityEnum = pgEnum("priority", PRIORITIES);
@@ -102,7 +101,6 @@ export const flexibleItemDetails = pgTable(
     deadline: timestamptz("deadline").notNull(),
     splitMinChunkMin: integer("split_min_chunk_min"),
     splitMaxChunkMin: integer("split_max_chunk_min"),
-    preferredWindows: jsonb("preferred_windows").$type<DailyWindow[]>().notNull().default([]),
     spread: spreadEnum("spread").notNull().default("asap"),
   },
   (t) => [

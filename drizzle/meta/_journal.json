@@ -43,6 +43,13 @@
       "when": 1791165486588,
       "tag": "0005_occurrence_overrides",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1791683543150,
+      "tag": "0006_drop_preferred_windows",
+      "breakpoints": true
     }
   ]
 }
