@@ -214,10 +214,11 @@ describe("parseItemForm", { tags: ["unit", "critical"] }, () => {
     expect(parseItemForm(task, tz, now)).toEqual({ ok: false, errors: { deadline: ["Enter a date and time"] } });
   });
 
-  it("parses an item's own form values back into the same item", () => {
+  it("parses an item's own form values, category included, back into the same item", () => {
     const lecture = {
       ...fixed("Lecture", { start: new Date("2026-10-05T15:00Z"), end: new Date("2026-10-05T16:15Z") }, 15, 5),
       location: "Hall 1",
+      categoryId: "5b1f3d0e-8a4c-4f6e-9d2b-7c3a1e5f9b80",
     };
     const essay = {
       ...flexible("Essay", 120, { start: new Date("2026-10-31T13:00Z"), end: new Date("2026-11-02T22:00Z") }, "high"),
@@ -240,5 +241,8 @@ describe("parseItemForm", { tags: ["unit", "critical"] }, () => {
       const { done: _, ...fields } = { done: false, ...item };
       expect(parsed.ok && parsed.item).toEqual(fields);
     }
+
+    const unknownCategory = parseItemForm({ ...itemToFormValues(lecture, tz), category: "csc" }, tz, now);
+    expect(unknownCategory).toEqual({ ok: false, errors: { category: ["Pick a category"] } });
   });
 });

@@ -36,6 +36,7 @@ const shared = {
   interval: z.preprocess(toNumber, z.number({ error: "Enter a whole number" }).int().min(1).max(99).default(1)),
   weekdays: z.preprocess((value) => value ?? "", weekdayList),
   until: z.preprocess(emptyToUndefined, z.iso.date({ error: "Enter a date" }).optional()),
+  category: z.preprocess(emptyToUndefined, z.uuid("Pick a category").optional()),
 };
 
 // Zod skips refinements while any field is invalid. These only test whether a field is present, which works on
@@ -110,6 +111,7 @@ export function itemToFormValues(item: Item, timeZone: TimeZone): Record<string,
     interval: String(recurrence?.interval ?? 1),
     weekdays: recurrence?.frequency === "weekly" ? recurrence.weekdays.join(",") : "",
     until: recurrence?.until ?? "",
+    category: item.categoryId ?? "",
   };
 
   if (item.timing === "fixed") {

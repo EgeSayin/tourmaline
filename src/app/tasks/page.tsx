@@ -48,6 +48,7 @@ export default async function Tasks({ searchParams }: PageProps<"/tasks">) {
                 key={selected?.id ?? "new"}
                 task={selected}
                 schedule={schedule}
+                categories={calendar.categories}
                 timeZone={calendar.timeZone}
               />
             ) : null

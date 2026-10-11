@@ -16,6 +16,11 @@ interface FormState {
 
 const FormStateContext = createContext<FormState>({ values: {}, errors: {} });
 
+/** The submitted or initial value of field `name`. */
+export function useFormValue(name: string): string | undefined {
+  return use(FormStateContext).values[name];
+}
+
 export function FormStateProvider({ children, ...state }: FormState & { children: React.ReactNode }) {
   return <FormStateContext value={state}>{children}</FormStateContext>;
 }

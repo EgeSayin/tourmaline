@@ -1,11 +1,13 @@
 "use client";
 
 import { startTransition, useActionState, useState } from "react";
+import { CategorySelect } from "./category-select";
 import { DeleteButton } from "@/components/forms/delete-button";
 import { FormInput, FormSelect, FormStateProvider } from "@/components/forms/form-fields";
 import { Button } from "@/components/ui/button";
 import { FieldGroup } from "@/components/ui/field";
 import { itemToFormValues, type Repeat } from "@/lib/item-form";
+import type { Category } from "@/lib/categories";
 import { isTask, type Item, PRIORITIES, type Priority } from "@/lib/items";
 import type { TimeZone } from "@/lib/time/time-zone";
 import { createItemAction, deleteItemAction, type ItemFormState, updateItemAction } from "@/server/items/actions";
@@ -25,7 +27,17 @@ const PRIORITY_LABELS = {
 const PRIORITY_OPTIONS = PRIORITIES.map((value) => ({ value, label: PRIORITY_LABELS[value] }));
 
 /** Adds a new item, or edits `item` when given. */
-export function ItemForm({ item, timeZone, onDone }: { item?: Item; timeZone: TimeZone; onDone: () => void }) {
+export function ItemForm({
+  item,
+  categories,
+  timeZone,
+  onDone,
+}: {
+  item?: Item;
+  categories: Category[];
+  timeZone: TimeZone;
+  onDone: () => void;
+}) {
   const [timing, setTiming] = useState<Item["timing"]>(item?.timing ?? "flexible");
   const save = item ? updateItemAction.bind(null, item.id) : createItemAction;
   const [state, formAction, pending] = useActionState(
@@ -55,6 +67,7 @@ export function ItemForm({ item, timeZone, onDone }: { item?: Item; timeZone: Ti
       <FormStateProvider values={values} errors={invalid?.errors ?? {}}>
         <FieldGroup>
           <FormInput name="title" label="Title" autoFocus={!item} />
+          <CategorySelect categories={categories} />
           <FormSelect
             key={timing}
             name="priority"

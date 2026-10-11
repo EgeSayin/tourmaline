@@ -37,7 +37,7 @@ export function parseItemForm(fields: Record<string, unknown>, timeZone: TimeZon
       priority: form.priority,
       timing: "fixed",
       recurrence,
-      categoryId: null,
+      categoryId: form.category ?? null,
       start: at(form.start),
       end: at(form.end),
       location: form.location ?? null,
@@ -52,7 +52,7 @@ export function parseItemForm(fields: Record<string, unknown>, timeZone: TimeZon
     priority: form.priority,
     timing: "flexible" as const,
     recurrence,
-    categoryId: null,
+    categoryId: form.category ?? null,
     durationMin: form.durationMin,
     split:
       form.minChunkMin !== undefined && form.maxChunkMin !== undefined

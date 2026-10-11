@@ -1,7 +1,8 @@
 import { expect, test } from "@playwright/test";
+import { itemEditor, localDateTime, openAddItemForm } from "./helpers";
 
 test.describe("categories", () => {
-  test("adds a category, refuses a taken name, renames and recolours it, and deletes it", async ({
+  test("adds a category, refuses a taken name, renames and recolours it, files an item under it, and deletes it", async ({
     page,
   }, testInfo) => {
     const name = `E2E course (${testInfo.project.name})`;
@@ -32,11 +33,34 @@ test.describe("categories", () => {
     await editing.getByRole("button", { name: "Save changes" }).click();
     await expect(editing).toBeHidden();
 
+    // An item in the category shows it when opened, and keeps itself once the category is gone.
+    const item = `E2E lab report (${testInfo.project.name})`;
+    const form = await openAddItemForm(page);
+    await form.getByLabel("Title").fill(item);
+    await form.getByLabel("Category").selectOption({ label: `${name} renamed` });
+    await form.getByLabel("Duration (min)").fill("30");
+    await form.getByLabel("Due").fill(localDateTime(2, "20:00"));
+    await form.getByRole("button", { name: "Add item" }).click();
+    await expect(form).toBeHidden();
+    await page
+      .getByRole("region", { name: "Task list" })
+      .getByRole("link", { name: new RegExp(`^${RegExp.escape(item)}`) })
+      .click();
+    await expect(itemEditor(page).getByLabel("Category").locator("option:checked")).toHaveText(`${name} renamed`);
+    await page.goto("/categories");
+    await expect(entry(`${name} renamed`)).toContainText("1 item");
+
     await entry(`${name} renamed`).click();
     await expect(editing.getByRole("radio", { name: "Purple" })).toHaveAttribute("aria-checked", "true");
     await editing.getByRole("button", { name: "Delete" }).click();
     await editing.getByRole("button", { name: "Confirm delete" }).click();
     await expect(editing).toBeHidden();
     await expect(entry(name)).toHaveCount(0);
+    await page.goto("/tasks");
+    await page
+      .getByRole("region", { name: "Task list" })
+      .getByRole("link", { name: new RegExp(`^${RegExp.escape(item)}`) })
+      .click();
+    await expect(itemEditor(page).getByLabel("Category").locator("option:checked")).toHaveText("None");
   });
 });
