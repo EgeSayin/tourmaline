@@ -43,12 +43,17 @@ test.describe("editing items", () => {
     const title = `E2E cancelled meeting (${testInfo.project.name})`;
     await addFixedItemToday(page, testInfo, title, earlySlot(testInfo, 3));
 
+    const block = page.getByRole("button", { name: new RegExp(`^${RegExp.escape(title)}`) });
     const panel = await openItemForEditing(page, testInfo, title);
     await panel.getByRole("button", { name: "Delete" }).click();
-    await expect(page.getByText(title)).toBeAttached();
-    await panel.getByRole("button", { name: "Confirm delete" }).click();
+    await page.goto("/");
+    await expect(block).toBeAttached();
 
+    await openItemForEditing(page, testInfo, title);
+    await panel.getByRole("button", { name: "Delete" }).click();
+    await panel.getByRole("button", { name: "Confirm delete" }).click();
     await expect(panel).toBeHidden();
-    await expect(page.getByText(title)).toHaveCount(0);
+    await page.goto("/");
+    await expect(block).toHaveCount(0);
   });
 });
