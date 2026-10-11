@@ -24,7 +24,7 @@ export function TaskOccurrences({
       ) : (
         <ul className="flex flex-col gap-2">
           {occurrences.map(({ date, start, end, blocks }) => (
-            <li key={date} aria-label={formatLocalDate(date)} className="flex flex-col gap-2 rounded-lg border p-3">
+            <li key={date} aria-label={formatLocalDate(date)} className="flex flex-col gap-3 rounded-lg border p-4">
               <p className="text-sm">
                 <span className="font-medium">{formatLocalDate(date)}</span>
                 <span className="text-muted-foreground tabular-nums">
