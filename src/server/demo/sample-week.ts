@@ -96,7 +96,10 @@ export function sampleWeek(now: Date) {
     recurringTask("gym", "Gym", 60, local(TUE, "17:00"), weekly(2, 4, 6), "high"),
     recurringTask("language", "Language practice", 20, local(MON, "10:00"), daily),
     flexible("calc-pset", "Calculus problem set", 3 * 60, [local(MON, "00:00"), local(THU, "14:00")]),
-    flexible("cs-project", "CS project", 8 * 60, [local(MON, "00:00"), local(SUN, "23:00")]),
+    {
+      ...flexible("cs-project", "CS project", 8 * 60, [local(MON, "00:00"), local(SUN, "23:00")]),
+      split: { minChunkMin: 60, maxChunkMin: 2 * 60 },
+    },
     flexible("essay", "Essay draft", 2 * 60, [local(MON, "00:00"), local(FRI, "17:00")]),
     flexible("reading", "Reading for seminar", 60, [local(MON, "00:00"), local(WED, "23:00")]),
     flexible("side-project", "Side project", 4 * 60, [local(MON, "00:00"), local(SUN, "23:00")], "low"),
