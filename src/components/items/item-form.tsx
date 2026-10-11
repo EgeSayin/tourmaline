@@ -2,7 +2,6 @@
 
 import { startTransition, useActionState, useState } from "react";
 import { CategorySelect } from "./category-select";
-import { ClashResolver } from "./clash-resolver";
 import { DeleteButton } from "@/components/forms/delete-button";
 import { FormInput, FormSelect, FormStateProvider } from "@/components/forms/form-fields";
 import { Button } from "@/components/ui/button";
@@ -49,16 +48,8 @@ export function ItemForm({
     },
     { status: "idle" },
   );
-  // Changing the form makes the clashes found for what was submitted stale, so they're dismissed.
-  const [dismissed, setDismissed] = useState<ItemFormState | null>(null);
   const invalid = state.status === "invalid" ? state : null;
-  const clashes = state.status === "clashes" && state !== dismissed ? state.clashes : null;
-  const values =
-    state.status === "invalid" || state.status === "clashes"
-      ? state.fields
-      : item
-        ? itemToFormValues(item, timeZone)
-        : {};
+  const values = invalid?.fields ?? (item ? itemToFormValues(item, timeZone) : {});
   const [repeat, setRepeat] = useState<Repeat>(item?.recurrence?.frequency ?? "none");
 
   return (
@@ -66,10 +57,9 @@ export function ItemForm({
       // Not `action`: React resets a form after its action, and a reset select shows its first value again.
       onSubmit={(event) => {
         event.preventDefault();
-        const formData = new FormData(event.currentTarget, event.nativeEvent.submitter);
+        const formData = new FormData(event.currentTarget);
         startTransition(() => formAction(formData));
       }}
-      onChange={() => setDismissed(state)}
       className="flex flex-col gap-6"
     >
       <TimingSwitch value={timing} onChange={setTiming} />
@@ -90,18 +80,14 @@ export function ItemForm({
         </FieldGroup>
       </FormStateProvider>
 
-      {clashes ? (
-        <ClashResolver clashes={clashes} timeZone={timeZone} pending={pending} onCancel={() => setDismissed(state)} />
-      ) : (
-        <div className="flex flex-wrap justify-between gap-2">
-          <Button type="submit" disabled={pending} className="flex-1">
-            {pending ? "Saving…" : item ? "Save changes" : "Add item"}
-          </Button>
-          {/* A series is done one occurrence at a time, from its blocks. */}
-          {item && isTask(item) && !item.recurrence && <TaskDoneButton task={item} date={null} onChanged={onDone} />}
-          {item && <DeleteButton onDelete={() => deleteItemAction(item.id)} onDeleted={onDone} />}
-        </div>
-      )}
+      <div className="flex flex-wrap justify-between gap-2">
+        <Button type="submit" disabled={pending} className="flex-1">
+          {pending ? "Saving…" : item ? "Save changes" : "Add item"}
+        </Button>
+        {/* A series is done one occurrence at a time, from its blocks. */}
+        {item && isTask(item) && !item.recurrence && <TaskDoneButton task={item} date={null} onChanged={onDone} />}
+        {item && <DeleteButton onDelete={() => deleteItemAction(item.id)} onDeleted={onDone} />}
+      </div>
     </form>
   );
 }

@@ -106,6 +106,13 @@
       "when": 1791741728544,
       "tag": "0014_items_bumped",
       "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "7",
+      "when": 1791743023907,
+      "tag": "0015_drop_bumped",
+      "breakpoints": true
     }
   ]
 }

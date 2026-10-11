@@ -36,7 +36,6 @@ export function fixed(
     location: null,
     bufferBeforeMin,
     bufferAfterMin,
-    bumped: false,
   };
 }
 

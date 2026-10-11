@@ -15,7 +15,7 @@ import type { TaskEntry, TaskStatus } from "@/server/tasks";
 type Filter = "open" | "done" | "all";
 
 const SHOWN: Record<Filter, (status: TaskStatus) => boolean> = {
-  open: (status) => status === "scheduled" || status === "queued" || status === "bumped",
+  open: (status) => status === "scheduled" || status === "queued",
   done: (status) => status === "done",
   all: () => true,
 };
@@ -24,7 +24,6 @@ const STATUS_LABELS = {
   scheduled: "Scheduled",
   queued: "Doesn't fit",
   done: "Done",
-  bumped: "Bumped",
   past: "Past",
 } satisfies Record<TaskStatus, string>;
 
@@ -32,7 +31,6 @@ const STATUS_STYLES = {
   scheduled: "text-muted-foreground",
   queued: "bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-100",
   done: "bg-emerald-100 text-emerald-900 dark:bg-emerald-950 dark:text-emerald-100",
-  bumped: "bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-100",
   past: "text-muted-foreground",
 } satisfies Record<TaskStatus, string>;
 

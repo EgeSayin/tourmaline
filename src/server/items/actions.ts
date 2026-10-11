@@ -7,28 +7,22 @@ import { db } from "@/server/db/client";
 import { inPlanTransaction } from "@/server/db/plan-lock";
 import { loadSettings } from "@/server/db/settings-repository";
 import { PLACEMENT_STATUSES, type PlacementRef, type PlacementStatus } from "@/lib/placements";
-import { CLASH_RESOLUTION_FIELD } from "@/lib/item-form";
 import { parseOccurrenceId } from "@/lib/recurrence";
-import type { Clash } from "./clashes";
 import {
-  type ClashResolution,
+  createItem,
+  editItem,
   removeItem,
-  saveItem,
-  setBumped,
   setPlacementPinned,
   setPlacementStatus,
   setTaskDone,
   skipOccurrence,
 } from "./item-commands";
-import { type ItemFormErrors, parseItemForm } from "./parse-item-form";
+import { type ItemFormErrors, type ParsedItemForm, parseItemForm } from "./parse-item-form";
 
 export type ItemFormState =
   | { status: "idle" }
   | { status: "saved" }
-  | { status: "invalid"; errors: ItemFormErrors; fields: Record<string, string> }
-  | { status: "clashes"; clashes: Clash[]; fields: Record<string, string> };
-
-const clashResolution = z.enum(["ask", "keep", "bump"] satisfies ClashResolution[]).catch("ask");
+  | { status: "invalid"; errors: ItemFormErrors; fields: Record<string, string> };
 
 const itemId = z.uuid();
 const placementRef = z.object({
@@ -45,27 +39,23 @@ async function loadTimeZone() {
   return settings.timeZone;
 }
 
-/** Saves the submitted item as a new item, or over the stored item `id`, unless it's invalid or has clashes to resolve. */
-async function submitItem(id: string | null, formData: FormData): Promise<ItemFormState> {
-  const now = new Date();
+async function parseSubmission(formData: FormData, now: Date) {
   const timeZone = await loadTimeZone();
-  const { [CLASH_RESOLUTION_FIELD]: resolution, ...fields } = Object.fromEntries(
-    [...formData].map(([key, value]) => [key, String(value)]),
-  );
-  const parsed = parseItemForm(fields, timeZone, now);
-  if (!parsed.ok) return { status: "invalid", errors: parsed.errors, fields };
+  const fields = Object.fromEntries([...formData].map(([key, value]) => [key, String(value)]));
+  return { fields, timeZone, parsed: parseItemForm(fields, timeZone, now) };
+}
 
-  const saved = await inPlanTransaction(db, (tx) =>
-    saveItem(tx, id, parsed.item, clashResolution.parse(resolution), now, timeZone),
-  );
-  if (!saved) throw new Error(`Item ${id} not found`);
-  if ("clashes" in saved) return { status: "clashes", clashes: saved.clashes, fields };
-  refresh();
-  return { status: "saved" };
+function invalid(fields: Record<string, string>, parsed: Extract<ParsedItemForm, { ok: false }>): ItemFormState {
+  return { status: "invalid", errors: parsed.errors, fields };
 }
 
 export async function createItemAction(_previous: ItemFormState, formData: FormData): Promise<ItemFormState> {
-  return submitItem(null, formData);
+  const { fields, parsed } = await parseSubmission(formData, new Date());
+  if (!parsed.ok) return invalid(fields, parsed);
+
+  await inPlanTransaction(db, (tx) => createItem(tx, parsed.item));
+  refresh();
+  return { status: "saved" };
 }
 
 export async function updateItemAction(
@@ -73,7 +63,15 @@ export async function updateItemAction(
   _previous: ItemFormState,
   formData: FormData,
 ): Promise<ItemFormState> {
-  return submitItem(itemId.parse(id), formData);
+  const validId = itemId.parse(id);
+  const now = new Date();
+  const { fields, timeZone, parsed } = await parseSubmission(formData, now);
+  if (!parsed.ok) return invalid(fields, parsed);
+
+  const found = await inPlanTransaction(db, (tx) => editItem(tx, validId, parsed.item, now, timeZone));
+  if (!found) throw new Error(`Item ${validId} not found`);
+  refresh();
+  return { status: "saved" };
 }
 
 export async function deleteItemAction(id: string): Promise<void> {
@@ -81,15 +79,6 @@ export async function deleteItemAction(id: string): Promise<void> {
   const timeZone = await loadTimeZone();
   const found = await inPlanTransaction(db, (tx) => removeItem(tx, validId, new Date(), timeZone));
   if (!found) throw new Error(`Item ${validId} not found`);
-  refresh();
-}
-
-/** Puts the bumped one-off fixed item `id`, or with `date` its occurrence on that local date, back on the calendar. */
-export async function restoreBumpedAction(id: string, date: string | null): Promise<void> {
-  const validId = itemId.parse(id);
-  const validDate = z.iso.date().nullable().parse(date);
-  const found = await inPlanTransaction(db, (tx) => setBumped(tx, validId, validDate, false));
-  if (!found) throw new Error(`Fixed item ${validId} not found`);
   refresh();
 }
 

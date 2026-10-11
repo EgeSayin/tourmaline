@@ -19,9 +19,6 @@ const taskMinutes = z
   .min(SLOT_MIN)
   .multipleOf(SLOT_MIN, `Use multiples of ${SLOT_MIN} minutes`);
 
-/** The name of the submit button that resolves a fixed item's clashes; its value is a `ClashResolution`. */
-export const CLASH_RESOLUTION_FIELD = "clashResolution";
-
 export const REPEAT_OPTIONS = ["none", "daily", "weekly"] as const;
 
 export type Repeat = (typeof REPEAT_OPTIONS)[number];

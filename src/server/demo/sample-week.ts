@@ -19,10 +19,7 @@ function fixed(
   date: string,
   [from, to]: [string, string],
   options: Partial<
-    Pick<
-      FixedItem,
-      "priority" | "recurrence" | "overrides" | "location" | "bufferBeforeMin" | "bufferAfterMin" | "categoryId"
-    >
+    Pick<FixedItem, "priority" | "recurrence" | "location" | "bufferBeforeMin" | "bufferAfterMin" | "categoryId">
   > = {},
 ): FixedItem {
   return {
@@ -38,7 +35,6 @@ function fixed(
     location: null,
     bufferBeforeMin: 0,
     bufferAfterMin: 0,
-    bumped: false,
     ...options,
   };
 }
@@ -93,13 +89,11 @@ const daily: Recurrence = { frequency: "daily", interval: 1, until: null };
 
 /**
  * A student's week of fixed items and tasks, in the week (Monday–Sunday) containing `now`, and the categories they
- * belong to. Lectures, chess club, lunch, gym and language practice repeat from that week on. Next Wednesday, a guest
- * talk has bumped chess club.
+ * belong to. Lectures, chess club, lunch, gym and language practice repeat from that week on.
  */
 export function sampleWeek(now: Date) {
   const week = weekContaining(now, settings.timeZone).dates;
   const [MON, TUE, WED, THU, FRI, SAT, SUN] = week;
-  const NEXT_WED = Temporal.PlainDate.from(WED).add({ days: 7 }).toString();
 
   const fixedItems: FixedItem[] = [
     fixed("cs", "CS 101 lecture", MON, ["11:00", "12:15"], {
@@ -112,12 +106,7 @@ export function sampleWeek(now: Date) {
       recurrence: weekly(2, 4),
       categoryId: "calc",
     }),
-    fixed("chess", "Chess club", WED, ["18:00", "19:30"], {
-      priority: "normal",
-      recurrence: weekly(3),
-      overrides: [{ date: NEXT_WED, skipped: false, done: false, bumped: true }],
-    }),
-    fixed("talk", "Guest talk", NEXT_WED, ["17:30", "19:00"], { location: "Main auditorium", categoryId: "seminar" }),
+    fixed("chess", "Chess club", WED, ["18:00", "19:30"], { priority: "normal", recurrence: weekly(3) }),
     fixed("hangout", "Dinner with friends", SAT, ["19:00", "22:00"], { priority: "normal" }),
   ];
 

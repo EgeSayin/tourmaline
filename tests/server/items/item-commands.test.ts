@@ -2,14 +2,12 @@ import { describe, expect } from "vitest";
 import type { NewItem } from "@/lib/items";
 import type { Placement } from "@/lib/placements";
 import type { Recurrence } from "@/lib/recurrence";
-import { insertItem, loadItem, loadItems, setItemBumped } from "@/server/db/items-repository";
+import { insertItem, loadItem, loadItems } from "@/server/db/items-repository";
 import { insertPlacements, loadPlacement, loadPlacements } from "@/server/db/placements-repository";
 import { occurrenceOverrides } from "@/server/db/schema";
 import {
   editItem,
   removeItem,
-  saveItem,
-  setBumped,
   setPlacementPinned,
   setPlacementStatus,
   setTaskDone,
@@ -49,12 +47,12 @@ describe("editItem", { tags: ["integration", "critical"] }, () => {
       id,
       ...lecture,
       recurrence: { ...lecture.recurrence, until: "2026-10-11" },
-      overrides: [{ date: "2026-09-14", skipped: true, done: false, bumped: false }],
+      overrides: [{ date: "2026-09-14", skipped: true, done: false }],
     });
     expect(await loadItem(tx, newId!)).toEqual({
       id: newId,
       ...edited,
-      overrides: [{ date: "2026-10-19", skipped: true, done: false, bumped: false }],
+      overrides: [{ date: "2026-10-19", skipped: true, done: false }],
     });
   });
 
@@ -231,9 +229,7 @@ describe("setTaskDone", { tags: ["integration", "critical"] }, () => {
       recurrence: { frequency: "daily", interval: 1, until: null },
     });
     expect(await setTaskDone(tx, gymId, "2026-10-08", true, now)).toBe(true);
-    expect((await loadItem(tx, gymId))?.overrides).toEqual([
-      { date: "2026-10-08", skipped: false, done: true, bumped: false },
-    ]);
+    expect((await loadItem(tx, gymId))?.overrides).toEqual([{ date: "2026-10-08", skipped: false, done: true }]);
 
     // A one-off task has no occurrences, a series is only done one occurrence at a time, and a fixed item never.
     const lectureId = await insertItem(tx, lecture);
@@ -241,78 +237,5 @@ describe("setTaskDone", { tags: ["integration", "critical"] }, () => {
     expect(await setTaskDone(tx, gymId, null, true, now)).toBe(false);
     expect(await setTaskDone(tx, lectureId, null, true, now)).toBe(false);
     expect(await setTaskDone(tx, "00000000-0000-4000-8000-000000000000", null, true, now)).toBe(false);
-  });
-});
-
-describe("saveItem", { tags: ["integration", "critical"] }, () => {
-  it("reports a fixed item's clashes without saving, then bumps the optional ones or saves anyway", async ({ tx }) => {
-    // Wednesdays 18:00–20:00 from Oct 7, optional; a mandatory seminar on Wed Oct 14, 17:00–18:00.
-    const clubId = await insertItem(
-      tx,
-      unsaved({
-        ...fixed("Club", utc("2026-10-07T22:00", "2026-10-08T00:00")),
-        priority: "normal",
-        recurrence: { frequency: "weekly", interval: 1, weekdays: [3], until: null },
-      }),
-    );
-    const seminarId = await insertItem(tx, unsaved(fixed("Seminar", utc("2026-10-14T21:00", "2026-10-14T22:00"))));
-    const talk = unsaved(fixed("Talk", utc("2026-10-14T21:30", "2026-10-14T23:00"))); // Wed Oct 14, 17:30–19:00
-
-    expect(await saveItem(tx, null, talk, "ask", now, tz)).toMatchObject({
-      clashes: [
-        { id: seminarId, mandatory: true },
-        { id: `${clubId}@2026-10-14`, mandatory: false },
-      ],
-    });
-    expect(await loadItems(tx)).toHaveLength(2);
-
-    const saved = await saveItem(tx, null, talk, "bump", now, tz);
-    const talkId = saved && "id" in saved ? saved.id : "";
-    expect(await loadItem(tx, talkId)).toMatchObject({ title: "Talk", bumped: false });
-    expect((await loadItem(tx, clubId))?.overrides).toEqual([
-      { date: "2026-10-14", skipped: false, done: false, bumped: true },
-    ]);
-    expect(await loadItem(tx, seminarId)).toMatchObject({ bumped: false });
-
-    // The bumped occurrence no longer clashes; the mandatory seminar still does until saved anyway.
-    const renamed = { ...talk, title: "Guest talk" };
-    expect(await saveItem(tx, talkId, renamed, "ask", now, tz)).toMatchObject({ clashes: [{ id: seminarId }] });
-    expect(await saveItem(tx, talkId, renamed, "keep", now, tz)).toEqual({ id: talkId });
-    expect(await loadItem(tx, talkId)).toMatchObject({ title: "Guest talk" });
-
-    // A bumped item stays bumped through an edit, so it clashes with nothing.
-    await setItemBumped(tx, seminarId, true);
-    const seminar = unsaved(fixed("Seminar (room 2)", utc("2026-10-14T21:00", "2026-10-14T22:00")));
-    expect(await saveItem(tx, seminarId, seminar, "ask", now, tz)).toEqual({ id: seminarId });
-    expect(await loadItem(tx, seminarId)).toMatchObject({ title: "Seminar (room 2)", bumped: true });
-
-    // Tasks don't clash, and a missing item isn't saved.
-    const essay = unsaved(flexible("Essay", 60, utc("2026-10-14T21:00", "2026-10-14T23:00")));
-    expect(await saveItem(tx, null, essay, "ask", now, tz)).toHaveProperty("id");
-    expect(await saveItem(tx, crypto.randomUUID(), talk, "keep", now, tz)).toBeUndefined();
-  });
-});
-
-describe("setBumped", { tags: ["integration", "critical"] }, () => {
-  it("bumps and restores a one-off fixed item or an occurrence, and refuses anything else", async ({ tx }) => {
-    const seminarId = await insertItem(tx, unsaved(fixed("Seminar", utc("2026-10-14T21:00", "2026-10-14T22:00"))));
-    const lectureId = await insertItem(tx, lecture);
-    const essayId = await insertItem(tx, unsaved(flexible("Essay", 60, utc("2026-10-14T21:00", "2026-10-14T23:00"))));
-
-    expect(await setBumped(tx, seminarId, null, true)).toBe(true);
-    expect(await loadItem(tx, seminarId)).toMatchObject({ bumped: true });
-    expect(await setBumped(tx, seminarId, null, false)).toBe(true);
-    expect(await loadItem(tx, seminarId)).toMatchObject({ bumped: false });
-
-    expect(await setBumped(tx, lectureId, "2026-10-12", true)).toBe(true);
-    expect(await setBumped(tx, lectureId, "2026-10-12", false)).toBe(true);
-    expect((await loadItem(tx, lectureId))?.overrides).toEqual([
-      { date: "2026-10-12", skipped: false, done: false, bumped: false },
-    ]);
-
-    expect(await setBumped(tx, lectureId, null, true)).toBe(false); // a series is bumped one occurrence at a time
-    expect(await setBumped(tx, seminarId, "2026-10-14", true)).toBe(false);
-    expect(await setBumped(tx, essayId, null, true)).toBe(false);
-    expect(await setBumped(tx, crypto.randomUUID(), null, true)).toBe(false);
   });
 });

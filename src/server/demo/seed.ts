@@ -4,7 +4,7 @@ import { db } from "@/server/db/client";
 import { inPlanTransaction } from "@/server/db/plan-lock";
 import { insertCategory } from "@/server/db/categories-repository";
 import { insertItem, loadItems } from "@/server/db/items-repository";
-import { categories, items, occurrenceOverrides, placements, settings } from "@/server/db/schema";
+import { categories, items, placements, settings } from "@/server/db/schema";
 import { syncPlan } from "@/server/planning/sync-plan";
 import { weekContaining } from "@/server/time/days";
 import { sampleWeek } from "./sample-week";
@@ -33,12 +33,7 @@ async function seed() {
       categoryIds.set(key, await insertCategory(tx, category));
     }
     for (const item of [...sample.fixedItems, ...sample.tasks]) {
-      const id = await insertItem(tx, { ...item, categoryId: item.categoryId && categoryIds.get(item.categoryId)! });
-      if (item.overrides.length > 0) {
-        await tx
-          .insert(occurrenceOverrides)
-          .values(item.overrides.map(({ date, ...state }) => ({ itemId: id, occurrenceDate: date, ...state })));
-      }
+      await insertItem(tx, { ...item, categoryId: item.categoryId && categoryIds.get(item.categoryId)! });
     }
 
     const weekStart = weekContaining(now, sample.settings.timeZone).range.start;

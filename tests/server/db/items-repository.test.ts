@@ -26,7 +26,6 @@ const lecture: Omit<FixedItem, "id" | "overrides"> = {
   location: "Science Hall 101",
   bufferBeforeMin: 15,
   bufferAfterMin: 10,
-  bumped: false,
 };
 
 const essay: NewTask = {
@@ -114,8 +113,8 @@ describe("items repository", { tags: ["integration", "critical"] }, () => {
 
   it("keeps occurrence overrides, one per date and sorted by it, until they're deleted", async ({ tx }) => {
     const id = await insertItem(tx, lecture);
-    const later = { date: "2026-10-19", skipped: true, done: false, bumped: false };
-    const earlier = { date: "2026-10-07", skipped: true, done: false, bumped: false };
+    const later = { date: "2026-10-19", skipped: true, done: false };
+    const earlier = { date: "2026-10-07", skipped: true, done: false };
     const override = ({ date, skipped }: OccurrenceOverride) => ({ itemId: id, occurrenceDate: date, skipped });
     await tx.insert(occurrenceOverrides).values([override(later), override(earlier)]);
     const everyOtherWeek = { ...lecture, recurrence: { ...lecture.recurrence!, interval: 2 } };
@@ -123,21 +122,19 @@ describe("items repository", { tags: ["integration", "critical"] }, () => {
     expect(await loadItems(tx)).toEqual([stored(id, everyOtherWeek, [earlier, later])]);
     await expect(
       tx.transaction((inner) =>
-        inner.insert(occurrenceOverrides).values(override({ ...earlier, skipped: false, done: false, bumped: false })),
+        inner.insert(occurrenceOverrides).values(override({ ...earlier, skipped: false, done: false })),
       ),
     ).rejects.toThrow(); // one per occurrence date
 
     // Skipping adds an override, or marks an existing one as skipped.
-    await tx
-      .insert(occurrenceOverrides)
-      .values(override({ date: "2026-10-26", skipped: false, done: false, bumped: false }));
+    await tx.insert(occurrenceOverrides).values(override({ date: "2026-10-26", skipped: false, done: false }));
     await skipOccurrence(tx, id, "2026-10-26");
     await skipOccurrence(tx, id, "2026-11-02");
     expect((await loadItems(tx))[0].overrides).toEqual([
       earlier,
       later,
-      { date: "2026-10-26", skipped: true, done: false, bumped: false },
-      { date: "2026-11-02", skipped: true, done: false, bumped: false },
+      { date: "2026-10-26", skipped: true, done: false },
+      { date: "2026-11-02", skipped: true, done: false },
     ]);
 
     await deleteOverrides(tx, id);
@@ -161,8 +158,8 @@ describe("items repository", { tags: ["integration", "critical"] }, () => {
     await setOccurrenceDone(tx, gymId, "2026-10-08", true);
     await setOccurrenceDone(tx, gymId, "2026-10-08", false);
     expect((await loadItems(tx)).find((item) => item.id === gymId)?.overrides).toEqual([
-      { date: "2026-10-07", skipped: true, done: true, bumped: false },
-      { date: "2026-10-08", skipped: false, done: false, bumped: false },
+      { date: "2026-10-07", skipped: true, done: true },
+      { date: "2026-10-08", skipped: false, done: false },
     ]);
   });
 

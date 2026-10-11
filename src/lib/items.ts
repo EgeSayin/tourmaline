@@ -29,8 +29,6 @@ export interface FixedItem extends BaseItem {
   location: string | null;
   bufferBeforeMin: number;
   bufferAfterMin: number;
-  /** Moved aside for a clashing item: off the calendar and free to plan over until restored. An occurrence's comes from its override. */
-  bumped: boolean;
 }
 
 /** How long each chunk of a split task may be. */
@@ -55,10 +53,10 @@ export interface Task extends BaseItem {
 export type Item = FixedItem | Task;
 
 /**
- * An item as created or edited: the database assigns its `id`, occurrences are overridden separately, and a fixed
- * item is bumped and a task marked done separately.
+ * An item as created or edited: the database assigns its `id`, occurrences are overridden separately, and a task is
+ * marked done separately.
  */
-export type NewItem = Omit<FixedItem, "id" | "overrides" | "bumped"> | NewTask;
+export type NewItem = Omit<FixedItem, "id" | "overrides"> | NewTask;
 
 export type NewTask = Omit<Task, "id" | "overrides" | "done">;
 
