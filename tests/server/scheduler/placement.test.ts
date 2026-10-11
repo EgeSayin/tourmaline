@@ -7,9 +7,15 @@ import { minutesBetween } from "@/lib/time/duration";
 import type { DailyWindow } from "@/lib/time/time-of-day";
 import { type Interval, mergeIntervals, subtractIntervals } from "@/lib/time/interval";
 import { freeTimeMap } from "@/server/scheduler/free-time";
-import { findEarliestChunks, findEarliestSlot, placeTasks } from "@/server/scheduler/placement";
+import {
+  findEarliestChunks,
+  findEarliestSlot,
+  findLatestChunks,
+  findLatestSlot,
+  placeTasks,
+} from "@/server/scheduler/placement";
 import { at, covers, intervalArb, intervalsArb, iv, minuteOf, SPAN_MIN } from "../../support/intervals";
-import { fixed, fixedItemArb, flexible, flexibleItemsArb, splitArb } from "../../support/items";
+import { fixed, fixedItemArb, flexible, flexibleItemsArb, splitArb, taskMinutesArb } from "../../support/items";
 import { utcSettingsArb } from "../../support/settings";
 
 /** Earliest minute on the `SLOT_MIN` grid starting `durationMin` consecutive minutes inside both `free` and `window`. */
@@ -87,35 +93,59 @@ describe("findEarliestChunks", { tags: ["unit", "critical"] }, () => {
     { tags: ["property"] },
     () => {
       const freeArb = intervalsArb.map(mergeIntervals);
-      const durationArb = fc.integer({ min: 1, max: 6 * 60 });
       const breakArb = fc.integer({ min: 0, max: 90 });
 
       fc.assert(
         fc.property(
           freeArb,
           intervalArb(SPAN_MIN),
-          durationArb,
+          taskMinutesArb(SLOT_MIN, 6 * 60),
           splitArb,
           breakArb,
           (free, window, durationMin, split, breakMin) => {
-            const chunks = findEarliestChunks(free, durationMin, window, split, breakMin);
-            if (chunks === null) return;
+            for (const find of [findEarliestChunks, findLatestChunks]) {
+              const chunks = find(free, durationMin, window, split, breakMin);
+              if (chunks === null) continue;
 
-            expect(chunks.reduce((sum, chunk) => sum + minutesBetween(chunk.start, chunk.end), 0)).toBe(durationMin);
-            for (const [i, chunk] of chunks.entries()) {
-              const length = minutesBetween(chunk.start, chunk.end);
-              if (durationMin >= split.minChunkMin) expect(length).toBeGreaterThanOrEqual(split.minChunkMin);
-              expect(length).toBeLessThanOrEqual(split.maxChunkMin);
-              expect(minuteOf(chunk.start) % SLOT_MIN).toBe(0);
-              expect(subtractIntervals([chunk], free)).toEqual([]);
-              expect(chunk.start >= window.start && chunk.end <= window.end).toBe(true);
-              if (i > 0) expect(minutesBetween(chunks[i - 1].end, chunk.start)).toBeGreaterThanOrEqual(breakMin);
+              expect(chunks.reduce((sum, chunk) => sum + minutesBetween(chunk.start, chunk.end), 0)).toBe(durationMin);
+              for (const [i, chunk] of chunks.entries()) {
+                const length = minutesBetween(chunk.start, chunk.end);
+                if (durationMin >= split.minChunkMin) expect(length).toBeGreaterThanOrEqual(split.minChunkMin);
+                expect(length).toBeLessThanOrEqual(split.maxChunkMin);
+                expect(minuteOf(chunk.start) % SLOT_MIN).toBe(0);
+                expect(minuteOf(chunk.end) % SLOT_MIN).toBe(0);
+                expect(subtractIntervals([chunk], free)).toEqual([]);
+                expect(chunk.start >= window.start && chunk.end <= window.end).toBe(true);
+                if (i > 0) expect(minutesBetween(chunks[i - 1].end, chunk.start)).toBeGreaterThanOrEqual(breakMin);
+              }
             }
           },
         ),
       );
     },
   );
+});
+
+describe("findLatestSlot and findLatestChunks", { tags: ["unit", "critical"] }, () => {
+  it("find the latest fit, ending on the grid, and cut chunks from the end", () => {
+    const free = mergeIntervals([iv("10:00", "11:00"), iv("11:10", "12:00"), iv("13:00", "16:53")]);
+    const day = iv("00:00", "23:59");
+
+    expect(findLatestSlot(free, 60, day)).toEqual(iv("15:50", "16:50")); // rounded down to the grid
+    expect(findLatestSlot(free, 60, iv("00:00", "12:30"))).toEqual(iv("10:00", "11:00")); // 11:10–12:00 too short
+    expect(findLatestSlot(free, 5 * 60, day)).toBeNull();
+
+    expect(findLatestChunks(free, 150, day, { minChunkMin: 30, maxChunkMin: 60 }, 30)).toEqual([
+      iv("13:20", "13:50"),
+      iv("14:20", "15:20"),
+      iv("15:50", "16:50"),
+    ]);
+    // 60 and 10 would leave a chunk below the minimum, so the earlier one is the shorter.
+    expect(findLatestChunks(free, 70, day, { minChunkMin: 30, maxChunkMin: 60 }, 30)).toEqual([
+      iv("15:10", "15:40"),
+      iv("16:10", "16:50"),
+    ]);
+  });
 });
 
 function utc(start: string, end: string): Interval {

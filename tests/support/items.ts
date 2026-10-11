@@ -1,5 +1,6 @@
 import fc from "fast-check";
 import { type FixedItem, type Task, type Item, type NewItem, PRIORITIES, type Priority } from "@/lib/items";
+import { SLOT_MIN } from "@/lib/placements";
 import type { Interval } from "@/lib/time/interval";
 import { intervalArb, SPAN_MIN } from "./intervals";
 
@@ -53,15 +54,19 @@ export const fixedItemArb = fc
 const minuteOfDayArb = fc.integer({ min: 0, max: 24 * 60 - 1 });
 const dailyWindowArb = fc.record({ startMinute: minuteOfDayArb, endMinute: minuteOfDayArb });
 
+/** Whole slots, as task durations and chunk sizes are. */
+export const taskMinutesArb = (min: number, max: number) =>
+  fc.integer({ min: Math.ceil(min / SLOT_MIN), max: max / SLOT_MIN }).map((slots) => slots * SLOT_MIN);
+
 export const splitArb = fc
-  .tuple(fc.integer({ min: 1, max: 120 }), fc.integer({ min: 0, max: 120 }))
+  .tuple(taskMinutesArb(SLOT_MIN, 120), taskMinutesArb(0, 120))
   .map(([minChunkMin, extra]) => ({ minChunkMin, maxChunkMin: minChunkMin + extra }));
 
 /** Tasks with unique ids. */
 export const flexibleItemsArb = fc
   .array(
     fc.tuple(
-      fc.integer({ min: 1, max: 4 * 60 }),
+      taskMinutesArb(SLOT_MIN, 4 * 60),
       intervalArb(SPAN_MIN),
       fc.constantFrom(...PRIORITIES),
       fc.array(dailyWindowArb, { maxLength: 2 }),
