@@ -111,6 +111,9 @@ test.describe("recurring items", () => {
       .getByRole("listitem", { name: dateLabel(0) });
     const markDone = todaysOccurrence.getByRole("button", { name: `Mark ${dateLabel(0)} done` });
     const reopen = todaysOccurrence.getByRole("button", { name: `Reopen ${dateLabel(0)}` });
+    // The card shows the date, so its buttons leave it out.
+    await expect(markDone).toHaveText("Mark done");
+    await expect(todaysOccurrence.getByRole("button", { name: `Skip ${dateLabel(0)}` })).toHaveText("Skip");
     await markDone.click();
     await expect(reopen).toBeVisible();
     await showQueue(page, testInfo);

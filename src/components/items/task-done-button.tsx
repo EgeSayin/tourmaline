@@ -5,16 +5,32 @@ import type { Task } from "@/lib/items";
 import { formatLocalDate } from "@/lib/time/format";
 import { setTaskDoneAction } from "@/server/items/actions";
 
-/** Marks `task`, or with `date` its occurrence on that local date, done as a whole, or reopens it. */
-export function TaskDoneButton({ task, date, onChanged }: { task: Task; date: string | null; onChanged?: () => void }) {
+/**
+ * Marks `task`, or with `date` its occurrence on that local date, done as a whole, or reopens it. `compact` is small
+ * and leaves the date out of the visible label, for where the date is already shown.
+ */
+export function TaskDoneButton({
+  task,
+  date,
+  compact = false,
+  onChanged,
+}: {
+  task: Task;
+  date: string | null;
+  compact?: boolean;
+  onChanged?: () => void;
+}) {
   const [pending, startTransition] = useTransition();
   const done = date ? task.overrides.some((override) => override.date === date && override.done) : task.done;
-  const which = date ? ` ${formatLocalDate(date)}` : "";
+  const label = (which: string) => (done ? `Reopen${which}` : `Mark${which} done`);
+  const name = label(date ? ` ${formatLocalDate(date)}` : "");
 
   return (
     <Button
       type="button"
       variant="ghost"
+      size={compact ? "sm" : "default"}
+      aria-label={name}
       disabled={pending}
       onClick={() =>
         startTransition(async () => {
@@ -24,7 +40,7 @@ export function TaskDoneButton({ task, date, onChanged }: { task: Task; date: st
       }
     >
       {done ? <RotateCcw /> : <CircleCheck />}
-      {done ? `Reopen${which}` : `Mark${which} done`}
+      {compact ? label("") : name}
     </Button>
   );
 }

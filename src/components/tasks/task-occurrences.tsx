@@ -33,9 +33,9 @@ export function TaskOccurrences({
                 </span>
               </p>
               {isTask(item) && <BlockList blocks={blocks} timeZone={timeZone} />}
-              <div className="flex flex-wrap gap-2">
-                {isTask(item) && <TaskDoneButton task={item} date={date} />}
-                <SkipOccurrenceButton itemId={item.id} date={date} />
+              <div className="-ml-2.5 flex flex-wrap gap-1">
+                {isTask(item) && <TaskDoneButton task={item} date={date} compact />}
+                <SkipOccurrenceButton itemId={item.id} date={date} compact />
               </div>
             </li>
           ))}
