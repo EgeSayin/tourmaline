@@ -23,17 +23,21 @@ test.describe("calendar navigation", () => {
     await expect(page).toHaveURL(/\/$/);
   });
 
-  test("on phones, shows three days from today and steps by three", async ({ page }, testInfo) => {
+  test("on phones, shows three days from today, labelled only then, and steps by three", async ({ page }, testInfo) => {
     test.skip(!isPhone(testInfo), "larger screens step by weeks");
     await page.goto("/");
     const heading = page.getByRole("heading", { level: 1 });
     const firstRange = await heading.textContent();
+    const todayLabel = page.getByText("Today", { exact: true }).and(page.locator("p"));
+    await expect(todayLabel).toBeVisible();
+    await expect(page.getByText(/week/)).toBeHidden();
     await expect(page.getByRole("link", { name: "Today" })).toHaveAttribute("aria-disabled", "true");
 
     const today = Temporal.Now.plainDateISO(TIME_ZONE);
     await page.getByRole("link", { name: "Next days" }).click();
     await expect(page).toHaveURL(new RegExp(`\\?date=${today.add({ days: 3 })}$`));
     await expect(heading).not.toHaveText(firstRange!);
+    await expect(todayLabel).toHaveCount(0);
 
     await page.getByRole("link", { name: "Previous days" }).click();
     await expect(page).toHaveURL(new RegExp(`\\?date=${today}$`));

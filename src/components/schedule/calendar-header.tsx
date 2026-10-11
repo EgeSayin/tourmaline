@@ -9,7 +9,10 @@ function weekLabel(weeksFromToday: number): string {
   return weeksFromToday > 0 ? `In ${weeksFromToday} weeks` : `${-weeksFromToday} weeks ago`;
 }
 
-/** Steps by week with the week's dates on tablets and up; by `dayDates.length` days with those dates on phones. */
+/**
+ * Steps by week with the week's dates on tablets and up; by `dayDates.length` days with those dates on phones, labelled
+ * only when they start today.
+ */
 export function CalendarHeader({
   weekDates,
   dayDates,
@@ -22,7 +25,8 @@ export function CalendarHeader({
       <DateNavigator unit="week" {...week} atToday={week.weeksFromToday === 0} className="hidden md:flex" />
       <DateNavigator unit="days" {...days} atToday={dayDates[0] === today} className="flex md:hidden" />
       <div>
-        <p className="text-xs text-muted-foreground">{weekLabel(week.weeksFromToday)}</p>
+        <p className="hidden text-xs text-muted-foreground md:block">{weekLabel(week.weeksFromToday)}</p>
+        {dayDates[0] === today && <p className="text-xs text-muted-foreground md:hidden">Today</p>}
         <h1 className="text-lg font-semibold tracking-tight whitespace-nowrap">
           <span className="hidden md:inline">{formatLocalDateRange(weekDates[0], weekDates.at(-1)!)}</span>
           <span className="md:hidden">{formatLocalDateRange(dayDates[0], dayDates.at(-1)!)}</span>
