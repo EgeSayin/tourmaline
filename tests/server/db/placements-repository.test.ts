@@ -93,7 +93,7 @@ describe("placements repository", { tags: ["integration", "critical"] }, () => {
     expect(await loadPlacements(tx, week)).toEqual([other]);
   });
 
-  it("only allows placements for flexible tasks and removes them with their task", async ({ tx }) => {
+  it("only allows placements for flexible tasks, one per start, and removes them with their task", async ({ tx }) => {
     const lectureId = await insertItem(tx, fixed("Lecture", utc("2026-10-05T14:00", "2026-10-05T15:00")));
     const essayId = await insertItem(tx, flexible("Essay", 60, week));
     const slot = {
@@ -108,6 +108,9 @@ describe("placements repository", { tags: ["integration", "critical"] }, () => {
     ).rejects.toThrow();
 
     await insertPlacements(tx, [{ taskId: essayId, ...slot }]);
+    await expect(
+      tx.transaction((nested) => insertPlacements(nested, [{ taskId: essayId, ...slot }])),
+    ).rejects.toThrow(); // one per task and start
     await deleteItem(tx, essayId);
     expect(await loadPlacements(tx, week)).toEqual([]);
   });

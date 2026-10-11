@@ -152,6 +152,7 @@ export const placements = pgTable(
     foreignKey({ columns: [t.itemId, t.timing], foreignColumns: [items.id, items.timing] }).onDelete("cascade"),
     check("placements_timing", sql`${t.timing} = 'flexible'`),
     check("placements_times", sql`${t.startAt} < ${t.endAt}`),
+    unique("placements_task_start").on(t.itemId, t.occurrenceDate, t.startAt).nullsNotDistinct(),
     index("placements_start_at").on(t.startAt),
   ],
 );

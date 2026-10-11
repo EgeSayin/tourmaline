@@ -7,11 +7,12 @@ import { TaskQueue } from "@/components/schedule/task-queue";
 import { loadCalendar } from "@/server/calendar";
 import { parseDateParam } from "@/server/time/days";
 import { db } from "@/server/db/client";
+import { inPlanTransaction } from "@/server/db/plan-lock";
 
 export default async function Home({ searchParams }: PageProps<"/">) {
   await connection();
   const shownDate = parseDateParam((await searchParams).date);
-  const calendar = await loadCalendar(db, new Date(), shownDate);
+  const calendar = await inPlanTransaction(db, (tx) => loadCalendar(tx, new Date(), shownDate));
 
   if (!calendar) {
     return (

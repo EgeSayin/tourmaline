@@ -1,6 +1,7 @@
 import "server-only";
 import { lte } from "drizzle-orm";
 import { db } from "@/server/db/client";
+import { inPlanTransaction } from "@/server/db/plan-lock";
 import { insertItem, loadItems } from "@/server/db/items-repository";
 import { items, placements, settings } from "@/server/db/schema";
 import { syncPlan } from "@/server/planning/sync-plan";
@@ -22,7 +23,7 @@ async function seed() {
     downtimeEndMinute: sample.settings.downtime.endMinute,
   };
 
-  const plan = await db.transaction(async (tx) => {
+  const plan = await inPlanTransaction(db, async (tx) => {
     await tx.delete(items);
     await tx.insert(settings).values(settingsRow).onConflictDoUpdate({ target: settings.id, set: settingsRow });
     for (const item of [...sample.fixedItems, ...sample.tasks]) await insertItem(tx, item);
