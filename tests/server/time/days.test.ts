@@ -3,7 +3,7 @@ import { dayNavigation, daysFrom, parseDateParam, weekContaining, weekNavigation
 
 const at = (iso: string) => new Date(iso);
 
-describe("weekContaining and weekOf", { tags: ["unit", "critical"] }, () => {
+describe("weekContaining and weekOf", () => {
   it("returns the local Monday-to-Monday week, including at its edges and across DST", () => {
     const tz = "America/New_York";
 

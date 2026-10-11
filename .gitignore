@@ -47,5 +47,3 @@ next-env.d.ts
 /blob-report/
 /playwright/.cache/
 
-# architecture graphs, generated locally by `npm run docs:graphs`
-/docs/generated/

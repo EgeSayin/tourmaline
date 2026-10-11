@@ -1,4 +1,3 @@
-import "server-only";
 import type { FocusCaps, SchedulerSettings } from "@/lib/settings";
 import { isTimeZone } from "@/lib/time/time-zone";
 import type { Database, Transaction } from "./connection";

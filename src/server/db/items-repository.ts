@@ -1,4 +1,3 @@
-import "server-only";
 import { and, eq, gte, type SQL } from "drizzle-orm";
 import type { Item, NewItem } from "@/lib/items";
 import type { Database, Transaction } from "./connection";

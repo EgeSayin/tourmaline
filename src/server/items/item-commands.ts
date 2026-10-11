@@ -1,4 +1,3 @@
-import "server-only";
 import { isFixed, isTask, type Item, itemSpan, type NewItem } from "@/lib/items";
 import type { PlacementRef, PlacementStatus } from "@/lib/placements";
 import { occurrenceId, parseOccurrenceId } from "@/lib/recurrence";

@@ -1,4 +1,3 @@
-import "server-only";
 import { addMinutes, minutesBetween } from "@/lib/time/duration";
 import { isFixed, isTask, type Item, itemSpan, type NewItem, type NewTask, withSpan } from "@/lib/items";
 import { occurrenceId, type Recurrence } from "@/lib/recurrence";

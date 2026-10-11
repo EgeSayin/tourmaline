@@ -1,4 +1,3 @@
-import "server-only";
 import { type CalendarBlock, type EditTarget, toCalendarBlocks } from "@/lib/calendar-blocks";
 import { isFixed } from "@/lib/items";
 import type { PlacementRef } from "@/lib/placements";

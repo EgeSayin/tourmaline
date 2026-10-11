@@ -6,7 +6,7 @@ import { placeTasks } from "@/server/scheduler/placement";
 import { utc } from "../../support/intervals";
 import { fixed, flexible } from "../../support/items";
 
-describe("focus caps", { tags: ["unit", "critical"] }, () => {
+describe("focus caps", () => {
   it("counts each local day's busy time once against its weekday's cap", () => {
     // Mon Oct 5 to Wed Oct 7 in New York (UTC-4).
     const range = utc("2026-10-05T14:00", "2026-10-08T04:00");

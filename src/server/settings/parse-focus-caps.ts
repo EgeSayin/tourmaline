@@ -1,4 +1,3 @@
-import "server-only";
 import { z } from "zod";
 import { WEEKDAYS } from "@/lib/recurrence";
 import { type FocusCaps, focusCapField } from "@/lib/settings";

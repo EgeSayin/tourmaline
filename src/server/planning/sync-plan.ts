@@ -1,4 +1,3 @@
-import "server-only";
 import { isFixed, type Item, isTask, type Task } from "@/lib/items";
 import { isPending, type Placement } from "@/lib/placements";
 import { RECURRENCE_LOOKAHEAD_DAYS, type SchedulerSettings } from "@/lib/settings";

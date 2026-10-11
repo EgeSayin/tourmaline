@@ -17,7 +17,7 @@ import { utc } from "../../support/intervals";
 
 const week = utc("2026-10-05T04:00", "2026-10-12T04:00");
 
-describe("placements repository", { tags: ["integration", "critical"] }, () => {
+describe("placements repository", () => {
   it("loads the placements overlapping a range, sorted by start", async ({ tx }) => {
     const essayId = await insertItem(tx, flexible("Essay", 120, week));
     const placement = (start: string, end: string, extra: Partial<Placement> = {}): Placement => ({

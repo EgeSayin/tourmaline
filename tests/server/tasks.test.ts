@@ -14,7 +14,7 @@ import { fixed, flexible, unsaved } from "../support/items";
 const wednesdayNoon = new Date("2026-10-07T16:00Z"); // Wed Oct 7, 12:00 EDT
 const daily: Recurrence = { frequency: "daily", interval: 1, until: null };
 
-describe("the task list", { tags: ["integration", "critical"] }, () => {
+describe("the task list", () => {
   it("lists every item by its next date, with its kind and status, each opening as the calendar would", async ({
     tx,
   }) => {

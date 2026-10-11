@@ -1,4 +1,3 @@
-import "server-only";
 import { minutesBetween } from "@/lib/time/duration";
 import { type Task, PRIORITIES } from "@/lib/items";
 import { clipIntervals, type Interval } from "@/lib/time/interval";

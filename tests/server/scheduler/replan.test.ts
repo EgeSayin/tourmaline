@@ -49,7 +49,7 @@ const samePlacement = (a: Placement, b: Placement) =>
 const minutesFor = (placements: Placement[], taskId: string) =>
   placements.filter((p) => p.taskId === taskId).reduce((sum, p) => sum + minutesBetween(p.start, p.end), 0);
 
-describe("replan", { tags: ["unit", "critical"] }, () => {
+describe("replan", () => {
   it("keeps done, pinned, in-progress, unreviewed and still-valid placements, and places the rest from now", () => {
     const settings: SchedulerSettings = {
       timeZone: "UTC",
@@ -239,76 +239,72 @@ describe("replan", { tags: ["unit", "critical"] }, () => {
     ]);
   });
 
-  it(
-    "keeps done, pinned and in-progress placements, drops missed ones, and fills each task's remaining time after now",
-    { tags: ["property"] },
-    () => {
-      const caseArb = scenarioArb.chain((scenario) => fc.tuple(fc.constant(scenario), existingArb(scenario.tasks)));
+  it("keeps done, pinned and in-progress placements, drops missed ones, and fills each task's remaining time after now", () => {
+    const caseArb = scenarioArb.chain((scenario) => fc.tuple(fc.constant(scenario), existingArb(scenario.tasks)));
 
-      fc.assert(
-        fc.property(caseArb, ([{ horizon, settings, fixedItems, tasks }, existing]) => {
-          const result = replan({ horizon, fixedItems, tasks, existing, settings });
-          const now = horizon.start;
-          const kept = existing.filter(
-            (p) => p.status === "done" || (p.status === "planned" && (p.pinned || p.start < now)),
-          );
-          const missed = existing.filter((p) => p.status === "missed");
-          for (const placement of missed) expect(result.placements).not.toContainEqual(placement);
-          const others = result.placements.filter((p) => !kept.some((k) => samePlacement(k, p)));
+    fc.assert(
+      fc.property(caseArb, ([{ horizon, settings, fixedItems, tasks }, existing]) => {
+        const result = replan({ horizon, fixedItems, tasks, existing, settings });
+        const now = horizon.start;
+        const kept = existing.filter(
+          (p) => p.status === "done" || (p.status === "planned" && (p.pinned || p.start < now)),
+        );
+        const missed = existing.filter((p) => p.status === "missed");
+        for (const placement of missed) expect(result.placements).not.toContainEqual(placement);
+        const others = result.placements.filter((p) => !kept.some((k) => samePlacement(k, p)));
 
-          for (const placement of kept) expect(result.placements).toContainEqual(placement);
-          for (const placement of others) {
-            expect(placement.source === "auto" || existing.some((e) => samePlacement(e, placement))).toBe(true);
+        for (const placement of kept) expect(result.placements).toContainEqual(placement);
+        for (const placement of others) {
+          expect(placement.source === "auto" || existing.some((e) => samePlacement(e, placement))).toBe(true);
+        }
+
+        const free = freeTimeMap(horizon, fixedItems, settings);
+        const byStart = [...others].sort((a, b) => a.start.getTime() - b.start.getTime());
+        for (const [i, placement] of byStart.entries()) {
+          const task = tasks.find((t) => t.id === placement.taskId)!;
+          expect(placement.start >= task.earliestStart && placement.end <= task.deadline).toBe(true);
+          expect(subtractIntervals([placement], subtractIntervals(free, kept))).toEqual([]);
+          if (i > 0) expect(byStart[i - 1].end <= placement.start).toBe(true);
+        }
+
+        const split = new Set(tasks.filter((task) => task.split).map((task) => task.id));
+        for (const placement of others.filter((p) => p.source === "auto" && split.has(p.taskId))) {
+          for (const other of result.placements.filter((p) => p.taskId === placement.taskId && p !== placement)) {
+            const apart = Math.max(
+              minutesBetween(other.end, placement.start),
+              minutesBetween(placement.end, other.start),
+            );
+            expect(apart).toBeGreaterThanOrEqual(CHUNK_BREAK_MIN);
           }
+        }
 
-          const free = freeTimeMap(horizon, fixedItems, settings);
-          const byStart = [...others].sort((a, b) => a.start.getTime() - b.start.getTime());
-          for (const [i, placement] of byStart.entries()) {
-            const task = tasks.find((t) => t.id === placement.taskId)!;
-            expect(placement.start >= task.earliestStart && placement.end <= task.deadline).toBe(true);
-            expect(subtractIntervals([placement], subtractIntervals(free, kept))).toEqual([]);
-            if (i > 0) expect(byStart[i - 1].end <= placement.start).toBe(true);
-          }
+        const leftover = subtractIntervals(free, [...kept, ...others]);
+        for (const task of tasks) {
+          const remaining = task.durationMin - minutesFor(kept, task.id);
+          const placedMin = minutesFor(others, task.id);
+          const unplaced = result.unplaced.find((t) => t.id === task.id);
 
-          const split = new Set(tasks.filter((task) => task.split).map((task) => task.id));
-          for (const placement of others.filter((p) => p.source === "auto" && split.has(p.taskId))) {
-            for (const other of result.placements.filter((p) => p.taskId === placement.taskId && p !== placement)) {
-              const apart = Math.max(
-                minutesBetween(other.end, placement.start),
-                minutesBetween(placement.end, other.start),
-              );
-              expect(apart).toBeGreaterThanOrEqual(CHUNK_BREAK_MIN);
+          if (remaining <= 0) {
+            expect(placedMin).toBe(0);
+            expect(unplaced).toBeUndefined();
+          } else if (unplaced) {
+            expect(placedMin).toBe(0);
+            expect(unplaced.durationMin).toBe(remaining);
+            // Only for single blocks: a greedy chunk search can miss chunks that would fit.
+            if (!task.split) {
+              expect(
+                findEarliestSlot(leftover, remaining, { start: task.earliestStart, end: task.deadline }),
+              ).toBeNull();
             }
+          } else {
+            expect(placedMin).toBe(remaining);
           }
+        }
+      }),
+    );
+  });
 
-          const leftover = subtractIntervals(free, [...kept, ...others]);
-          for (const task of tasks) {
-            const remaining = task.durationMin - minutesFor(kept, task.id);
-            const placedMin = minutesFor(others, task.id);
-            const unplaced = result.unplaced.find((t) => t.id === task.id);
-
-            if (remaining <= 0) {
-              expect(placedMin).toBe(0);
-              expect(unplaced).toBeUndefined();
-            } else if (unplaced) {
-              expect(placedMin).toBe(0);
-              expect(unplaced.durationMin).toBe(remaining);
-              // Only for single blocks: a greedy chunk search can miss chunks that would fit.
-              if (!task.split) {
-                expect(
-                  findEarliestSlot(leftover, remaining, { start: task.earliestStart, end: task.deadline }),
-                ).toBeNull();
-              }
-            } else {
-              expect(placedMin).toBe(remaining);
-            }
-          }
-        }),
-      );
-    },
-  );
-
-  it("changes nothing when an unchanged plan is planned again", { tags: ["property"] }, () => {
+  it("changes nothing when an unchanged plan is planned again", () => {
     fc.assert(
       fc.property(scenarioArb, ({ horizon, settings, fixedItems, tasks }) => {
         const input = { horizon, fixedItems, tasks, settings };
@@ -319,7 +315,7 @@ describe("replan", { tags: ["unit", "critical"] }, () => {
     );
   });
 
-  it("doesn't move existing placements to fit a new task that fits around them", { tags: ["property"] }, () => {
+  it("doesn't move existing placements to fit a new task that fits around them", () => {
     const newTaskArb = fc
       .tuple(fc.integer({ min: 1, max: 4 * 60 }), intervalArb(SPAN_MIN))
       .map(([durationMin, window]) => flexible("New task", durationMin, window));
@@ -345,38 +341,34 @@ describe("replan", { tags: ["unit", "critical"] }, () => {
     );
   });
 
-  it(
-    "never leaves a mandatory task unplaced for lower-priority ones: their pending blocks give way",
-    { tags: ["property"] },
-    () => {
-      const withExistingArb = scenarioArb.chain((scenario) =>
-        existingArb(scenario.tasks).map((existing) => ({ ...scenario, existing })),
-      );
-      fc.assert(
-        fc.property(withExistingArb, ({ horizon, settings, fixedItems, tasks, existing }) => {
-          const mandatory = new Set(tasks.filter((task) => task.priority === "mandatory").map((task) => task.id));
-          const unplacedMandatory = ({ unplaced }: { unplaced: Task[] }) =>
-            unplaced
-              .map((task) => task.id)
-              .filter((id) => mandatory.has(id))
-              .sort();
+  it("never leaves a mandatory task unplaced for lower-priority ones: their pending blocks give way", () => {
+    const withExistingArb = scenarioArb.chain((scenario) =>
+      existingArb(scenario.tasks).map((existing) => ({ ...scenario, existing })),
+    );
+    fc.assert(
+      fc.property(withExistingArb, ({ horizon, settings, fixedItems, tasks, existing }) => {
+        const mandatory = new Set(tasks.filter((task) => task.priority === "mandatory").map((task) => task.id));
+        const unplacedMandatory = ({ unplaced }: { unplaced: Task[] }) =>
+          unplaced
+            .map((task) => task.id)
+            .filter((id) => mandatory.has(id))
+            .sort();
 
-          const all = replan({ horizon, settings, fixedItems, tasks, existing });
-          const withoutLower = replan({
-            horizon,
-            settings,
-            fixedItems,
-            tasks: tasks.filter((task) => mandatory.has(task.id)),
-            existing: existing.filter((p) => mandatory.has(p.taskId) || !isPending(p, horizon.start)),
-          });
+        const all = replan({ horizon, settings, fixedItems, tasks, existing });
+        const withoutLower = replan({
+          horizon,
+          settings,
+          fixedItems,
+          tasks: tasks.filter((task) => mandatory.has(task.id)),
+          existing: existing.filter((p) => mandatory.has(p.taskId) || !isPending(p, horizon.start)),
+        });
 
-          expect(unplacedMandatory(all).length).toBeLessThanOrEqual(unplacedMandatory(withoutLower).length);
-          const unplacedIds = new Set(all.unplaced.map((task) => task.id));
-          expect(all.unplaced.map((task) => task.id)).toEqual(
-            tasks.filter((task) => unplacedIds.has(task.id)).map((task) => task.id),
-          );
-        }),
-      );
-    },
-  );
+        expect(unplacedMandatory(all).length).toBeLessThanOrEqual(unplacedMandatory(withoutLower).length);
+        const unplacedIds = new Set(all.unplaced.map((task) => task.id));
+        expect(all.unplaced.map((task) => task.id)).toEqual(
+          tasks.filter((task) => unplacedIds.has(task.id)).map((task) => task.id),
+        );
+      }),
+    );
+  });
 });

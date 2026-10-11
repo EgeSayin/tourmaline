@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { type Placement, placementState } from "@/lib/placements";
 import { utc } from "../support/intervals";
 
-describe("placementState", { tags: ["unit"] }, () => {
+describe("placementState", () => {
   it("is the status once reviewed, and for a planned placement, whether it has started or ended", () => {
     const block: Placement = {
       taskId: "Essay",

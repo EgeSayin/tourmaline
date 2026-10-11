@@ -1,4 +1,3 @@
-import "server-only";
 import { z } from "zod";
 import { type Category, CATEGORY_COLORS, CATEGORY_NAME_MAX, type NewCategory } from "@/lib/categories";
 

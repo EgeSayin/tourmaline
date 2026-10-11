@@ -1,4 +1,3 @@
-import "server-only";
 import { type Item, itemSpan } from "@/lib/items";
 import { type Interval, later } from "@/lib/time/interval";
 

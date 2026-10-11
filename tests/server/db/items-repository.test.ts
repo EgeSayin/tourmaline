@@ -49,7 +49,7 @@ const stored = (id: string, item: NewItem, overrides: OccurrenceOverride[] = [])
   ...(item.timing === "flexible" && { done: false }),
 });
 
-describe("items repository", { tags: ["integration", "critical"] }, () => {
+describe("items repository", () => {
   it("reads back fixed items and tasks exactly as they were inserted", async ({ tx }) => {
     const lectureId = await insertItem(tx, lecture);
     const essayId = await insertItem(tx, essay);

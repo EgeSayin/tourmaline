@@ -1,4 +1,3 @@
-import "server-only";
 import type { TimeZone } from "@/lib/time/time-zone";
 import type { Interval } from "@/lib/time/interval";
 import { localDate, toDate } from "@/server/time/temporal";

@@ -23,30 +23,26 @@ function inBufferedItem(minute: number, items: FixedItem[]): boolean {
   );
 }
 
-describe("freeTimeMap", { tags: ["unit", "critical"] }, () => {
-  it(
-    "frees exactly the minutes in range, outside downtime, and outside every buffered item",
-    { tags: ["property"] },
-    () => {
-      const itemsArb = fc.array(fixedItemArb, { maxLength: 8 });
+describe("freeTimeMap", () => {
+  it("frees exactly the minutes in range, outside downtime, and outside every buffered item", () => {
+    const itemsArb = fc.array(fixedItemArb, { maxLength: 8 });
 
-      fc.assert(
-        fc.property(intervalArb(SPAN_MIN), utcSettingsArb, itemsArb, (range, settings, items) => {
-          const result = freeTimeMap(range, items, settings);
+    fc.assert(
+      fc.property(intervalArb(SPAN_MIN), utcSettingsArb, itemsArb, (range, settings, items) => {
+        const result = freeTimeMap(range, items, settings);
 
-          expectSortedWithGaps(result);
-          for (let minute = 0; minute < SPAN_MIN; minute++) {
-            const expected =
-              covers([range], minute) && !inDowntime(minute, settings.downtime) && !inBufferedItem(minute, items);
-            expect(covers(result, minute)).toBe(expected);
-          }
-        }),
-      );
-    },
-  );
+        expectSortedWithGaps(result);
+        for (let minute = 0; minute < SPAN_MIN; minute++) {
+          const expected =
+            covers([range], minute) && !inDowntime(minute, settings.downtime) && !inBufferedItem(minute, items);
+          expect(covers(result, minute)).toBe(expected);
+        }
+      }),
+    );
+  });
 });
 
-describe("dailyIntervals", { tags: ["unit", "critical"] }, () => {
+describe("dailyIntervals", () => {
   it("returns a local window as exact times, across DST changes, clipped to the range", () => {
     const overnight: DailyWindow = { startMinute: 23 * 60, endMinute: 10 * 60 };
     const timeZone = "America/New_York";

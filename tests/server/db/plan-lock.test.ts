@@ -2,7 +2,7 @@ import { describe, expect } from "vitest";
 import { inPlanTransaction } from "@/server/db/plan-lock";
 import { dbTest as it } from "../../support/database";
 
-describe("inPlanTransaction", { tags: ["integration", "critical"] }, () => {
+describe("inPlanTransaction", () => {
   it("runs one plan transaction at a time", async ({ db }) => {
     const events: string[] = [];
     let release!: () => void;

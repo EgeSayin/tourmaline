@@ -28,7 +28,7 @@ const lecture = unsaved({
 const movedTo = (start: string, end: string, changes: Partial<NewItem> = {}): NewItem =>
   ({ ...lecture, ...utc(start, end), ...changes }) as NewItem;
 
-describe("editItem", { tags: ["integration", "critical"] }, () => {
+describe("editItem", () => {
   it("ends a series that already occurred the day before the edit, and saves the edit as a new series", async ({
     tx,
   }) => {
@@ -91,7 +91,7 @@ describe("editItem", { tags: ["integration", "critical"] }, () => {
   });
 });
 
-describe("removeItem", { tags: ["integration", "critical"] }, () => {
+describe("removeItem", () => {
   it("ends a series that already occurred yesterday, and deletes anything else", async ({ tx }) => {
     // Wed Oct 7: the Mondays from Sep 7 stay, through Oct 5.
     const seriesId = await insertItem(tx, lecture);
@@ -120,7 +120,7 @@ describe("removeItem", { tags: ["integration", "critical"] }, () => {
   });
 });
 
-describe("editing in place", { tags: ["integration", "critical"] }, () => {
+describe("editing in place", () => {
   it("keeps a task's started and pinned placements, drops a fixed item's, and drops overrides once it stops recurring", async ({
     tx,
   }) => {
@@ -151,7 +151,7 @@ describe("editing in place", { tags: ["integration", "critical"] }, () => {
   });
 });
 
-describe("skipOccurrence", { tags: ["integration", "critical"] }, () => {
+describe("skipOccurrence", () => {
   it("skips an occurrence of a series, and refuses anything else", async ({ tx }) => {
     const seriesId = await insertItem(tx, lecture);
     expect(await skipOccurrence(tx, seriesId, "2026-09-14")).toBe(true);
@@ -164,7 +164,7 @@ describe("skipOccurrence", { tags: ["integration", "critical"] }, () => {
   });
 });
 
-describe("placement commands", { tags: ["integration", "critical"] }, () => {
+describe("placement commands", () => {
   it("checks off, misses and replans blocks, and pins only planned ones that haven't ended", async ({ tx }) => {
     const essayId = await insertItem(tx, flexible("Essay", 120, utc("2026-10-05T04:00", "2026-10-09T21:00")));
     const block = (start: string, end: string): Placement => ({
@@ -200,7 +200,7 @@ describe("placement commands", { tags: ["integration", "critical"] }, () => {
   });
 });
 
-describe("setTaskDone", { tags: ["integration", "critical"] }, () => {
+describe("setTaskDone", () => {
   it("marks a task or an occurrence done, checking off its blocks to review, and reopens it", async ({ tx }) => {
     const essayId = await insertItem(tx, flexible("Essay", 120, utc("2026-10-05T04:00", "2026-10-09T21:00")));
     const block = (start: string, end: string): Placement => ({

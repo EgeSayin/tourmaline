@@ -9,7 +9,7 @@ const oct = (day: number, hour = 0) => new Date(Date.UTC(2026, 9, day, hour));
 const task = (title: string, durationMin: number, deadline: Date, priority?: Priority) =>
   flexible(title, durationMin, { start: oct(5), end: deadline }, priority);
 
-describe("orderByUrgency", { tags: ["unit", "critical"] }, () => {
+describe("orderByUrgency", () => {
   it("orders by priority, then pressure, then deadline", () => {
     // Mon Oct 5 – Fri Oct 9, free 10:00–16:00 each day: 6 hours per day.
     const free: Interval[] = [5, 6, 7, 8, 9].map((day) => ({ start: oct(day, 10), end: oct(day, 16) }));

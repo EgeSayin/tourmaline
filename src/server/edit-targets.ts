@@ -1,4 +1,3 @@
-import "server-only";
 import type { EditTarget } from "@/lib/calendar-blocks";
 import type { Item } from "@/lib/items";
 import { parseOccurrenceId } from "@/lib/recurrence";

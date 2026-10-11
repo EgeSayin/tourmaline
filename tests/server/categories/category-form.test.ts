@@ -7,7 +7,7 @@ import { fixed, flexible } from "../../support/items";
 const cs = { id: "cs", name: "CSC 101", color: "blue" } as const;
 const health = { id: "health", name: "Health", color: "pink" } as const;
 
-describe("categories", { tags: ["unit"] }, () => {
+describe("categories", () => {
   it("parses a category's name and colour, rejecting a blank, long or taken name and an unknown colour", () => {
     expect(parseCategoryForm({ name: "  PHYS 201 ", color: "green" }, [cs], null)).toEqual({
       ok: true,

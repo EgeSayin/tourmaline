@@ -7,7 +7,7 @@ function offsetMinutes(offset: string): number {
   return (offset.startsWith("-") ? -1 : 1) * (hours * 60 + minutes);
 }
 
-describe("timeZoneOptions", { tags: ["unit", "critical"] }, () => {
+describe("timeZoneOptions", () => {
   it("lists each zone once, sorted west to east by its offset at the given instant", () => {
     const january = timeZoneOptions(new Date("2026-01-15T12:00Z"));
     const july = timeZoneOptions(new Date("2026-07-15T12:00Z"));

@@ -3,7 +3,7 @@ import { planningHorizon } from "@/server/planning/horizon";
 import { utc } from "../../support/intervals";
 import { fixed, flexible } from "../../support/items";
 
-describe("planningHorizon", { tags: ["unit", "critical"] }, () => {
+describe("planningHorizon", () => {
   it("runs from now to the latest fixed item end or task deadline", () => {
     const now = new Date("2026-10-07T12:00Z");
     const essay = flexible("Essay", 60, utc("2026-10-01T00:00", "2026-10-21T15:00"));

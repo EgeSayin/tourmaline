@@ -1,4 +1,3 @@
-import "server-only";
 import { type BlockPlacement, type EditTarget, toBlockPlacement } from "@/lib/calendar-blocks";
 import { isTask, type Item, itemSpan, type Task } from "@/lib/items";
 import { parseOccurrenceId } from "@/lib/recurrence";

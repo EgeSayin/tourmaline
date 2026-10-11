@@ -30,7 +30,7 @@ const auto = (taskId: string, times: { start: Date; end: Date }, status: Placeme
 });
 const plan = async (tx: Transaction, now: Date) => syncPlan(tx, await loadItems(tx), settings, now);
 
-describe("syncPlan", { tags: ["integration", "critical"] }, () => {
+describe("syncPlan", () => {
   it("plans from now on around fixed items, saves the plan, and reports what doesn't fit", async ({ tx }) => {
     await insertItem(tx, fixed("Lecture", utc("2026-10-07T17:00", "2026-10-07T18:00"))); // Wed 13:00–14:00
     const essayId = await insertItem(tx, flexible("Essay", 90, utc("2026-10-05T04:00", "2026-10-09T21:00"))); // due Fri

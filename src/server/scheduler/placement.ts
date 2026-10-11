@@ -1,4 +1,3 @@
-import "server-only";
 import type { SpreadStrategy, Task } from "@/lib/items";
 import type { Placement } from "@/lib/placements";
 import { CHUNK_BREAK_MIN } from "@/lib/settings";

@@ -4,7 +4,7 @@ import { timeScaleFor } from "@/components/schedule/time-scale";
 
 const block = (startMinute: number, endMinute: number) => ({ startMinute, endMinute }) as CalendarBlock;
 
-describe("timeScaleFor", { tags: ["unit"] }, () => {
+describe("timeScaleFor", () => {
   it("spans the whole hours around the blocks, or a default day when there are none", () => {
     const scale = timeScaleFor([block(9 * 60 + 30, 10 * 60), block(13 * 60, 14 * 60 + 15)]);
     expect(scale.hours).toEqual([9, 10, 11, 12, 13, 14]);

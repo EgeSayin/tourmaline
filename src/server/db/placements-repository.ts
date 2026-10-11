@@ -1,4 +1,3 @@
-import "server-only";
 import { and, asc, eq, gt, gte, isNull, lt, lte } from "drizzle-orm";
 import { isPending, type Placement, type PlacementRef } from "@/lib/placements";
 import { occurrenceId, parseOccurrenceId } from "@/lib/recurrence";

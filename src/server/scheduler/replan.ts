@@ -1,4 +1,3 @@
-import "server-only";
 import { minutesBetween } from "@/lib/time/duration";
 import { type FixedItem, PRIORITIES, type Task } from "@/lib/items";
 import { isPending, type Placement } from "@/lib/placements";

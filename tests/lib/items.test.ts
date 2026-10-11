@@ -3,7 +3,7 @@ import { isFixed, isTask, itemSpan, withSpan } from "@/lib/items";
 import { utc } from "../support/intervals";
 import { fixed, flexible } from "../support/items";
 
-describe("item spans", { tags: ["unit"] }, () => {
+describe("item spans", () => {
   it("reads and moves when each kind of item can happen", () => {
     const lecture = fixed("Lecture", utc("2026-10-05T15:00", "2026-10-05T16:00"));
     const essay = flexible("Essay", 60, utc("2026-10-05T04:00", "2026-10-09T21:00"));

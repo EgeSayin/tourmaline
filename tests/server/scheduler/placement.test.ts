@@ -11,7 +11,7 @@ import { intervalArb, iv, SPAN_MIN, utc } from "../../support/intervals";
 import { fixed, fixedItemArb, flexible, flexibleItemsArb } from "../../support/items";
 import { utcSettingsArb } from "../../support/settings";
 
-describe("placeTasks", { tags: ["unit", "critical"] }, () => {
+describe("placeTasks", () => {
   it("places the most urgent tasks first around fixed items and reports what doesn't fit", () => {
     const settings: SchedulerSettings = {
       timeZone: "America/New_York",
@@ -124,55 +124,50 @@ describe("placeTasks", { tags: ["unit", "critical"] }, () => {
     ]);
   });
 
-  it(
-    "places all of each task in free time inside its window, chunks apart, never overlapping, leaving out only blocks that can't fit",
-    { tags: ["property"] },
-    () => {
-      const fixedItemsArb = fc.array(fixedItemArb, { maxLength: 6 });
+  it("places all of each task in free time inside its window, chunks apart, never overlapping, leaving out only blocks that can't fit", () => {
+    const fixedItemsArb = fc.array(fixedItemArb, { maxLength: 6 });
 
-      fc.assert(
-        fc.property(
-          intervalArb(SPAN_MIN),
-          utcSettingsArb,
-          fixedItemsArb,
-          flexibleItemsArb,
-          (range, settings, fixedItems, tasks) => {
-            const free = freeTimeMap(range, fixedItems, settings);
-            const { placements, unplaced } = placeTasks(tasks, free);
-            const tasksById = new Map(tasks.map((task) => [task.id, task]));
+    fc.assert(
+      fc.property(
+        intervalArb(SPAN_MIN),
+        utcSettingsArb,
+        fixedItemsArb,
+        flexibleItemsArb,
+        (range, settings, fixedItems, tasks) => {
+          const free = freeTimeMap(range, fixedItems, settings);
+          const { placements, unplaced } = placeTasks(tasks, free);
+          const tasksById = new Map(tasks.map((task) => [task.id, task]));
 
-            const placedIds = new Set(placements.map((p) => p.taskId));
-            const outcomeIds = [...placedIds, ...unplaced.map((task) => task.id)];
-            expect(outcomeIds.toSorted()).toEqual([...tasksById.keys()].toSorted());
+          const placedIds = new Set(placements.map((p) => p.taskId));
+          const outcomeIds = [...placedIds, ...unplaced.map((task) => task.id)];
+          expect(outcomeIds.toSorted()).toEqual([...tasksById.keys()].toSorted());
 
-            for (const id of placedIds) {
-              const task = tasksById.get(id)!;
-              const chunks = placements.filter((p) => p.taskId === id);
-              expect(chunks.reduce((sum, p) => sum + minutesBetween(p.start, p.end), 0)).toBe(task.durationMin);
-              if (!task.split) expect(chunks).toHaveLength(1);
-              for (const [i, chunk] of chunks.entries()) {
-                expect(chunk.start >= task.earliestStart && chunk.end <= task.deadline).toBe(true);
-                expect(subtractIntervals([chunk], free)).toEqual([]);
-                if (i > 0)
-                  expect(minutesBetween(chunks[i - 1].end, chunk.start)).toBeGreaterThanOrEqual(CHUNK_BREAK_MIN);
-              }
+          for (const id of placedIds) {
+            const task = tasksById.get(id)!;
+            const chunks = placements.filter((p) => p.taskId === id);
+            expect(chunks.reduce((sum, p) => sum + minutesBetween(p.start, p.end), 0)).toBe(task.durationMin);
+            if (!task.split) expect(chunks).toHaveLength(1);
+            for (const [i, chunk] of chunks.entries()) {
+              expect(chunk.start >= task.earliestStart && chunk.end <= task.deadline).toBe(true);
+              expect(subtractIntervals([chunk], free)).toEqual([]);
+              if (i > 0) expect(minutesBetween(chunks[i - 1].end, chunk.start)).toBeGreaterThanOrEqual(CHUNK_BREAK_MIN);
             }
+          }
 
-            const byStart = placements.toSorted((a, b) => a.start.getTime() - b.start.getTime());
-            for (let i = 1; i < byStart.length; i++) {
-              expect(byStart[i - 1].end <= byStart[i].start).toBe(true);
-            }
+          const byStart = placements.toSorted((a, b) => a.start.getTime() - b.start.getTime());
+          for (let i = 1; i < byStart.length; i++) {
+            expect(byStart[i - 1].end <= byStart[i].start).toBe(true);
+          }
 
-            // Only for single blocks: a greedy chunk search can miss chunks that would fit.
-            const leftover = subtractIntervals(free, placements);
-            for (const task of unplaced.filter((task) => !task.split)) {
-              expect(
-                findEarliestSlot(leftover, task.durationMin, { start: task.earliestStart, end: task.deadline }),
-              ).toBeNull();
-            }
-          },
-        ),
-      );
-    },
-  );
+          // Only for single blocks: a greedy chunk search can miss chunks that would fit.
+          const leftover = subtractIntervals(free, placements);
+          for (const task of unplaced.filter((task) => !task.split)) {
+            expect(
+              findEarliestSlot(leftover, task.durationMin, { start: task.earliestStart, end: task.deadline }),
+            ).toBeNull();
+          }
+        },
+      ),
+    );
+  });
 });

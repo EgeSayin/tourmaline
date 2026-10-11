@@ -1,4 +1,3 @@
-import "server-only";
 import type { ChunkSizes } from "@/lib/items";
 import { SLOT_MIN } from "@/lib/placements";
 import { addMinutes, minutesBetween } from "@/lib/time/duration";

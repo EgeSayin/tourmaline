@@ -1,4 +1,3 @@
-import "server-only";
 import { asc, eq } from "drizzle-orm";
 import type { Category, NewCategory } from "@/lib/categories";
 import type { Database, Transaction } from "./connection";

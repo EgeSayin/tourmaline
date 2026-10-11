@@ -1,4 +1,3 @@
-import "server-only";
 import { addMinutes } from "@/lib/time/duration";
 import type { FixedItem } from "@/lib/items";
 import type { SchedulerSettings } from "@/lib/settings";

@@ -1,4 +1,3 @@
-import "server-only";
 import type { FocusCaps } from "@/lib/settings";
 import { minutesBetween } from "@/lib/time/duration";
 import { clipIntervals, type Interval, mergeIntervals } from "@/lib/time/interval";

@@ -1,6 +1,5 @@
 "use server";
 
-import "server-only";
 import { refresh } from "next/cache";
 import { db } from "@/server/db/client";
 import { replacePendingPlacements } from "@/server/db/placements-repository";

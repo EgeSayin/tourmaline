@@ -26,7 +26,7 @@ function earliestFittingMinute(free: readonly Interval[], window: Interval, dura
   return start === -1 ? null : start;
 }
 
-describe("findEarliestSlot", { tags: ["unit", "critical"] }, () => {
+describe("findEarliestSlot", () => {
   it("returns the earliest free block that fits the duration inside the window", () => {
     const free = mergeIntervals([iv("10:00", "10:45"), iv("12:30", "18:00"), iv("19:00", "22:30")]);
     const day = iv("00:00", "23:59");
@@ -41,7 +41,7 @@ describe("findEarliestSlot", { tags: ["unit", "critical"] }, () => {
     expect(findEarliestSlot(mergeIntervals([iv("10:03", "10:29")]), 25, day)).toBeNull(); // fits only off the grid
   });
 
-  it("returns a slot at the earliest grid minute that fits, or null when none does", { tags: ["property"] }, () => {
+  it("returns a slot at the earliest grid minute that fits, or null when none does", () => {
     const freeArb = intervalsArb.map(mergeIntervals);
     const durationArb = fc.integer({ min: 1, max: 8 * 60 });
 
@@ -56,7 +56,7 @@ describe("findEarliestSlot", { tags: ["unit", "critical"] }, () => {
   });
 });
 
-describe("findEarliestChunks", { tags: ["unit", "critical"] }, () => {
+describe("findEarliestChunks", () => {
   const split = { minChunkMin: 30, maxChunkMin: 60 };
   const free = mergeIntervals([iv("10:00", "11:00"), iv("11:10", "12:00"), iv("13:00", "17:00")]);
   const day = iv("00:00", "23:59");
@@ -87,7 +87,7 @@ describe("findEarliestChunks", { tags: ["unit", "critical"] }, () => {
   });
 });
 
-describe("evenTargets", { tags: ["unit", "critical"] }, () => {
+describe("evenTargets", () => {
   const settings: SchedulerSettings = {
     timeZone: "UTC",
     downtime: { startMinute: 22 * 60, endMinute: 10 * 60 },
@@ -122,7 +122,7 @@ describe("evenTargets", { tags: ["unit", "critical"] }, () => {
   });
 });
 
-describe("findEvenChunks", { tags: ["unit", "critical"] }, () => {
+describe("findEvenChunks", () => {
   const settings: SchedulerSettings = {
     timeZone: "UTC",
     downtime: { startMinute: 22 * 60, endMinute: 10 * 60 },
@@ -153,7 +153,7 @@ describe("findEvenChunks", { tags: ["unit", "critical"] }, () => {
   });
 });
 
-describe("findLatestSlot and findLatestChunks", { tags: ["unit", "critical"] }, () => {
+describe("findLatestSlot and findLatestChunks", () => {
   it("find the latest fit, ending on the grid, and cut chunks from the end", () => {
     const free = mergeIntervals([iv("10:00", "11:00"), iv("11:10", "12:00"), iv("13:00", "16:53")]);
     const day = iv("00:00", "23:59");
@@ -175,56 +175,52 @@ describe("findLatestSlot and findLatestChunks", { tags: ["unit", "critical"] }, 
   });
 });
 
-describe("chunk searches", { tags: ["unit", "critical"] }, () => {
-  it(
-    "returns chunks inside free time and the window, on the grid, sized and spaced as asked, adding up to the duration",
-    { tags: ["property"] },
-    () => {
-      const freeArb = intervalsArb.map(mergeIntervals);
-      const breakArb = fc.integer({ min: 0, max: 90 });
+describe("chunk searches", () => {
+  it("returns chunks inside free time and the window, on the grid, sized and spaced as asked, adding up to the duration", () => {
+    const freeArb = intervalsArb.map(mergeIntervals);
+    const breakArb = fc.integer({ min: 0, max: 90 });
 
-      fc.assert(
-        fc.property(
-          freeArb,
-          intervalArb(SPAN_MIN),
-          taskMinutesArb(SLOT_MIN, 6 * 60),
-          splitArb,
-          breakArb,
-          (free, window, durationMin, split, breakMin) => {
-            const targets = evenTargets(free, window, durationMin, Math.ceil(durationMin / split.maxChunkMin));
-            for (const [i, target] of targets.entries()) {
-              expect(target >= window.start && target <= window.end).toBe(true);
-              if (i > 0) expect(target >= targets[i - 1]).toBe(true);
-            }
+    fc.assert(
+      fc.property(
+        freeArb,
+        intervalArb(SPAN_MIN),
+        taskMinutesArb(SLOT_MIN, 6 * 60),
+        splitArb,
+        breakArb,
+        (free, window, durationMin, split, breakMin) => {
+          const targets = evenTargets(free, window, durationMin, Math.ceil(durationMin / split.maxChunkMin));
+          for (const [i, target] of targets.entries()) {
+            expect(target >= window.start && target <= window.end).toBe(true);
+            if (i > 0) expect(target >= targets[i - 1]).toBe(true);
+          }
 
-            const even = findEvenChunks(free, durationMin, window, split, breakMin);
-            const searches = [
-              findEarliestChunks(free, durationMin, window, split, breakMin),
-              findLatestChunks(free, durationMin, window, split, breakMin),
-              even,
-            ];
-            for (const chunks of searches) {
-              if (chunks === null) continue;
+          const even = findEvenChunks(free, durationMin, window, split, breakMin);
+          const searches = [
+            findEarliestChunks(free, durationMin, window, split, breakMin),
+            findLatestChunks(free, durationMin, window, split, breakMin),
+            even,
+          ];
+          for (const chunks of searches) {
+            if (chunks === null) continue;
 
-              expect(chunks.reduce((sum, chunk) => sum + minutesBetween(chunk.start, chunk.end), 0)).toBe(durationMin);
-              for (const [i, chunk] of chunks.entries()) {
-                const length = minutesBetween(chunk.start, chunk.end);
-                if (durationMin >= split.minChunkMin) expect(length).toBeGreaterThanOrEqual(split.minChunkMin);
-                expect(length).toBeLessThanOrEqual(split.maxChunkMin);
-                expect(minuteOf(chunk.start) % SLOT_MIN).toBe(0);
-                expect(minuteOf(chunk.end) % SLOT_MIN).toBe(0);
-                expect(subtractIntervals([chunk], free)).toEqual([]);
-                expect(chunk.start >= window.start && chunk.end <= window.end).toBe(true);
-                if (i > 0) expect(minutesBetween(chunks[i - 1].end, chunk.start)).toBeGreaterThanOrEqual(breakMin);
-              }
+            expect(chunks.reduce((sum, chunk) => sum + minutesBetween(chunk.start, chunk.end), 0)).toBe(durationMin);
+            for (const [i, chunk] of chunks.entries()) {
+              const length = minutesBetween(chunk.start, chunk.end);
+              if (durationMin >= split.minChunkMin) expect(length).toBeGreaterThanOrEqual(split.minChunkMin);
+              expect(length).toBeLessThanOrEqual(split.maxChunkMin);
+              expect(minuteOf(chunk.start) % SLOT_MIN).toBe(0);
+              expect(minuteOf(chunk.end) % SLOT_MIN).toBe(0);
+              expect(subtractIntervals([chunk], free)).toEqual([]);
+              expect(chunk.start >= window.start && chunk.end <= window.end).toBe(true);
+              if (i > 0) expect(minutesBetween(chunks[i - 1].end, chunk.start)).toBeGreaterThanOrEqual(breakMin);
             }
-            if (even) {
-              const lengths = even.map((chunk) => minutesBetween(chunk.start, chunk.end));
-              expect(Math.max(...lengths) - Math.min(...lengths)).toBeLessThanOrEqual(SLOT_MIN);
-            }
-          },
-        ),
-      );
-    },
-  );
+          }
+          if (even) {
+            const lengths = even.map((chunk) => minutesBetween(chunk.start, chunk.end));
+            expect(Math.max(...lengths) - Math.min(...lengths)).toBeLessThanOrEqual(SLOT_MIN);
+          }
+        },
+      ),
+    );
+  });
 });

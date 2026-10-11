@@ -1,4 +1,3 @@
-// No `import "server-only"`: drizzle-kit loads this file outside Next.js.
 import { relations, sql } from "drizzle-orm";
 import {
   boolean,

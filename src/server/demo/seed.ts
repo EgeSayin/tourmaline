@@ -1,4 +1,3 @@
-import "server-only";
 import { desc, eq, lte } from "drizzle-orm";
 import { db } from "@/server/db/client";
 import { inPlanTransaction } from "@/server/db/plan-lock";

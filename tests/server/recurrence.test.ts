@@ -9,7 +9,7 @@ const day = (iso: string) => Temporal.PlainDate.from(iso);
 const expand = (rule: Recurrence, first: string, from: string, to: string) =>
   occurrenceDates(rule, day(first), day(from), day(to)).map(String);
 
-describe("occurrenceDates", { tags: ["unit", "critical"] }, () => {
+describe("occurrenceDates", () => {
   it("repeats every N days from the first date, clipped to the range and the until date", () => {
     const everyOtherDay: Recurrence = { frequency: "daily", interval: 2, until: null };
 
@@ -57,7 +57,7 @@ describe("occurrenceDates", { tags: ["unit", "critical"] }, () => {
     ).toEqual(["2026-10-04", "2026-10-11", "2026-10-18"]);
   });
 
-  it("gives the same dates for a range as for its two halves", { tags: ["property"] }, () => {
+  it("gives the same dates for a range as for its two halves", () => {
     const offset = (max: number) => fc.integer({ min: 0, max });
     const ruleArb: fc.Arbitrary<Recurrence> = fc.oneof(
       fc.record({
@@ -91,7 +91,7 @@ describe("occurrenceDates", { tags: ["unit", "critical"] }, () => {
   });
 });
 
-describe("expandOccurrences", { tags: ["unit", "critical"] }, () => {
+describe("expandOccurrences", () => {
   const tz = "America/New_York";
   const ids = (items: { id: string }[]) => items.map((item) => item.id);
 
@@ -170,7 +170,7 @@ describe("expandOccurrences", { tags: ["unit", "critical"] }, () => {
   });
 });
 
-describe("upcoming occurrences", { tags: ["unit", "critical"] }, () => {
+describe("upcoming occurrences", () => {
   const tz = "America/New_York";
 
   it("finds the first occurrence ending after a time, past skips, or none once the series ends", () => {

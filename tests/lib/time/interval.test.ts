@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { clipIntervals, earlier, later, mergeIntervals, subtractIntervals } from "@/lib/time/interval";
 import { covers, expectSortedWithGaps, intervalsArb, iv, SPAN_MIN } from "../../support/intervals";
 
-describe("mergeIntervals", { tags: ["unit", "critical"] }, () => {
+describe("mergeIntervals", () => {
   it("sorts busy blocks and merges overlapping, touching, and nested ones", () => {
     const busy = [
       iv("16:00", "17:00"),
@@ -20,7 +20,7 @@ describe("mergeIntervals", { tags: ["unit", "critical"] }, () => {
     expect(mergeIntervals([])).toEqual([]);
   });
 
-  it("covers exactly the input's minutes, sorted with gaps, without mutating input", { tags: ["property"] }, () => {
+  it("covers exactly the input's minutes, sorted with gaps, without mutating input", () => {
     fc.assert(
       fc.property(intervalsArb, (input) => {
         const snapshot = structuredClone(input);
@@ -36,7 +36,7 @@ describe("mergeIntervals", { tags: ["unit", "critical"] }, () => {
   });
 });
 
-describe("subtractIntervals", { tags: ["unit", "critical"] }, () => {
+describe("subtractIntervals", () => {
   it("removes busy blocks from free time, splitting and trimming as needed", () => {
     const free = [iv("14:00", "20:00"), iv("10:00", "12:00")];
     const busy = [
@@ -52,7 +52,7 @@ describe("subtractIntervals", { tags: ["unit", "critical"] }, () => {
     expect(subtractIntervals(free, [iv("08:00", "22:00")])).toEqual([]);
   });
 
-  it("covers exactly the free minutes not busy, sorted with gaps", { tags: ["property"] }, () => {
+  it("covers exactly the free minutes not busy, sorted with gaps", () => {
     fc.assert(
       fc.property(intervalsArb, intervalsArb, (free, busy) => {
         const result = subtractIntervals(free, busy);
@@ -66,7 +66,7 @@ describe("subtractIntervals", { tags: ["unit", "critical"] }, () => {
   });
 });
 
-describe("clipIntervals, earlier and later", { tags: ["unit"] }, () => {
+describe("clipIntervals, earlier and later", () => {
   it("keep the parts inside a window, in order, and pick the earlier or later time", () => {
     const intervals = [iv("08:00", "09:00"), iv("09:30", "11:00"), iv("12:00", "13:00"), iv("14:00", "15:00")];
 

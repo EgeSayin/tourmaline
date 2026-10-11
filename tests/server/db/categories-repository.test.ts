@@ -5,7 +5,7 @@ import { dbTest as it } from "../../support/database";
 import { utc } from "../../support/intervals";
 import { flexible, unsaved } from "../../support/items";
 
-describe("categories repository", { tags: ["integration", "critical"] }, () => {
+describe("categories repository", () => {
   it("saves categories with unique names, sorted by name, and keeps items when one is deleted", async ({ tx }) => {
     const physics = await insertCategory(tx, { name: "PHYS 201", color: "blue" });
     const cs = await insertCategory(tx, { name: "CSC 101", color: "green" });

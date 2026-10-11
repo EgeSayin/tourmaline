@@ -1,4 +1,3 @@
-import "server-only";
 import type { NewCategory } from "@/lib/categories";
 import type { FixedItem, Task, Priority } from "@/lib/items";
 import type { Recurrence, Weekday } from "@/lib/recurrence";

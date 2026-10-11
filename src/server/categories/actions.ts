@@ -1,6 +1,5 @@
 "use server";
 
-import "server-only";
 import { refresh } from "next/cache";
 import { z } from "zod";
 import { deleteCategory, insertCategory, loadCategories, updateCategory } from "@/server/db/categories-repository";

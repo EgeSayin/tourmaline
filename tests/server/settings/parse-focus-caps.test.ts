@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { parseFocusCaps } from "@/server/settings/parse-focus-caps";
 
-describe("parseFocusCaps", { tags: ["unit"] }, () => {
+describe("parseFocusCaps", () => {
   it("turns each weekday's hours into minutes, empty for no cap, and rejects hours outside a day", () => {
     const week = { cap1: "8", cap2: "7.5", cap3: "0", cap4: "", cap5: "6.25", cap6: "4" };
 

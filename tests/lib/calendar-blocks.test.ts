@@ -8,7 +8,7 @@ import { fixed, flexible } from "../support/items";
 
 const tz = "America/New_York";
 
-describe("toCalendarBlocks", { tags: ["unit"] }, () => {
+describe("toCalendarBlocks", () => {
   it("places blocks on their local day with a style per kind and state, their category's colour and their edit target, skipping items that are gone", () => {
     const cs = { id: "cs", name: "CSC 101", color: "green" } as const;
     const lecture = { ...fixed("Lecture", utc("2026-10-05T15:00", "2026-10-05T16:15")), categoryId: cs.id }; // Mon 11:00–12:15 EDT
@@ -100,7 +100,7 @@ describe("toCalendarBlocks", { tags: ["unit"] }, () => {
   });
 });
 
-describe("conflicts", { tags: ["unit"] }, () => {
+describe("conflicts", () => {
   it("marks fixed items that overlap each other, whatever their priority, and nothing else", () => {
     const lecture = fixed("Lecture", utc("2026-10-05T14:00", "2026-10-05T15:00"));
     const club = { ...fixed("Club", utc("2026-10-05T14:30", "2026-10-05T16:00")), priority: "low" as const };
@@ -131,7 +131,7 @@ describe("conflicts", { tags: ["unit"] }, () => {
   });
 });
 
-describe("withLanes", { tags: ["unit"] }, () => {
+describe("withLanes", () => {
   const span = (date: string, from: number, to: number): DaySpan => ({
     date,
     startMinute: from * 60,
@@ -154,7 +154,7 @@ describe("withLanes", { tags: ["unit"] }, () => {
     ).toEqual(["1/2", "0/2", "0/2", "0/1", "0/1", "0/2", "1/2", "1/2"]);
   });
 
-  it("never puts overlapping blocks in one lane, and gives them the same lane count", { tags: ["property"] }, () =>
+  it("never puts overlapping blocks in one lane, and gives them the same lane count", () =>
     fc.assert(
       fc.property(
         fc.array(
@@ -181,6 +181,5 @@ describe("withLanes", { tags: ["unit"] }, () => {
           }
         },
       ),
-    ),
-  );
+    ));
 });

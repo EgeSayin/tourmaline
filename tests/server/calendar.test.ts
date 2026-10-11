@@ -28,7 +28,7 @@ async function saveSettings(tx: Transaction) {
     .values({ timeZone: "America/New_York", downtimeStartMinute: 23 * 60, downtimeEndMinute: 10 * 60 });
 }
 
-describe("loadCalendar", { tags: ["integration", "critical"] }, () => {
+describe("loadCalendar", () => {
   it("returns null without settings, otherwise the shown days with their blocks and the queue", async ({ tx }) => {
     expect(await loadCalendar(tx, wednesdayNoon)).toBeNull();
 

@@ -7,7 +7,7 @@ import { fixed, flexible } from "../../support/items";
 const tz = "America/New_York";
 const now = new Date("2026-10-05T12:00Z"); // Mon Oct 5, 08:00 EDT
 
-describe("parseItemForm", { tags: ["unit", "critical"] }, () => {
+describe("parseItemForm", () => {
   it("turns valid form fields into items, converting local times in the user's time zone", () => {
     expect(
       parseItemForm(

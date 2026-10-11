@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { toDateTimeInputValue, toLocal } from "@/lib/time/local-time";
 
-describe("local time", { tags: ["unit"] }, () => {
+describe("local time", () => {
   it("converts exact times to local dates and minutes across a DST change", () => {
     const tz = "America/New_York";
 

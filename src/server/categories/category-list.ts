@@ -1,4 +1,3 @@
-import "server-only";
 import type { Category } from "@/lib/categories";
 import type { Item } from "@/lib/items";
 

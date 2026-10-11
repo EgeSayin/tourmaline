@@ -1,4 +1,3 @@
-import "server-only";
 import { z } from "zod";
 import { itemFormSchema } from "@/lib/item-form";
 import type { NewItem } from "@/lib/items";

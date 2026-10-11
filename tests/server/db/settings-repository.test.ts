@@ -5,7 +5,7 @@ import { settings } from "@/server/db/schema";
 import { loadSettings, saveFocusCaps } from "@/server/db/settings-repository";
 import { dbTest as it } from "../../support/database";
 
-describe("settings repository", { tags: ["integration", "critical"] }, () => {
+describe("settings repository", () => {
   it("loads saved settings with no focus caps at first, saves caps, returns null when none exist, and rejects unsupported time zones", async ({
     tx,
   }) => {

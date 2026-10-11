@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { ALL_CATEGORIES, matchesFilter, NO_CATEGORY } from "@/lib/categories";
 
-describe("matchesFilter", { tags: ["unit"] }, () => {
+describe("matchesFilter", () => {
   it("lets everything through, only items without a category, or only one category's", () => {
     const cases = [
       ["cs", ALL_CATEGORIES, true],
