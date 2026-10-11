@@ -11,6 +11,7 @@ export interface TimeScale {
   /** Whole hours shown, from the earliest block's hour up to the latest block's end, or `EMPTY_DAY_HOURS`. */
   hours: number[];
   height: number;
+  hourHeight: number;
   /** Vertical position in pixels of a local minute of the day. */
   top: (minuteOfDay: number) => number;
 }
@@ -25,6 +26,7 @@ export function timeScaleFor(blocks: CalendarBlock[]): TimeScale {
   return {
     hours,
     height: hours.length * PX_PER_HOUR,
+    hourHeight: PX_PER_HOUR,
     top: (minuteOfDay) => ((minuteOfDay - firstHour * 60) / 60) * PX_PER_HOUR,
   };
 }

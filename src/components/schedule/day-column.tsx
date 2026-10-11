@@ -4,8 +4,6 @@ import { NowLine } from "./now-line";
 import { ScheduleBlock } from "./schedule-block";
 import type { TimeScale } from "./time-scale";
 
-const QUARTERS = [15, 30, 45];
-
 export function DayColumn({
   date,
   blocks,
@@ -26,19 +24,18 @@ export function DayColumn({
   className?: string;
 }) {
   return (
-    <div role="group" aria-label={label} className={`relative border-l ${className}`} style={{ height: scale.height }}>
-      {scale.hours.slice(1).map((hour) => (
-        <div key={hour} className="absolute inset-x-0 border-t" style={{ top: scale.top(hour * 60) }} />
-      ))}
-      {scale.hours.flatMap((hour) =>
-        QUARTERS.map((minute) => (
-          <div
-            key={`${hour}:${minute}`}
-            className="absolute inset-x-0 border-t border-border/40"
-            style={{ top: scale.top(hour * 60 + minute) }}
-          />
-        )),
-      )}
+    <div
+      role="group"
+      aria-label={label}
+      className={`relative border-l ${className}`}
+      style={{
+        height: scale.height,
+        // A line every hour, and a fainter one every quarter.
+        backgroundImage:
+          "linear-gradient(var(--border) 1px, transparent 1px), linear-gradient(color-mix(in oklch, var(--border) 40%, transparent) 1px, transparent 1px)",
+        backgroundSize: `100% ${scale.hourHeight}px, 100% ${scale.hourHeight / 4}px`,
+      }}
+    >
       <NowLine date={date} scale={scale} timeZone={timeZone} />
       {blocks.map((block) => (
         <ScheduleBlock

@@ -59,10 +59,17 @@ export function replan({ horizon, fixedItems, tasks, existing, settings }: Repla
   if (stable.unplaced.length === 0) return stable;
 
   const priorityOf = new Map(tasks.map((task) => [task.id, PRIORITIES.indexOf(task.priority)]));
-  const keepingAbove = (level: number) =>
-    fillAround(movable.filter((placement) => (priorityOf.get(placement.taskId) ?? PRIORITIES.length) < level));
-  const bumped = PRIORITIES.map((_, level) => keepingAbove(level)).reverse();
-  return bumped.reduce((best, plan) => (fewerUnplaced(plan, best) ? plan : best), stable);
+  let best = stable;
+  let keptCount = movable.length;
+  for (let level = PRIORITIES.length - 1; level >= 0; level--) {
+    const keeping = movable.filter((placement) => (priorityOf.get(placement.taskId) ?? PRIORITIES.length) < level);
+    // A level with nothing of its own to bump would only repeat the plan before it.
+    if (keeping.length === keptCount) continue;
+    keptCount = keeping.length;
+    const plan = fillAround(keeping);
+    if (fewerUnplaced(plan, best)) best = plan;
+  }
+  return best;
 }
 
 /** Whether `a` leaves fewer tasks unplaced than `b` at the most important priority level where they differ. */

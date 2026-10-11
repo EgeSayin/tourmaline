@@ -1,3 +1,4 @@
+import { formatter } from "@/lib/time/format";
 import { toTimeInputValue } from "@/lib/time/time-of-day";
 import type { TimeZone } from "@/lib/time/time-zone";
 
@@ -7,12 +8,9 @@ export interface LocalDateTime {
   minuteOfDay: number;
 }
 
-const formatters = new Map<TimeZone, Intl.DateTimeFormat>();
-
 export function toLocal(date: Date, timeZone: TimeZone): LocalDateTime {
-  let formatter = formatters.get(timeZone);
-  if (!formatter) {
-    formatter = new Intl.DateTimeFormat("en-CA", {
+  const parts = Object.fromEntries(
+    formatter({
       timeZone,
       year: "numeric",
       month: "2-digit",
@@ -20,10 +18,10 @@ export function toLocal(date: Date, timeZone: TimeZone): LocalDateTime {
       hour: "2-digit",
       minute: "2-digit",
       hourCycle: "h23",
-    });
-    formatters.set(timeZone, formatter);
-  }
-  const parts = Object.fromEntries(formatter.formatToParts(date).map((part) => [part.type, part.value]));
+    })
+      .formatToParts(date)
+      .map((part) => [part.type, part.value]),
+  );
   return {
     date: `${parts.year}-${parts.month}-${parts.day}`,
     minuteOfDay: Number(parts.hour) * 60 + Number(parts.minute),
