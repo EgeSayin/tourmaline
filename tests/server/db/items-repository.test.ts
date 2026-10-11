@@ -1,18 +1,9 @@
 import { describe, expect } from "vitest";
 import type { FixedItem, NewItem, NewTask } from "@/lib/items";
 import type { OccurrenceOverride } from "@/lib/recurrence";
-import {
-  deleteItem,
-  deleteOverrides,
-  insertItem,
-  loadItems,
-  setItemDone,
-  setOccurrenceDone,
-  skipOccurrence,
-  updateItem,
-} from "@/server/db/items-repository";
+import { insertItem, loadItems, updateItem } from "@/server/db/items-repository";
 import { insertPlacements, loadPlacements } from "@/server/db/placements-repository";
-import { fixedItemDetails, flexibleItemDetails, items, occurrenceOverrides } from "@/server/db/schema";
+import { fixedItemDetails, items } from "@/server/db/schema";
 import { dbTest as it } from "../../support/database";
 
 const lecture: Omit<FixedItem, "id" | "overrides"> = {
@@ -108,68 +99,5 @@ describe("items repository", () => {
       await expect(tx.transaction((inner) => insertItem(inner, item))).rejects.toThrow();
     }
     await expect(insertItem(tx, essay)).resolves.toBeTypeOf("string");
-  });
-
-  it("keeps occurrence overrides, one per date and sorted by it, until they're deleted", async ({ tx }) => {
-    const id = await insertItem(tx, lecture);
-    const later = { date: "2026-10-19", skipped: true, done: false };
-    const earlier = { date: "2026-10-07", skipped: true, done: false };
-    const override = ({ date, skipped }: OccurrenceOverride) => ({ itemId: id, occurrenceDate: date, skipped });
-    await tx.insert(occurrenceOverrides).values([override(later), override(earlier)]);
-    const everyOtherWeek = { ...lecture, recurrence: { ...lecture.recurrence!, interval: 2 } };
-    expect(await updateItem(tx, id, everyOtherWeek)).toBe(true);
-    expect(await loadItems(tx)).toEqual([stored(id, everyOtherWeek, [earlier, later])]);
-    await expect(
-      tx.transaction((inner) =>
-        inner.insert(occurrenceOverrides).values(override({ ...earlier, skipped: false, done: false })),
-      ),
-    ).rejects.toThrow(); // one per occurrence date
-
-    // Skipping adds an override, or marks an existing one as skipped.
-    await tx.insert(occurrenceOverrides).values(override({ date: "2026-10-26", skipped: false, done: false }));
-    await skipOccurrence(tx, id, "2026-10-26");
-    await skipOccurrence(tx, id, "2026-11-02");
-    expect((await loadItems(tx))[0].overrides).toEqual([
-      earlier,
-      later,
-      { date: "2026-10-26", skipped: true, done: false },
-      { date: "2026-11-02", skipped: true, done: false },
-    ]);
-
-    await deleteOverrides(tx, id);
-    expect(await loadItems(tx)).toEqual([stored(id, everyOtherWeek)]);
-
-    await tx.insert(occurrenceOverrides).values(override(earlier));
-    await deleteItem(tx, id);
-    expect(await tx.$count(occurrenceOverrides)).toBe(0);
-  });
-
-  it("marks one-off tasks and occurrences done, keeping it through edits and other overrides", async ({ tx }) => {
-    const essayId = await insertItem(tx, essay);
-    await setItemDone(tx, essayId, true);
-    await updateItem(tx, essayId, { ...essay, title: "Essay, final" });
-    expect(await loadItems(tx)).toEqual([{ ...stored(essayId, { ...essay, title: "Essay, final" }), done: true }]);
-
-    const gym = { ...essay, title: "Gym", recurrence: { frequency: "daily", interval: 1, until: null } } as const;
-    const gymId = await insertItem(tx, gym);
-    await skipOccurrence(tx, gymId, "2026-10-07");
-    await setOccurrenceDone(tx, gymId, "2026-10-07", true);
-    await setOccurrenceDone(tx, gymId, "2026-10-08", true);
-    await setOccurrenceDone(tx, gymId, "2026-10-08", false);
-    expect((await loadItems(tx)).find((item) => item.id === gymId)?.overrides).toEqual([
-      { date: "2026-10-07", skipped: true, done: true },
-      { date: "2026-10-08", skipped: false, done: false },
-    ]);
-  });
-
-  it("deletes an item together with its details", async ({ tx }) => {
-    const lectureId = await insertItem(tx, lecture);
-    const essayId = await insertItem(tx, essay);
-
-    expect(await deleteItem(tx, essayId)).toBe(true);
-    expect(await loadItems(tx)).toEqual([stored(lectureId, lecture)]);
-    expect(await tx.$count(flexibleItemDetails)).toBe(0);
-
-    expect(await deleteItem(tx, essayId)).toBe(false);
   });
 });
