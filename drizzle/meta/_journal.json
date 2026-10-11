@@ -64,6 +64,20 @@
       "when": 1791692252784,
       "tag": "0008_placements_done",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1791692795228,
+      "tag": "0009_placements_status",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1791692795569,
+      "tag": "0010_drop_placements_done",
+      "breakpoints": true
     }
   ]
 }

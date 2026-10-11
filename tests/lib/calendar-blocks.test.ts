@@ -17,7 +17,7 @@ describe("toCalendarBlocks", { tags: ["unit"] }, () => {
       ...times,
       source: "auto",
       pinned: false,
-      done: false,
+      status: "planned",
     });
     const placed = placement("Reading@2026-10-05", utc("2026-10-05T17:00", "2026-10-05T18:00")); // Mon 13:00–14:00
     const placedAgain = placement("Reading@2026-10-05", utc("2026-10-05T20:00", "2026-10-05T20:30"));

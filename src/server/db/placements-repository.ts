@@ -20,7 +20,7 @@ export async function loadPlacements(executor: Database | Transaction, range: In
     end: row.endAt,
     source: row.source,
     pinned: row.pinned,
-    done: row.done,
+    status: row.status,
   }));
 }
 
@@ -36,7 +36,7 @@ export async function insertPlacements(executor: Database | Transaction, toInser
         endAt: placement.end,
         source: placement.source,
         pinned: placement.pinned,
-        done: placement.done,
+        status: placement.status,
       };
     }),
   );
@@ -57,5 +57,5 @@ export async function replacePendingPlacements(tx: Transaction, from: Date, next
 }
 
 function pendingAt(now: Date) {
-  return and(eq(placements.pinned, false), eq(placements.done, false), gte(placements.startAt, now));
+  return and(eq(placements.status, "planned"), eq(placements.pinned, false), gte(placements.startAt, now));
 }

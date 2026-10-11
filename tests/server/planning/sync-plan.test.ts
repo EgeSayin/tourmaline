@@ -1,6 +1,6 @@
 import { describe, expect } from "vitest";
 import { isFixed } from "@/lib/items";
-import type { Placement } from "@/lib/placements";
+import type { Placement, PlacementStatus } from "@/lib/placements";
 import type { Recurrence } from "@/lib/recurrence";
 import { RECURRENCE_LOOKAHEAD_DAYS, type SchedulerSettings } from "@/lib/settings";
 import type { Transaction } from "@/server/db/connection";
@@ -20,12 +20,12 @@ const settings: SchedulerSettings = {
 const wednesdayNoon = new Date("2026-10-07T16:00Z"); // Wed Oct 7, 12:00 EDT
 const week = utc("2026-10-05T04:00", "2026-10-12T04:00");
 const daily: Recurrence = { frequency: "daily", interval: 1, until: null };
-const auto = (taskId: string, times: { start: Date; end: Date }, done = false): Placement => ({
+const auto = (taskId: string, times: { start: Date; end: Date }, status: PlacementStatus = "planned"): Placement => ({
   taskId,
   ...times,
   source: "auto",
   pinned: false,
-  done,
+  status,
 });
 const plan = async (tx: Transaction, now: Date) => syncPlan(tx, await loadItems(tx), settings, now);
 
@@ -71,19 +71,21 @@ describe("syncPlan", { tags: ["integration", "critical"] }, () => {
     expect(await loadPlacements(tx, week)).toEqual(withReading.placements);
   });
 
-  it("counts done placements as time spent, plans missed time again, and plans later weeks", async ({ tx }) => {
-    const essayId = await insertItem(tx, flexible("Essay", 90, utc("2026-09-28T04:00", "2026-10-09T21:00")));
-    const doneLastWeek = auto(essayId, utc("2026-09-30T14:00", "2026-09-30T15:00"), true);
-    const missedMonday = auto(essayId, utc("2026-10-05T14:00", "2026-10-05T14:30"));
-    await insertPlacements(tx, [doneLastWeek, missedMonday]);
+  it("counts done and unreviewed time as spent, plans missed time again, and plans later weeks", async ({ tx }) => {
+    const essayId = await insertItem(tx, flexible("Essay", 120, utc("2026-09-28T04:00", "2026-10-09T21:00")));
+    const doneLastWeek = auto(essayId, utc("2026-09-30T14:00", "2026-09-30T15:00"), "done");
+    const missedMonday = auto(essayId, utc("2026-10-05T14:00", "2026-10-05T14:30"), "missed");
+    const unreviewedTuesday = auto(essayId, utc("2026-10-06T14:00", "2026-10-06T14:30"));
+    await insertPlacements(tx, [doneLastWeek, missedMonday, unreviewedTuesday]);
     const projectId = await insertItem(tx, flexible("Project", 60, utc("2026-10-12T14:00", "2026-10-16T21:00")));
 
     await plan(tx, wednesdayNoon);
 
-    // Only the hour done last week counts, so 30 minutes remain; Monday's missed half hour stays on record.
-    // The project is planned next Monday at 10:00.
+    // The hour done last week and Tuesday's half hour, still to review, count, so 30 minutes remain. Monday's
+    // missed half hour stays on record. The project is planned next Monday at 10:00.
     expect(await loadPlacements(tx, week)).toEqual([
       missedMonday,
+      unreviewedTuesday,
       auto(essayId, utc("2026-10-07T16:00", "2026-10-07T16:30")),
     ]);
     expect(await loadPlacements(tx, utc("2026-10-12T04:00", "2026-10-19T04:00"))).toEqual([

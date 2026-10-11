@@ -17,7 +17,7 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 import { type Item, PRIORITIES, SPREAD_STRATEGIES } from "@/lib/items";
-import { PLACEMENT_SOURCES, SLOT_MIN } from "@/lib/placements";
+import { PLACEMENT_SOURCES, PLACEMENT_STATUSES, SLOT_MIN } from "@/lib/placements";
 import type { Recurrence } from "@/lib/recurrence";
 import type { TimeZone } from "@/lib/time/time-zone";
 
@@ -25,6 +25,7 @@ export const priorityEnum = pgEnum("priority", PRIORITIES);
 export const timingEnum = pgEnum("timing", ["fixed", "flexible"] as const satisfies readonly Item["timing"][]);
 export const spreadEnum = pgEnum("spread", SPREAD_STRATEGIES);
 export const placementSourceEnum = pgEnum("placement_source", PLACEMENT_SOURCES);
+export const placementStatusEnum = pgEnum("placement_status", PLACEMENT_STATUSES);
 
 // A literal: check constraints can't take parameters.
 const slotMin = sql.raw(String(SLOT_MIN));
@@ -144,7 +145,7 @@ export const placements = pgTable(
     endAt: timestamptz("end_at").notNull(),
     source: placementSourceEnum("source").notNull().default("auto"),
     pinned: boolean("pinned").notNull().default(false),
-    done: boolean("done").notNull().default(false),
+    status: placementStatusEnum("status").notNull().default("planned"),
     createdAt: timestamptz("created_at").notNull().defaultNow(),
   },
   (t) => [

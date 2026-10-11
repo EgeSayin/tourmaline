@@ -17,7 +17,7 @@ const auto = (taskId: string, times: { start: Date; end: Date }): Placement => (
   ...times,
   source: "auto",
   pinned: false,
-  done: false,
+  status: "planned",
 });
 const show = (calendar: Calendar | null) =>
   calendar!.blocks.map((block) => `${block.title} ${block.date} ${block.startMinute / 60}`);

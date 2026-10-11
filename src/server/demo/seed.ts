@@ -29,7 +29,7 @@ async function seed() {
 
     const weekStart = weekContaining(now, sample.settings.timeZone).range.start;
     const plan = await syncPlan(tx, await loadItems(tx), sample.settings, weekStart);
-    await tx.update(placements).set({ done: true }).where(lte(placements.endAt, now));
+    await tx.update(placements).set({ status: "done" }).where(lte(placements.endAt, now));
     return plan;
   });
 

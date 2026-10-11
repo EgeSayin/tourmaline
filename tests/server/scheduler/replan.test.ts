@@ -2,7 +2,7 @@ import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import { minutesBetween } from "@/lib/time/duration";
 import type { Task } from "@/lib/items";
-import type { Placement } from "@/lib/placements";
+import { PLACEMENT_STATUSES, type Placement } from "@/lib/placements";
 import { CHUNK_BREAK_MIN, type SchedulerSettings } from "@/lib/settings";
 import { freeTimeMap } from "@/server/scheduler/free-time";
 import { subtractIntervals } from "@/lib/time/interval";
@@ -21,18 +21,23 @@ const scenarioArb = fc
   )
   .map(([horizon, settings, fixedItems, tasks]) => ({ horizon, settings, fixedItems, tasks }));
 
-/** Saved placements: random times, some pinned or done, marked `manual` to tell them from new ones. */
+/** Saved placements: random times and statuses, some pinned, marked `manual` to tell them from new ones. */
 function existingArb(tasks: Task[]): fc.Arbitrary<Placement[]> {
   if (tasks.length === 0) return fc.constant([]);
   return fc.array(
     fc
-      .tuple(fc.integer({ min: 0, max: tasks.length - 1 }), intervalArb(120), fc.boolean(), fc.boolean())
-      .map(([i, times, pinned, done]): Placement => ({
+      .tuple(
+        fc.integer({ min: 0, max: tasks.length - 1 }),
+        intervalArb(120),
+        fc.boolean(),
+        fc.constantFrom(...PLACEMENT_STATUSES),
+      )
+      .map(([i, times, pinned, status]): Placement => ({
         taskId: tasks[i].id,
         ...times,
         source: "manual",
         pinned,
-        done,
+        status,
       })),
     { maxLength: 6 },
   );
@@ -45,7 +50,7 @@ const minutesFor = (placements: Placement[], taskId: string) =>
   placements.filter((p) => p.taskId === taskId).reduce((sum, p) => sum + minutesBetween(p.start, p.end), 0);
 
 describe("replan", { tags: ["unit", "critical"] }, () => {
-  it("keeps done, pinned, in-progress and still-valid placements, and places the rest from now", () => {
+  it("keeps done, pinned, in-progress, unreviewed and still-valid placements, and places the rest from now", () => {
     const settings: SchedulerSettings = { timeZone: "UTC", downtime: { startMinute: 23 * 60, endMinute: 10 * 60 } };
     const horizon = utc("2026-10-05T15:00", "2026-10-07T00:00"); // Mon 15:00 to the end of Tue
     const window = utc("2026-10-05T00:00", "2026-10-06T23:00");
@@ -56,18 +61,24 @@ describe("replan", { tags: ["unit", "critical"] }, () => {
       flexible("Homework", 90, window),
       flexible("Call prep", 60, window),
       flexible("Review", 60, window),
+      flexible("Notes", 30, window),
     ];
-    const placement = (taskId: string, times: { start: Date; end: Date }, extra: Partial<Placement> = {}) => ({
+    const placement = (
+      taskId: string,
+      times: { start: Date; end: Date },
+      extra: Partial<Placement> = {},
+    ): Placement => ({
       taskId,
       ...times,
-      source: "auto" as const,
+      source: "auto",
       pinned: false,
-      done: false,
+      status: "planned",
       ...extra,
     });
 
-    const pastEssay = placement("Essay", utc("2026-10-05T10:00", "2026-10-05T11:00"), { done: true });
-    const missedReview = placement("Review", utc("2026-10-05T11:00", "2026-10-05T12:00"));
+    const pastEssay = placement("Essay", utc("2026-10-05T10:00", "2026-10-05T11:00"), { status: "done" });
+    const missedReview = placement("Review", utc("2026-10-05T11:00", "2026-10-05T12:00"), { status: "missed" });
+    const unreviewedNotes = placement("Notes", utc("2026-10-05T12:00", "2026-10-05T12:30"));
     const inProgress = placement("Call prep", utc("2026-10-05T14:30", "2026-10-05T15:30"));
     const pinnedReading = placement("Reading", utc("2026-10-06T12:00", "2026-10-06T13:00"), { pinned: true });
     const futureHomework = placement("Homework", utc("2026-10-06T10:00", "2026-10-06T11:30"));
@@ -76,12 +87,13 @@ describe("replan", { tags: ["unit", "critical"] }, () => {
       horizon,
       fixedItems: [lecture],
       tasks,
-      existing: [futureHomework, pinnedReading, inProgress, missedReview, pastEssay],
+      existing: [futureHomework, pinnedReading, inProgress, missedReview, unreviewedNotes, pastEssay],
       settings,
     });
 
     expect(result.placements).toEqual([
       pastEssay,
+      unreviewedNotes, // counts until it's reviewed
       inProgress,
       placement("Essay", utc("2026-10-05T17:00", "2026-10-05T18:00")), // the remaining hour, after the lecture
       placement("Review", utc("2026-10-05T18:00", "2026-10-05T19:00")), // missed, so placed again
@@ -102,7 +114,7 @@ describe("replan", { tags: ["unit", "critical"] }, () => {
       ...utc("2026-10-05T11:00", "2026-10-05T12:00"),
       source: "auto",
       pinned: false,
-      done: false,
+      status: "planned",
     };
 
     const result = replan({
@@ -119,9 +131,15 @@ describe("replan", { tags: ["unit", "critical"] }, () => {
         ...utc("2026-10-05T10:00", "2026-10-05T13:00"),
         source: "auto",
         pinned: false,
-        done: false,
+        status: "planned",
       },
-      { taskId: "Reading", ...utc("2026-10-05T13:00", "2026-10-05T14:00"), source: "auto", pinned: false, done: false },
+      {
+        taskId: "Reading",
+        ...utc("2026-10-05T13:00", "2026-10-05T14:00"),
+        source: "auto",
+        pinned: false,
+        status: "planned",
+      },
     ]);
     expect(result.unplaced).toEqual([]);
   });
@@ -137,7 +155,7 @@ describe("replan", { tags: ["unit", "critical"] }, () => {
       ...utc("2026-10-05T10:00", "2026-10-05T10:45"),
       source: "auto",
       pinned: false,
-      done: true,
+      status: "done",
     };
 
     const result = replan({
@@ -150,7 +168,13 @@ describe("replan", { tags: ["unit", "critical"] }, () => {
 
     expect(result.placements).toEqual([
       done,
-      { taskId: "Thesis", ...utc("2026-10-05T11:15", "2026-10-05T12:00"), source: "auto", pinned: false, done: false },
+      {
+        taskId: "Thesis",
+        ...utc("2026-10-05T11:15", "2026-10-05T12:00"),
+        source: "auto",
+        pinned: false,
+        status: "planned",
+      },
     ]);
   });
 
@@ -164,8 +188,10 @@ describe("replan", { tags: ["unit", "critical"] }, () => {
         fc.property(caseArb, ([{ horizon, settings, fixedItems, tasks }, existing]) => {
           const result = replan({ horizon, fixedItems, tasks, existing, settings });
           const now = horizon.start;
-          const kept = existing.filter((p) => p.done || (p.end > now && (p.pinned || p.start < now)));
-          const missed = existing.filter((p) => !p.done && p.end <= now);
+          const kept = existing.filter(
+            (p) => p.status === "done" || (p.status === "planned" && (p.pinned || p.start < now)),
+          );
+          const missed = existing.filter((p) => p.status === "missed");
           for (const placement of missed) expect(result.placements).not.toContainEqual(placement);
           const others = result.placements.filter((p) => !kept.some((k) => samePlacement(k, p)));
 
