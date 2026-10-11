@@ -88,6 +88,18 @@ describe("items repository", { tags: ["integration", "critical"] }, () => {
     expect(await updateItem(tx, "00000000-0000-4000-8000-000000000000", essay)).toBe(false);
   });
 
+  it("rejects task durations and chunk sizes off the 5-minute grid", async ({ tx }) => {
+    const offGrid: NewItem[] = [
+      { ...essay, durationMin: 62 },
+      { ...essay, split: { minChunkMin: 32, maxChunkMin: 90 } },
+      { ...essay, split: { minChunkMin: 30, maxChunkMin: 92 } },
+    ];
+    for (const item of offGrid) {
+      await expect(tx.transaction((inner) => insertItem(inner, item))).rejects.toThrow();
+    }
+    await expect(insertItem(tx, essay)).resolves.toBeTypeOf("string");
+  });
+
   it("keeps occurrence overrides, one per date and sorted by it, until they're deleted", async ({ tx }) => {
     const id = await insertItem(tx, lecture);
     const later = { date: "2026-10-19", skipped: true };

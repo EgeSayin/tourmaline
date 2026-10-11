@@ -50,6 +50,13 @@
       "when": 1791683543150,
       "tag": "0006_drop_preferred_windows",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1791691295650,
+      "tag": "0007_task_minutes_on_slot_grid",
+      "breakpoints": true
     }
   ]
 }

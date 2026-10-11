@@ -17,7 +17,7 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 import { type Item, PRIORITIES, SPREAD_STRATEGIES } from "@/lib/items";
-import { PLACEMENT_SOURCES } from "@/lib/placements";
+import { PLACEMENT_SOURCES, SLOT_MIN } from "@/lib/placements";
 import type { Recurrence } from "@/lib/recurrence";
 import type { TimeZone } from "@/lib/time/time-zone";
 
@@ -25,6 +25,9 @@ export const priorityEnum = pgEnum("priority", PRIORITIES);
 export const timingEnum = pgEnum("timing", ["fixed", "flexible"] as const satisfies readonly Item["timing"][]);
 export const spreadEnum = pgEnum("spread", SPREAD_STRATEGIES);
 export const placementSourceEnum = pgEnum("placement_source", PLACEMENT_SOURCES);
+
+// A literal: check constraints can't take parameters.
+const slotMin = sql.raw(String(SLOT_MIN));
 
 const timestamptz = (name: string) => timestamp(name, { withTimezone: true });
 
@@ -106,11 +109,11 @@ export const flexibleItemDetails = pgTable(
   (t) => [
     foreignKey({ columns: [t.itemId, t.timing], foreignColumns: [items.id, items.timing] }).onDelete("cascade"),
     check("flexible_item_details_timing", sql`${t.timing} = 'flexible'`),
-    check("flexible_item_details_duration", sql`${t.durationMin} > 0`),
+    check("flexible_item_details_duration", sql`${t.durationMin} > 0 and ${t.durationMin} % ${slotMin} = 0`),
     check("flexible_item_details_window", sql`${t.earliestStart} < ${t.deadline}`),
     check(
       "flexible_item_details_split",
-      sql`(${t.splitMinChunkMin} is null) = (${t.splitMaxChunkMin} is null) and (${t.splitMinChunkMin} is null or ${t.splitMinChunkMin} between 1 and ${t.splitMaxChunkMin})`,
+      sql`(${t.splitMinChunkMin} is null) = (${t.splitMaxChunkMin} is null) and (${t.splitMinChunkMin} is null or (${t.splitMinChunkMin} between 1 and ${t.splitMaxChunkMin} and ${t.splitMinChunkMin} % ${slotMin} = 0 and ${t.splitMaxChunkMin} % ${slotMin} = 0))`,
     ),
   ],
 );
