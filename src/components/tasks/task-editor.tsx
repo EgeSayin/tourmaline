@@ -36,12 +36,7 @@ export function TaskEditor({
           <X />
         </Link>
       </div>
-      <ItemForm
-        key={task?.id ?? "new"}
-        item={task?.target.item}
-        timeZone={timeZone}
-        onDone={() => router.push("/tasks")}
-      />
+      <ItemForm item={task?.target.item} timeZone={timeZone} onDone={() => router.push("/tasks")} />
       {task?.recurring ? (
         <TaskOccurrences item={task.target.item} occurrences={schedule.occurrences} timeZone={timeZone} />
       ) : (

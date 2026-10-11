@@ -42,7 +42,16 @@ export default async function Tasks({ searchParams }: PageProps<"/tasks">) {
               <TaskList entries={calendar.tasks} selectedId={selected?.id ?? null} timeZone={calendar.timeZone} />
             </>
           }
-          editor={editing ? <TaskEditor task={selected} schedule={schedule} timeZone={calendar.timeZone} /> : null}
+          editor={
+            editing ? (
+              <TaskEditor
+                key={selected?.id ?? "new"}
+                task={selected}
+                schedule={schedule}
+                timeZone={calendar.timeZone}
+              />
+            ) : null
+          }
         />
       </main>
     </BlockPanelProvider>
