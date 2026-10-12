@@ -111,8 +111,11 @@ export function nextOccurrence(item: Item, from: Date, timeZone: TimeZone): Item
  */
 export function upcomingOccurrences<T extends Item>(item: T, from: Date, count: number, timeZone: TimeZone): T[] {
   if (!item.recurrence) return [];
-  // Every period holds a date the rule could occur on, and each skip can push the next one a period further.
-  const periods = Object.values(item.occurrences).filter((state) => state === "skipped").length + count;
+  // Every period holds a date the rule could occur on, and each skip from `from` on can push the next one a period
+  // further.
+  const fromDate = localDate(from, timeZone).toString();
+  const skips = Object.entries(item.occurrences).filter(([date, state]) => state === "skipped" && date >= fromDate);
+  const periods = skips.length + count;
   const range = {
     start: from,
     end: addMinutes(from, (periods * daysPerPeriod(item.recurrence) + 1) * MINUTES_PER_DAY),
