@@ -1,29 +1,55 @@
-import { minutesBetween } from "@/lib/time/duration";
 import { type Task, PRIORITIES } from "@/lib/items";
-import { clipIntervals, type Interval } from "@/lib/time/interval";
+import { clipIntervals, type IntervalSet } from "@/lib/time/interval";
+import { slotMinutes } from "./search";
+
+/** Ranks the tasks still to place against the free time left, first to place first. */
+export type TaskOrder = (tasks: Task[], free: IntervalSet) => Task[];
+
+type Comparator = (a: Task, b: Task) => number;
 
 /**
- * Share of the free time between the task's `earliestStart` and `deadline` that the task needs.
- * `Infinity` when there is no free time in that window.
+ * Share of the usable free time between the task's `earliestStart` and `deadline` that the task needs: stretches too
+ * short on the grid for one of its blocks (or its smallest chunk) don't count. `Infinity` when none is usable.
  */
-export function pressure(task: Task, free: readonly Interval[]): number {
-  const availableMin = clipIntervals(free, { start: task.earliestStart, end: task.deadline }).reduce(
-    (sum, slot) => sum + minutesBetween(slot.start, slot.end),
-    0,
-  );
-  return availableMin === 0 ? Infinity : task.durationMin / availableMin;
+export function pressure(task: Task, free: IntervalSet): number {
+  const blockMin = Math.min(task.split?.minChunkMin ?? task.durationMin, task.durationMin);
+  const usableMin = clipIntervals(free, { start: task.earliestStart, end: task.deadline })
+    .map(slotMinutes)
+    .filter((minutes) => minutes >= blockMin)
+    .reduce((sum, minutes) => sum + minutes, 0);
+  return usableMin === 0 ? Infinity : task.durationMin / usableMin;
 }
 
-/** Returns the tasks sorted by priority, then pressure (highest first), then deadline, then id. */
-export function orderByUrgency(tasks: Task[], free: readonly Interval[]): Task[] {
+const compare = (a: number, b: number) => (a < b ? -1 : a > b ? 1 : 0);
+const byPriority: Comparator = (a, b) => compare(PRIORITIES.indexOf(a.priority), PRIORITIES.indexOf(b.priority));
+const byDeadline: Comparator = (a, b) => compare(a.deadline.getTime(), b.deadline.getTime());
+const byId: Comparator = (a, b) => a.id.localeCompare(b.id);
+
+function byPressure(tasks: Task[], free: IntervalSet): Comparator {
   const pressures = new Map(tasks.map((task) => [task.id, pressure(task, free)]));
-  const compare = (a: number, b: number) => (a < b ? -1 : a > b ? 1 : 0);
-
-  return [...tasks].sort(
-    (a, b) =>
-      compare(PRIORITIES.indexOf(a.priority), PRIORITIES.indexOf(b.priority)) ||
-      compare(pressures.get(b.id)!, pressures.get(a.id)!) ||
-      compare(a.deadline.getTime(), b.deadline.getTime()) ||
-      a.id.localeCompare(b.id),
-  );
+  return (a, b) => compare(pressures.get(b.id)!, pressures.get(a.id)!);
 }
+
+function sortBy(tasks: Task[], ...comparators: Comparator[]): Task[] {
+  return [...tasks].sort((a, b) => comparators.reduce((order, comparator) => order || comparator(a, b), 0));
+}
+
+/** By priority, then pressure (highest first), then deadline, then id. */
+export const byUrgency: TaskOrder = (tasks, free) =>
+  sortBy(tasks, byPriority, byPressure(tasks, free), byDeadline, byId);
+
+/** By priority, then deadline (earliest first), then id. */
+export const byEarliestDeadline: TaskOrder = (tasks) => sortBy(tasks, byPriority, byDeadline, byId);
+
+/** Like `byUrgency`, but within each priority the tasks `first` holds go before the rest. */
+export const withFirst =
+  (first: ReadonlySet<string>): TaskOrder =>
+  (tasks, free) =>
+    sortBy(
+      tasks,
+      byPriority,
+      (a, b) => Number(first.has(b.id)) - Number(first.has(a.id)),
+      byPressure(tasks, free),
+      byDeadline,
+      byId,
+    );

@@ -196,6 +196,45 @@ describe("replan", () => {
     expect(again.unplaced.map((task) => task.title)).toEqual(["Marathon"]);
   });
 
+  it("places a task in the time another of its level took first, when another order fits both", () => {
+    const settings: SchedulerSettings = { timeZone: "UTC", downtime: Array(7).fill([]), focusCaps: NO_FOCUS_CAPS };
+    // Free 08:30–09:30, 10:30–11:20 and 12:15–13:00.
+    const fixedItems = [
+      fixed("Breakfast", utc("2026-10-05T08:00", "2026-10-05T08:30")),
+      fixed("Meeting", utc("2026-10-05T09:30", "2026-10-05T10:30")),
+      fixed("Lunch", utc("2026-10-05T11:20", "2026-10-05T12:15")),
+      fixed("Call", utc("2026-10-05T13:00", "2026-10-05T13:15")),
+    ];
+    // The project needs almost all of it, so its pressure is the higher, and placed first it takes 08:30–09:25.
+    const project = {
+      ...flexible("Project", 145, utc("2026-10-05T08:00", "2026-10-05T13:15"), "mandatory"),
+      split: { minChunkMin: 45, maxChunkMin: 60 },
+    };
+    const email = flexible("Email", 5, utc("2026-10-05T08:00", "2026-10-05T09:00"), "mandatory");
+    const planned = (taskId: string, times: { start: Date; end: Date }): Placement => ({
+      taskId,
+      ...times,
+      pinned: false,
+      status: "planned",
+    });
+
+    const result = replan({
+      horizon: utc("2026-10-05T08:00", "2026-10-05T13:15"),
+      fixedItems,
+      tasks: [project, email],
+      existing: [],
+      settings,
+    });
+
+    expect(result.placements).toEqual([
+      planned("Email", utc("2026-10-05T08:30", "2026-10-05T08:35")),
+      planned("Project", utc("2026-10-05T08:35", "2026-10-05T09:30")),
+      planned("Project", utc("2026-10-05T10:30", "2026-10-05T11:15")),
+      planned("Project", utc("2026-10-05T12:15", "2026-10-05T13:00")),
+    ]);
+    expect(result.unplaced).toEqual([]);
+  });
+
   it("keeps a break between a split task's new chunks and its earlier ones", () => {
     const settings: SchedulerSettings = {
       timeZone: "UTC",
@@ -362,7 +401,7 @@ describe("replan", () => {
         expect(after.unplaced).toEqual([]);
       }),
     );
-  });
+  }, 30_000); // it discards every scenario that leaves a task unplaced, so it plans many
 
   it("never leaves a mandatory task unplaced for lower-priority ones: their pending blocks give way", () => {
     const withExistingArb = scenarioArb.chain((scenario) =>

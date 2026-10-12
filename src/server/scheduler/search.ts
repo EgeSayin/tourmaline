@@ -160,6 +160,11 @@ function mirrorAll(intervals: IntervalSet): IntervalSet {
   return mergeIntervals(intervals.map(mirror));
 }
 
+/** The minutes of `interval` that blocks on the `SLOT_MIN` grid can fill. */
+export function slotMinutes({ start, end }: Interval): number {
+  return Math.max(0, Math.floor((end.getTime() - ceilToSlot(start).getTime()) / SLOT_MS) * SLOT_MIN);
+}
+
 function ceilToSlot(date: Date): Date {
   return new Date(Math.ceil(date.getTime() / SLOT_MS) * SLOT_MS);
 }

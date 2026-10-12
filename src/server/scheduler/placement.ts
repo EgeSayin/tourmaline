@@ -12,16 +12,26 @@ import {
   findLatestSlot,
 } from "./search";
 import { type FocusDay, fill, full, overCap, raiseCaps, trimToRoom } from "./focus-cap";
-import { orderByUrgency } from "./urgency";
+import { byUrgency, type TaskOrder } from "./urgency";
+
+/** How to place tasks: in which order, and whether to rank the rest again after each placement. */
+export interface PlanStrategy {
+  order: TaskOrder;
+  /** Ranks the tasks left again, against the free time then left, after each placement; otherwise only once. */
+  reorder: boolean;
+}
+
+/** The plan as first tried: tasks most urgent first, by the pressure they start with. */
+export const BY_URGENCY: PlanStrategy = { order: byUrgency, reorder: false };
 
 export interface PlacementResult {
-  /** In placement order, most urgent first. */
+  /** In placement order. */
   placements: Placement[];
   unplaced: Task[];
 }
 
 /**
- * Places each task, most urgent first, as its `spread` asks: at its earliest fit (`asap`), centred in its share of
+ * Places each task, in `strategy`'s order, as its `spread` asks: at its earliest fit (`asap`), centred in its share of
  * the free time in its window (`even`, see `evenTargets`, falling back to `asap` when that finds no room) or at its
  * latest fit (`just-in-time`). A task goes in one block, or for a split task in chunks (see `findEarliestChunks`) at
  * least `CHUNK_BREAK_MIN` apart, also from its chunks in `placed`. It is placed whole or not at all.
@@ -36,13 +46,15 @@ export function placeTasks(
   free: IntervalSet,
   placed: readonly Placement[] = [],
   days: FocusDay[] = [],
+  strategy: PlanStrategy = BY_URGENCY,
 ): PlacementResult {
   let remaining = free;
   let focus = days;
   const placements: Placement[] = [];
   const unplaced: Task[] = [];
 
-  for (const task of orderByUrgency(tasks, remaining)) {
+  for (let queue = strategy.order(tasks, remaining); queue.length > 0;) {
+    const [task, ...rest] = queue;
     const place = (open: IntervalSet) =>
       task.spread === "even"
         ? (findBlocks(task, "even", open, placed) ?? findBlocks(task, "asap", open, placed))
@@ -76,6 +88,7 @@ export function placeTasks(
     } else {
       unplaced.push(task);
     }
+    queue = strategy.reorder ? strategy.order(rest, remaining) : rest;
   }
   return { placements, unplaced };
 }

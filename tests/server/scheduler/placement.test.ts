@@ -59,6 +59,22 @@ describe("placeTasks", () => {
     expect(result.unplaced.map((task) => task.id)).toEqual(["Lab report"]);
   });
 
+  it("ranks tasks by the free time they can use: stretches too short for one of their blocks don't count", () => {
+    const free = mergeIntervals([iv("08:00", "08:25"), iv("08:30", "10:00")]);
+    // Counting all its free time, the call would seem the less pressed and the report would take 08:30 first, but
+    // 08:00–08:25 is too short for it.
+    const call = flexible("Call", 30, iv("08:00", "09:00"));
+    const report = flexible("Report", 60, iv("08:25", "10:00"));
+
+    const { placements, unplaced } = placeTasks([report, call], free);
+
+    expect(placements.map(({ taskId, start, end }) => ({ taskId, start, end }))).toEqual([
+      { taskId: "Call", ...iv("08:30", "09:00") },
+      { taskId: "Report", ...iv("09:00", "10:00") },
+    ]);
+    expect(unplaced).toEqual([]);
+  });
+
   it("places a split task whole as chunks with breaks, or not at all", () => {
     const settings: SchedulerSettings = {
       timeZone: "UTC",
