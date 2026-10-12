@@ -26,10 +26,12 @@ export function findLatestSlot(free: IntervalSet, durationMin: number, window: I
 }
 
 /**
- * Greedily cuts `durationMin` into chunks inside both `free` and `window`, earliest first, each on the `SLOT_MIN`
- * grid and at least `breakMin` after the one before. Chunks are `minChunkMin` to `maxChunkMin` long; only when
- * `durationMin` is less than `minChunkMin` is the single chunk shorter. Returns `null` unless all of it fits.
- * Assumes `durationMin` and the chunk sizes are multiples of `SLOT_MIN`, so every chunk ends on the grid too.
+ * Cuts `durationMin` into chunks inside both `free` and `window`, each on the `SLOT_MIN` grid and at least `breakMin`
+ * after the one before. Chunks are `minChunkMin` to `maxChunkMin` long; only when `durationMin` is less than
+ * `minChunkMin` is the single chunk shorter. Each chunk starts as early and is as long as it can be while the rest
+ * still fits, backtracking when it doesn't, so this finds chunks whenever any exist and more free time never makes it
+ * fail. Returns `null` when none exist. Assumes `durationMin` and the chunk sizes are multiples of `SLOT_MIN`, so
+ * every chunk ends on the grid too.
  */
 export function findEarliestChunks(
   free: IntervalSet,
@@ -38,28 +40,37 @@ export function findEarliestChunks(
   { minChunkMin, maxChunkMin }: ChunkSizes,
   breakMin: number,
 ): Interval[] | null {
-  const chunks: Interval[] = [];
-  let remaining = durationMin;
-  let earliest = window.start;
+  const slots = clipIntervals(free, window);
+  const freeFrom = slots.map((slot) => minutesBetween(slot.start, slot.end));
+  for (let i = slots.length - 2; i >= 0; i--) freeFrom[i] += freeFrom[i + 1];
+  const deadEnds = new Set<string>();
 
-  for (const { start: slotStart, end } of clipIntervals(free, window)) {
-    let start = ceilToSlot(later(slotStart, earliest));
-    while (remaining > 0 && start < end) {
-      const available = Math.floor(minutesBetween(start, end) / SLOT_MIN) * SLOT_MIN;
-      let length = Math.min(maxChunkMin, remaining, available);
-      // Leave enough for a full last chunk.
-      if (remaining - length > 0 && remaining - length < minChunkMin) length = remaining - minChunkMin;
-      if (length < minChunkMin && length !== remaining) break;
-
-      const chunk = { start, end: addMinutes(start, length) };
-      chunks.push(chunk);
-      remaining -= length;
-      earliest = addMinutes(chunk.end, breakMin);
-      start = ceilToSlot(earliest);
+  function cut(earliest: Date, remaining: number, first: number): Interval[] | null {
+    if (remaining === 0) return [];
+    const key = `${earliest.getTime()}:${remaining}`;
+    if (deadEnds.has(key)) return null;
+    for (let i = first; i < slots.length; i++) {
+      if (slots[i].end <= earliest) continue;
+      const start = ceilToSlot(later(slots[i].start, earliest));
+      if (freeFrom[i] - minutesBetween(slots[i].start, start) < remaining) break;
+      const available = Math.floor(minutesBetween(start, slots[i].end) / SLOT_MIN) * SLOT_MIN;
+      const shortest = remaining === durationMin && remaining < minChunkMin ? remaining : minChunkMin;
+      for (let length = Math.min(maxChunkMin, remaining, available); length >= shortest; length -= SLOT_MIN) {
+        if (!cuttable(remaining - length, minChunkMin, maxChunkMin)) continue;
+        const chunk = { start, end: addMinutes(start, length) };
+        const rest = cut(addMinutes(chunk.end, breakMin), remaining - length, i);
+        if (rest) return [chunk, ...rest];
+      }
     }
-    if (remaining === 0) return chunks;
+    deadEnds.add(key);
+    return null;
   }
-  return null;
+  return cut(window.start, durationMin, 0);
+}
+
+/** Whether `minutes` can be cut into chunks of `minChunkMin` to `maxChunkMin`: the fewest chunks that could hold it are long enough. */
+function cuttable(minutes: number, minChunkMin: number, maxChunkMin: number): boolean {
+  return Math.ceil(minutes / maxChunkMin) * minChunkMin <= minutes;
 }
 
 /** Like `findEarliestChunks`, but the latest chunks, cut from the end, in time order. */

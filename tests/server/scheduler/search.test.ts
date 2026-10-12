@@ -78,6 +78,39 @@ describe("findEarliestChunks", () => {
     expect(findEarliestChunks(free, 20, day, split, 30)).toEqual([iv("10:00", "10:20")]);
     // Rounded up to the grid after a break that ends off it.
     expect(findEarliestChunks(free, 90, day, split, 23)).toEqual([iv("10:00", "11:00"), iv("11:25", "11:55")]);
+    // A full first hour would leave 85, which no 45 to 60 chunks add up to, so 55, then 45 and 45.
+    const narrow = mergeIntervals([iv("08:30", "09:30"), iv("10:30", "12:00"), iv("12:30", "13:15")]);
+    expect(findEarliestChunks(narrow, 145, day, { minChunkMin: 45, maxChunkMin: 60 }, 30)).toEqual([
+      iv("08:30", "09:25"),
+      iv("10:30", "11:15"),
+      iv("12:30", "13:15"),
+    ]);
+    // A longest first chunk would leave 105 for the hour-long slots, so 90, then 60 and 60.
+    const hours = mergeIntervals([iv("09:30", "12:00"), iv("14:00", "15:00"), iv("17:30", "18:30")]);
+    expect(findEarliestChunks(hours, 210, day, { minChunkMin: 60, maxChunkMin: 105 }, 30)).toEqual([
+      iv("09:30", "11:00"),
+      iv("14:00", "15:00"),
+      iv("17:30", "18:30"),
+    ]);
+  });
+
+  it("finds chunks whenever there are some, so more free time never makes it fail", () => {
+    fc.assert(
+      fc.property(
+        intervalsArb.map(mergeIntervals),
+        intervalsArb,
+        taskMinutesArb(SLOT_MIN, 6 * 60),
+        splitArb,
+        fc.integer({ min: 0, max: 90 }),
+        (free, extra, durationMin, split, breakMin) => {
+          const window = { start: at(0), end: at(SPAN_MIN) };
+          if (!findEarliestChunks(free, durationMin, window, split, breakMin)) return;
+          expect(
+            findEarliestChunks(mergeIntervals([...free, ...extra]), durationMin, window, split, breakMin),
+          ).not.toBeNull();
+        },
+      ),
+    );
   });
 
   it("returns null unless all of the time fits", () => {

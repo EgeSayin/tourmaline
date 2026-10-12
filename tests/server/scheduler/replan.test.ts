@@ -307,6 +307,37 @@ describe("replan", () => {
     );
   });
 
+  it("bumps its own plan's blocks too, so planning that plan again finds nothing better", () => {
+    // Two high tasks of almost the same pressure: placed in that order, the long-block one doesn't fit.
+    const day = (start: string, end: string) => utc(`2026-10-05T${start}`, `2026-10-05T${end}`);
+    const settings: SchedulerSettings = {
+      timeZone: "UTC",
+      downtime: [
+        [
+          { startMinute: 18 * 60, endMinute: 18 * 60 + 30 },
+          { startMinute: 20 * 60, endMinute: 20 * 60 + 30 },
+        ],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+      ],
+      focusCaps: NO_FOCUS_CAPS,
+    };
+    const tasks: Task[] = [
+      { ...flexible("Short blocks", 155, day("13:39", "19:30"), "high"), split: { minChunkMin: 5, maxChunkMin: 25 } },
+      { ...flexible("Errand", 5, day("00:00", "12:00"), "mandatory"), spread: "just-in-time" },
+      { ...flexible("Long blocks", 210, day("07:56", "15:11"), "high"), split: { minChunkMin: 95, maxChunkMin: 105 } },
+    ];
+    const input = { horizon: day("00:00", "19:30"), settings, fixedItems: [], tasks };
+
+    const first = replan({ ...input, existing: [] });
+    expect(first.unplaced).toEqual([]);
+    expect(replan({ ...input, existing: first.placements })).toEqual(first);
+  });
+
   it("doesn't move existing placements to fit a new task that fits around them", () => {
     const newTaskArb = fc
       .tuple(fc.integer({ min: 1, max: 4 * 60 }), intervalArb(SPAN_MIN))

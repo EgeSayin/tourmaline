@@ -33,7 +33,8 @@ export interface ReplanResult {
  * If some task then doesn't fit, less important tasks are bumped: the pending placements of each priority level are
  * dropped in turn, least important first, and everything not kept is placed again. The plan that leaves the fewest
  * tasks unplaced at the most important level wins, then at the next level, and so on; a tie goes to the plan that
- * keeps more. So tasks never leave a more important task unplaced through their pending placements.
+ * keeps more. Bumping repeats from the winner until it gains nothing, so planning the result again changes nothing,
+ * and tasks never leave a more important task unplaced through their pending placements.
  *
  * New blocks keep each local day's fixed items and blocks under its focus cap where they can (see `placeTasks`);
  * `fixedItems` and `existing` should cover all of today for today's to count.
@@ -55,19 +56,22 @@ export function replan({ horizon, fixedItems, tasks, existing, settings }: Repla
     focusDays(horizon, [...fixedTimes, ...placements], settings.focusCaps, settings.timeZone);
   const fillAround = (saved: Placement[]) => fillAroundKept(startingNow, kept, saved, free, daysAround);
 
-  const stable = fillAround(movable);
-  if (stable.unplaced.length === 0) return stable;
-
   const priorityOf = new Map(tasks.map((task) => [task.id, PRIORITIES.indexOf(task.priority)]));
-  let best = stable;
-  let keptCount = movable.length;
-  for (let level = PRIORITIES.length - 1; level >= 0; level--) {
-    const keeping = movable.filter((placement) => (priorityOf.get(placement.taskId) ?? PRIORITIES.length) < level);
-    // A level with nothing of its own to bump would only repeat the plan before it.
-    if (keeping.length === keptCount) continue;
-    keptCount = keeping.length;
-    const plan = fillAround(keeping);
-    if (fewerUnplaced(plan, best)) best = plan;
+  let best = fillAround(movable);
+  for (let improved = best.unplaced.length > 0; improved;) {
+    improved = false;
+    const pending = best.placements.filter((placement) => isPending(placement, now));
+    const base = best;
+    let keptCount = pending.length;
+    for (let level = PRIORITIES.length - 1; level >= 0; level--) {
+      const keeping = pending.filter((placement) => (priorityOf.get(placement.taskId) ?? PRIORITIES.length) < level);
+      // A level with nothing of its own to bump would only repeat the plan before it.
+      if (keeping.length === keptCount) continue;
+      keptCount = keeping.length;
+      const plan = fillAround(keeping);
+      if (fewerUnplaced(plan, best)) best = plan;
+    }
+    improved = best !== base && best.unplaced.length > 0;
   }
   return best;
 }
