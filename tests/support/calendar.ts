@@ -1,9 +1,19 @@
-import { loadCalendar } from "@/server/calendar";
+import { loadShell, loadWeek } from "@/server/calendar";
 import type { WorkspaceTx } from "@/server/db/workspace-transaction";
 import { plannedToday, replanWorkspace } from "@/server/planning/saved-plan";
+import { loadItemList } from "@/server/tasks";
 
-/** `loadCalendar` as a page reads it: planned again first on a day's first read (see `readWorkspace`). */
+/**
+ * What the pages show at `now`, read as a request would (see `readWorkspace`): the shell, the week from `shownDate`
+ * and the item list.
+ */
 export async function readCalendar(tx: WorkspaceTx, now: Date, shownDate?: Temporal.PlainDate) {
   if (!(await plannedToday(tx, now))) await replanWorkspace(tx, now);
-  return loadCalendar(tx, now, shownDate);
+  return {
+    ...(await loadShell(tx, now)),
+    ...(await loadWeek(tx, now, shownDate)),
+    tasks: (await loadItemList(tx, now)).items,
+  };
 }
+
+export type Calendar = Awaited<ReturnType<typeof readCalendar>>;

@@ -9,11 +9,11 @@ import { type Category, matchesFilter } from "@/lib/categories";
 import { formatDateTime } from "@/lib/time/format";
 import type { TimeZone } from "@/lib/time/time-zone";
 import { cn } from "@/lib/utils";
-import type { TaskEntry, TaskStatus } from "@/server/tasks";
+import type { ItemEntry, ItemStatus } from "@/server/tasks";
 
 type Filter = "open" | "done" | "all";
 
-const SHOWN: Record<Filter, (status: TaskStatus) => boolean> = {
+const SHOWN: Record<Filter, (status: ItemStatus) => boolean> = {
   open: (status) => status === "scheduled" || status === "queued",
   done: (status) => status === "done",
   all: () => true,
@@ -24,14 +24,14 @@ const STATUS_LABELS = {
   queued: "Doesn't fit",
   done: "Done",
   past: "Past",
-} satisfies Record<TaskStatus, string>;
+} satisfies Record<ItemStatus, string>;
 
 const STATUS_STYLES = {
   scheduled: "text-muted-foreground",
   queued: "bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-100",
   done: "bg-emerald-100 text-emerald-900 dark:bg-emerald-950 dark:text-emerald-100",
   past: "text-muted-foreground",
-} satisfies Record<TaskStatus, string>;
+} satisfies Record<ItemStatus, string>;
 
 export function TaskList({
   entries,
@@ -39,7 +39,7 @@ export function TaskList({
   selectedId,
   timeZone,
 }: {
-  entries: TaskEntry[];
+  entries: ItemEntry[];
   categories: Category[];
   selectedId: string | null;
   timeZone: TimeZone;
@@ -81,7 +81,7 @@ export function TaskList({
   );
 }
 
-function TaskRow({ entry, current, timeZone }: { entry: TaskEntry; current: boolean; timeZone: TimeZone }) {
+function TaskRow({ entry, current, timeZone }: { entry: ItemEntry; current: boolean; timeZone: TimeZone }) {
   const { id, title, kind, recurring, when, status } = entry;
   return (
     <Link

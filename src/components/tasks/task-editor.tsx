@@ -7,7 +7,7 @@ import { ItemForm } from "@/components/items/item-form";
 import { buttonVariants } from "@/components/ui/button";
 import type { Category } from "@/lib/categories";
 import type { TimeZone } from "@/lib/time/time-zone";
-import type { ItemSchedule, TaskEntry } from "@/server/tasks";
+import type { ItemSchedule, ItemEntry } from "@/server/tasks";
 import { TaskBlocks } from "./task-blocks";
 import { TaskOccurrences } from "./task-occurrences";
 
@@ -17,7 +17,7 @@ export function TaskEditor({
   categories,
   timeZone,
 }: {
-  task: TaskEntry | null;
+  task: ItemEntry | null;
   schedule: ItemSchedule;
   categories: Category[];
   timeZone: TimeZone;

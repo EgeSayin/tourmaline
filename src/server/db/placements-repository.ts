@@ -34,6 +34,11 @@ export async function loadPlacementsToReview(tx: WorkspaceTx, now: Date): Promis
   return rows.map(toPlacement);
 }
 
+/** Every placement of a task or of any occurrence of series `itemId`, sorted by start. */
+export function loadItemPlacements(tx: WorkspaceTx, itemId: string): Promise<Placement[]> {
+  return findPlacements(tx, eq(placements.itemId, itemId));
+}
+
 /** Every placement of a task or occurrence (by its occurrence id), sorted by start. */
 export async function loadTaskPlacements(tx: WorkspaceTx, taskId: string): Promise<Placement[]> {
   const rows = await tx.select().from(placements).where(ofTask(tx, taskId)).orderBy(asc(placements.startAt));

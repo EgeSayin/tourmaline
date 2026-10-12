@@ -6,7 +6,7 @@ import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-export type AppPage = (typeof PAGES)[number]["page"] | "settings";
+export type AppPage = (typeof PAGES)[number]["page"];
 
 export type PhoneSection = "left" | "main" | "side";
 
@@ -60,7 +60,7 @@ export function AppShell({
         <SiteFooter className="mt-auto hidden pt-4 md:flex" />
       </div>
       <section
-        aria-label={page === "settings" ? "Settings" : PAGES.find((entry) => entry.page === page)!.region}
+        aria-label={PAGES.find((entry) => entry.page === page)!.region}
         className={`space-y-3 overflow-y-auto p-4 ${sideOpen ? "" : "md:col-span-2"} ${shownOn("main")}`}
       >
         {main}
@@ -72,17 +72,20 @@ export function AppShell({
   );
 }
 
-/** `region` names the page's main section. */
+/** `region` names the page's main section; `nav` pages are in the page switch. */
 export const PAGES = [
-  { page: "calendar", href: "/", label: "Calendar", region: "Calendar", Icon: CalendarDays },
-  { page: "tasks", href: "/tasks", label: "Tasks", region: "Task list", Icon: ListTodo },
-  { page: "categories", href: "/categories", label: "Categories", region: "Category list", Icon: Tags },
+  { page: "calendar", href: "/", label: "Calendar", region: "Calendar", Icon: CalendarDays, nav: true },
+  { page: "tasks", href: "/tasks", label: "Tasks", region: "Task list", Icon: ListTodo, nav: true },
+  { page: "categories", href: "/categories", label: "Categories", region: "Category list", Icon: Tags, nav: true },
+  { page: "settings", href: "/settings", label: "Settings", region: "Settings", Icon: Settings, nav: false },
 ] as const;
+
+export const NAV_PAGES = PAGES.filter((entry) => entry.nav);
 
 function AppNav({ page }: { page: AppPage }) {
   return (
     <nav aria-label="Pages" className="inline-flex gap-0.5 rounded-lg border bg-card p-0.5">
-      {PAGES.map(({ page: target, href, label, Icon }) => (
+      {NAV_PAGES.map(({ page: target, href, label, Icon }) => (
         <Link
           key={target}
           href={href}

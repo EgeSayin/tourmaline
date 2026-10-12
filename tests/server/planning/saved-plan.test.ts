@@ -1,6 +1,6 @@
 import { describe, expect } from "vitest";
 import { nightly } from "@/lib/downtime";
-import { loadCalendar } from "@/server/calendar";
+import { loadShell, loadWeek } from "@/server/calendar";
 import { insertItem } from "@/server/db/items-repository";
 import { settings } from "@/server/db/schema";
 import { plannedToday, replanWorkspace } from "@/server/planning/saved-plan";
@@ -22,9 +22,9 @@ describe("the saved plan", () => {
 
     await replanWorkspace(tx, mondayMorning);
 
-    const calendar = await loadCalendar(tx, mondayLate);
-    expect(calendar.blocks.map((block) => block.title)).toEqual(["Essay"]);
-    expect(calendar.queue.map((task) => [task.title, task.remainingMin])).toEqual([["Marathon", 24 * 60]]);
+    expect((await loadWeek(tx, mondayLate)).blocks.map((block) => block.title)).toEqual(["Essay"]);
+    const { queue } = await loadShell(tx, mondayLate);
+    expect(queue.map((task) => [task.title, task.remainingMin])).toEqual([["Marathon", 24 * 60]]);
     expect(await plannedToday(tx, mondayLate)).toBe(true);
     expect(await plannedToday(tx, tuesdayMorning)).toBe(false);
   });

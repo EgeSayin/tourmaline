@@ -1,41 +1,46 @@
 import { type BlockPlacement, type EditTarget, toBlockPlacement } from "@/lib/calendar-blocks";
 import { isTask, type Item, itemSpan } from "@/lib/items";
+import type { Placement } from "@/lib/placements";
 import { parseOccurrenceId } from "@/lib/recurrence";
 import { OCCURRENCES_SHOWN } from "@/lib/settings";
 import type { TimeZone } from "@/lib/time/time-zone";
-import type { QueuedTask } from "@/server/planning/saved-plan";
+import { loadQueue, type QueuedTask } from "@/server/planning/saved-plan";
 import type { WorkspaceTx } from "@/server/db/workspace-transaction";
-import { loadItem } from "@/server/db/items-repository";
-import { loadTaskPlacements } from "@/server/db/placements-repository";
+import { editTargets } from "@/server/calendar";
+import { type CategoryEntry, listCategories } from "@/server/categories/category-list";
+import { loadCategories } from "@/server/db/categories-repository";
+import { loadItem, loadItems } from "@/server/db/items-repository";
+import { loadSettings } from "@/server/db/settings-repository";
+import { loadItemPlacements, loadTaskPlacements } from "@/server/db/placements-repository";
 import { upcomingOccurrences } from "@/server/recurrence";
 
 /**
  * `queued`: planned, but its remaining time, or an occurrence's, doesn't fit before its deadline. `done`: marked done.
  * `past`: its deadline or end has passed. Otherwise `scheduled`.
  */
-export type TaskStatus = "scheduled" | "queued" | "done" | "past";
+export type ItemStatus = "scheduled" | "queued" | "done" | "past";
 
-/** One item you've added: a task, or a fixed item, which is a task with a single block. */
-export interface TaskEntry {
+/** One item you've added, as the item list shows it: a task, or a fixed item, which the list calls an event. */
+export interface ItemEntry {
   id: string;
   title: string;
   kind: "task" | "event";
   recurring: boolean;
   /** A task's deadline or an event's start: for a series, its next occurrence's. */
   when: Date;
-  status: TaskStatus;
+  status: ItemStatus;
   target: EditTarget;
 }
 
 /** Every item with its status, sorted by `when`; `queue` is the plan's (see `loadQueue`). */
-export function listTasks(
+export function listItems(
   items: Item[],
   queue: QueuedTask[],
   targetFor: (id: string) => EditTarget | undefined,
   now: Date,
-): TaskEntry[] {
+): ItemEntry[] {
   const queued = new Set(queue.filter((task) => task.deadline > now).map((task) => parseOccurrenceId(task.id).itemId));
-  const entries = items.map((item): TaskEntry => {
+  const entries = items.map((item): ItemEntry => {
     const target = targetFor(item.id)!;
     const span = itemSpan(target.item);
     const task = isTask(item);
@@ -52,6 +57,23 @@ export function listTasks(
   return entries.sort((a, b) => a.when.getTime() - b.when.getTime());
 }
 
+export interface ItemList {
+  timeZone: TimeZone;
+  items: ItemEntry[];
+  categories: CategoryEntry[];
+}
+
+/** Every item with its status (see `listItems`), and the categories to file them under. */
+export async function loadItemList(tx: WorkspaceTx, now: Date): Promise<ItemList> {
+  const [settings, items, categories] = await Promise.all([loadSettings(tx), loadItems(tx), loadCategories(tx)]);
+  const { timeZone } = settings;
+  return {
+    timeZone,
+    items: listItems(items, await loadQueue(tx, items, settings), editTargets(items, now, timeZone), now),
+    categories: listCategories(categories, items),
+  };
+}
+
 export interface TaskBlock {
   start: Date;
   end: Date;
@@ -59,11 +81,11 @@ export interface TaskBlock {
 }
 
 export async function loadTaskBlocks(tx: WorkspaceTx, taskId: string, now: Date): Promise<TaskBlock[]> {
-  return (await loadTaskPlacements(tx, taskId)).map((placement) => ({
-    start: placement.start,
-    end: placement.end,
-    placement: toBlockPlacement(placement, now),
-  }));
+  return (await loadTaskPlacements(tx, taskId)).map((placement) => toTaskBlock(placement, now));
+}
+
+function toTaskBlock(placement: Placement, now: Date): TaskBlock {
+  return { start: placement.start, end: placement.end, placement: toBlockPlacement(placement, now) };
 }
 
 export interface OccurrenceEntry {
@@ -88,11 +110,11 @@ export async function loadSchedule(tx: WorkspaceTx, id: string, now: Date, timeZ
   if (!item?.recurrence) {
     return { blocks: item && isTask(item) ? await loadTaskBlocks(tx, id, now) : [], occurrences: [] };
   }
-  const occurrences: OccurrenceEntry[] = [];
-  for (const occurrence of upcomingOccurrences(item, now, OCCURRENCES_SHOWN, timeZone)) {
-    const { start, end } = itemSpan(occurrence);
-    const blocks = isTask(occurrence) ? await loadTaskBlocks(tx, occurrence.id, now) : [];
-    occurrences.push({ date: parseOccurrenceId(occurrence.id).date!, start, end, blocks });
-  }
+  const placements = isTask(item) ? await loadItemPlacements(tx, id) : [];
+  const occurrences = upcomingOccurrences(item, now, OCCURRENCES_SHOWN, timeZone).map((occurrence) => ({
+    date: parseOccurrenceId(occurrence.id).date!,
+    ...itemSpan(occurrence),
+    blocks: placements.filter((placement) => placement.taskId === occurrence.id).map((p) => toTaskBlock(p, now)),
+  }));
   return { blocks: [], occurrences };
 }

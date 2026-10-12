@@ -1,5 +1,5 @@
 import { formatLocalDateRange } from "@/lib/time/format";
-import type { Calendar } from "@/server/calendar";
+import type { Week } from "@/server/calendar";
 import { DateNavigator } from "./date-navigator";
 
 function weekLabel(weeksFromToday: number): string {
@@ -14,7 +14,7 @@ export function CalendarHeader({
   dayDates,
   today,
   navigation,
-}: Pick<Calendar, "weekDates" | "dayDates" | "today" | "navigation">) {
+}: Pick<Week, "weekDates" | "dayDates" | "today" | "navigation">) {
   const { week, days } = navigation;
   return (
     <div className="flex flex-wrap items-center gap-x-3 gap-y-1">

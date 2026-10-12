@@ -2,12 +2,11 @@ import { nightly } from "@/lib/downtime";
 import { describe, expect } from "vitest";
 import type { Placement } from "@/lib/placements";
 import type { Recurrence } from "@/lib/recurrence";
-import type { Calendar } from "@/server/calendar";
 import type { WorkspaceTx } from "@/server/db/workspace-transaction";
 import { insertItem } from "@/server/db/items-repository";
 import { insertPlacements } from "@/server/db/placements-repository";
 import { settings } from "@/server/db/schema";
-import { readCalendar } from "../support/calendar";
+import { type Calendar, readCalendar } from "../support/calendar";
 import { dbTest as it } from "../support/database";
 import { utc } from "../support/intervals";
 import { fixed, flexible } from "../support/items";
@@ -27,7 +26,7 @@ async function saveSettings(tx: WorkspaceTx) {
   await tx.update(settings).set({ timeZone: "America/New_York", downtime: nightly(23 * 60, 10 * 60) });
 }
 
-describe("loadCalendar", () => {
+describe("the calendar and its lists", () => {
   it("returns the shown days with their blocks and the queue", async ({ tx }) => {
     await saveSettings(tx);
     await insertItem(tx, fixed("Lecture", utc("2026-10-07T17:00", "2026-10-07T18:00"))); // Wed 13:00–14:00
@@ -191,6 +190,5 @@ describe("loadCalendar", () => {
     expect(Object.keys(calendar!.loads)).toEqual(calendar!.weekDates);
     expect(calendar?.loads["2026-10-07"]).toEqual({ usedMin: 150, capMin: 180 });
     expect(calendar?.loads["2026-10-06"]).toEqual({ usedMin: 0, capMin: null });
-    expect(calendar?.focusCaps).toEqual([null, null, 180, null, null, null, null]);
   });
 });
