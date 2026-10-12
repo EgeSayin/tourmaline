@@ -1,4 +1,4 @@
-# Schedule
+# Tourmaline
 
 A personal auto-scheduler. Fixed items keep their time; tasks get placed in the free time before their deadline,
 most important first, and are planned again whenever something changes. See [docs/architecture.md](docs/architecture.md).

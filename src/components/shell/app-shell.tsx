@@ -1,5 +1,6 @@
 import { CalendarDays, ListTodo, Plus, Settings, Tags } from "lucide-react";
 import Link from "next/link";
+import { Wordmark } from "@/components/shell/wordmark";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -35,7 +36,11 @@ export function AppShell({
         phoneNav && "pb-20",
       )}
     >
-      <header className="hidden min-h-16 border-r border-b md:block" />
+      <header className="hidden min-h-16 items-center border-r border-b px-4 md:flex">
+        <Link href="/" className="rounded-md text-lg outline-offset-4">
+          <Wordmark />
+        </Link>
+      </header>
       <header className="hidden min-h-16 items-center border-b px-4 md:flex">
         <AppNav page={page} />
       </header>

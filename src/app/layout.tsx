@@ -3,6 +3,7 @@ import { Geist } from "next/font/google";
 import { ThemeProvider } from "next-themes";
 import { CategoryFilterProvider } from "@/components/categories/category-filter";
 import { RefreshWhenStale } from "@/components/shell/refresh-when-stale";
+import { APP_NAME } from "@/components/shell/wordmark";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -11,7 +12,7 @@ const geistSans = Geist({
 });
 
 export const metadata: Metadata = {
-  title: "Schedule",
+  title: APP_NAME,
   description: "Auto-scheduling planner",
 };
 

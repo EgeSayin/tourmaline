@@ -25,6 +25,8 @@
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
+  --color-gem-rim: var(--gem-rim);
+  --color-gem-core: var(--gem-core);
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
@@ -54,6 +56,8 @@
   --input: oklch(0.922 0 0);
   --ring: oklch(0.708 0 0);
   --radius: 0.625rem;
+  --gem-rim: oklch(0.62 0.15 160);
+  --gem-core: oklch(0.62 0.2 0);
 }
 
 .dark {
@@ -75,6 +79,8 @@
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 15%);
   --ring: oklch(0.556 0 0);
+  --gem-rim: oklch(0.72 0.15 160);
+  --gem-core: oklch(0.72 0.17 0);
 }
 
 @layer base {

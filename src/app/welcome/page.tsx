@@ -1,13 +1,14 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { connection } from "next/server";
+import { APP_NAME, Wordmark } from "@/components/shell/wordmark";
 import { StartDemoButton } from "@/components/welcome/start-demo-button";
 import { startDemoAction } from "@/server/demo/actions";
 import { DEMO_MODE, sessionWorkspace } from "@/server/workspaces/current-workspace";
 import { GUEST_IDLE_DAYS } from "@/server/workspaces/guest-limits";
 
 export const metadata: Metadata = {
-  title: "Schedule: an auto-scheduling planner",
+  title: `${APP_NAME}: an auto-scheduling planner`,
   description: "A planner that finds time for your tasks around your fixed events, and plans again when things change.",
 };
 
@@ -25,7 +26,9 @@ export default async function Welcome() {
   return (
     <main className="mx-auto flex min-h-dvh max-w-2xl flex-col justify-center gap-8 px-4 py-12">
       <div className="flex flex-col gap-3">
-        <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">Schedule</h1>
+        <h1 className="text-4xl sm:text-5xl">
+          <Wordmark />
+        </h1>
         <p className="text-lg text-muted-foreground">
           An auto-scheduling planner: you say what needs doing and by when, it works out when to do it.
         </p>
