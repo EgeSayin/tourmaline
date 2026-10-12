@@ -25,7 +25,7 @@ export function occurrenceDates(
 
   const anchor = rule.frequency === "daily" ? first : first.subtract({ days: first.dayOfWeek - 1 });
   const unit = rule.frequency === "daily" ? rule.interval : rule.interval * 7;
-  const offsets = rule.frequency === "daily" ? [0] : [...rule.weekdays].sort((a, b) => a - b).map((day) => day - 1);
+  const offsets = rule.frequency === "daily" ? [0] : rule.weekdays.map((day) => day - 1);
 
   const dates: Temporal.PlainDate[] = [];
   const skipped = Math.floor(anchor.until(start).days / unit);

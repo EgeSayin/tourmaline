@@ -13,7 +13,10 @@ export type Recurrence =
   | (BaseRecurrence & { frequency: "daily" })
   | (BaseRecurrence & {
       frequency: "weekly";
-      /** Non-empty. Occurrences fall only on these days, in every `interval`-th week from the first date's week. */
+      /**
+       * Non-empty, sorted, without duplicates. Occurrences fall only on these days, in every `interval`-th week from
+       * the first date's week.
+       */
       weekdays: Weekday[];
     });
 

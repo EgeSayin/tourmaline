@@ -155,12 +155,12 @@ describe("parseItemForm", () => {
       endTime: "12:15",
       repeat: "weekly",
       interval: "2",
-      weekdays: "3,1",
+      weekdays: "3,1,3", // sorted, without the duplicate
       until: "2026-12-11",
     };
     expect(parseItemForm(lecture, tz, now)).toMatchObject({
       ok: true,
-      item: { recurrence: { frequency: "weekly", interval: 2, weekdays: [3, 1], until: "2026-12-11" } },
+      item: { recurrence: { frequency: "weekly", interval: 2, weekdays: [1, 3], until: "2026-12-11" } },
     });
 
     // Daily from Sat Oct 31 10:00 EDT: due at 10:00 EST the next day, after clocks go back.

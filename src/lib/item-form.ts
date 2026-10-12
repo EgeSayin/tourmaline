@@ -25,10 +25,10 @@ export const REPEAT_OPTIONS = ["none", "daily", "weekly"] as const;
 
 export type Repeat = (typeof REPEAT_OPTIONS)[number];
 
-/** Comma-separated ISO weekday numbers, e.g. "1,3,5", as kept by the weekday toggles. */
+/** Comma-separated ISO weekday numbers, e.g. "1,3,5", as kept by the weekday toggles; sorted and deduplicated. */
 const weekdayList = z
   .string()
-  .transform((value) => value.split(",").filter(Boolean).map(Number))
+  .transform((value) => [...new Set(value.split(",").filter(Boolean).map(Number))].sort((a, b) => a - b))
   .pipe(z.array(z.literal(WEEKDAYS)));
 
 const shared = {

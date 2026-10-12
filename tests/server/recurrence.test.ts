@@ -34,7 +34,7 @@ describe("occurrenceDates", () => {
 
   it("repeats on chosen weekdays every N weeks, counting weeks from the first date's Monday", () => {
     // Every other week on Fri and Mon (unsorted on purpose), first date Wed Oct 7 2026.
-    const rule: Recurrence = { frequency: "weekly", interval: 2, weekdays: [5, 1], until: null };
+    const rule: Recurrence = { frequency: "weekly", interval: 2, weekdays: [1, 5], until: null };
 
     expect(expand(rule, "2026-10-07", "2026-10-01", "2026-11-03")).toEqual([
       // Mon Oct 5 is in the first week but before the first date.
