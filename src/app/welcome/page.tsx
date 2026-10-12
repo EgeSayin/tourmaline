@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
-import Image from "next/image";
 import { redirect } from "next/navigation";
 import { connection } from "next/server";
 import { APP_NAME, Wordmark } from "@/components/shell/wordmark";
+import { ScreenshotCarousel } from "@/components/welcome/screenshot-carousel";
 import { StartDemoButton } from "@/components/welcome/start-demo-button";
 import { startDemoAction } from "@/server/demo/actions";
 import { DEMO_MODE, sessionWorkspace } from "@/server/workspaces/current-workspace";
@@ -26,12 +26,6 @@ const STEPS = [
     "You find out early when it won't fit.",
     "If the week fills up and there's no longer room for everything before its deadline, the least important task comes off the calendar and waits in a queue. You see that days ahead, not on Friday night.",
   ],
-];
-
-/** Screenshots of the sample week, retaken whenever the calendar's look changes. */
-const SCREENSHOTS = [
-  { src: "/welcome/week-light.jpg", className: "dark:hidden" },
-  { src: "/welcome/week-dark.jpg", className: "hidden dark:block" },
 ];
 
 export default async function Welcome() {
@@ -59,20 +53,7 @@ export default async function Welcome() {
         </form>
       </section>
 
-      <figure className="overflow-hidden rounded-md border shadow-sm">
-        {SCREENSHOTS.map(({ src, className }) => (
-          <Image
-            key={src}
-            src={src}
-            alt="A week in the calendar: fixed events, and tasks placed in the free time between them"
-            width={2560}
-            height={1600}
-            sizes="(min-width: 56rem) 52rem, 100vw"
-            priority
-            className={className}
-          />
-        ))}
-      </figure>
+      <ScreenshotCarousel />
 
       <section>
         <h2 className="font-display text-2xl font-medium tracking-tight">How it works</h2>
