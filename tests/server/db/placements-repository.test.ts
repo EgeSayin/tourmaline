@@ -1,5 +1,5 @@
 import { describe, expect } from "vitest";
-import { deleteItem, insertItem } from "@/server/db/items-repository";
+import { deleteItem, insertItem, loadItem } from "@/server/db/items-repository";
 import { insertPlacements, loadPlacements } from "@/server/db/placements-repository";
 import { dbTest as it, savepoint } from "../../support/database";
 import { flexible } from "../../support/items";
@@ -18,7 +18,7 @@ describe("placements repository", () => {
 
     await insertPlacements(tx, [{ taskId: essayId, ...slot }]);
     await expect(savepoint(tx, (nested) => insertPlacements(nested, [{ taskId: essayId, ...slot }]))).rejects.toThrow(); // one per task and start
-    await deleteItem(tx, essayId);
+    await deleteItem(tx, (await loadItem(tx, essayId))!);
     expect(await loadPlacements(tx, week)).toEqual([]);
   });
 });

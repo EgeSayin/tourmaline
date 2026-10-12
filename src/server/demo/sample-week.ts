@@ -1,5 +1,5 @@
 import type { NewCategory } from "@/lib/categories";
-import type { FixedItem, Task, Priority } from "@/lib/items";
+import type { NewFixedItem, NewTask, Priority } from "@/lib/items";
 import type { Recurrence, Weekday } from "@/lib/recurrence";
 import { DEFAULT_SETTINGS, type SchedulerSettings } from "@/lib/settings";
 import { withFirstDeadline } from "@/server/recurrence";
@@ -18,23 +18,20 @@ function local(date: string, time: string): Date {
 }
 
 function fixed(
-  id: string,
   title: string,
   date: string,
   [from, to]: [string, string],
   options: Partial<
-    Pick<FixedItem, "priority" | "recurrence" | "location" | "bufferBeforeMin" | "bufferAfterMin" | "categoryId">
+    Pick<NewFixedItem, "priority" | "recurrence" | "location" | "bufferBeforeMin" | "bufferAfterMin" | "categoryId">
   > = {},
-): FixedItem {
+): NewFixedItem {
   return {
-    id,
     title,
     timing: "fixed",
     start: local(date, from),
     end: local(date, to),
     priority: "mandatory",
     recurrence: null,
-    overrides: [],
     categoryId: null,
     location: null,
     bufferBeforeMin: 0,
@@ -44,39 +41,34 @@ function fixed(
 }
 
 function flexible(
-  id: string,
   title: string,
   durationMin: number,
   [earliestStart, deadline]: [Date, Date],
   priority: Priority = "normal",
-): Task {
+): NewTask {
   return {
-    id,
     title,
     timing: "flexible",
     priority,
     recurrence: null,
-    overrides: [],
     categoryId: null,
     durationMin,
     earliestStart,
     deadline,
     split: null,
     spread: "asap",
-    done: false,
   };
 }
 
 function recurringTask(
-  id: string,
   title: string,
   durationMin: number,
   earliestStart: Date,
   recurrence: Recurrence,
   priority: Priority = "normal",
-): Task {
-  const { deadline: _, ...task } = flexible(id, title, durationMin, [earliestStart, earliestStart], priority);
-  return withFirstDeadline<Task>({ ...task, recurrence }, settings.timeZone)!;
+): NewTask {
+  const { deadline: _, ...task } = flexible(title, durationMin, [earliestStart, earliestStart], priority);
+  return withFirstDeadline<NewTask>({ ...task, recurrence }, settings.timeZone)!;
 }
 
 /** Keyed by the `categoryId` the sample items use until the seed saves them. */
@@ -131,47 +123,47 @@ export function sampleWeek(now: Date) {
     weekly(TUE, THU, SAT),
   ];
 
-  const fixedItems: FixedItem[] = [
-    fixed("cs", "CS 101 lecture", from(lectures), ["11:00", "12:15"], {
+  const fixedItems: NewFixedItem[] = [
+    fixed("CS 101 lecture", from(lectures), ["11:00", "12:15"], {
       ...lectureBuffers,
       recurrence: lectures,
       categoryId: "cs",
     }),
-    fixed("calc", "Calculus lecture", from(calculus), ["14:00", "15:30"], {
+    fixed("Calculus lecture", from(calculus), ["14:00", "15:30"], {
       ...lectureBuffers,
       recurrence: calculus,
       categoryId: "calc",
     }),
-    fixed("chess", "Chess club", from(chess), ["18:00", "19:30"], { priority: "normal", recurrence: chess }),
-    fixed("talk", "Guest talk", WED, ["17:30", "19:00"], { location: "Main auditorium", categoryId: "seminar" }),
-    fixed("hangout", "Dinner with friends", SAT, ["19:00", "22:00"], { priority: "normal" }),
+    fixed("Chess club", from(chess), ["18:00", "19:30"], { priority: "normal", recurrence: chess }),
+    fixed("Guest talk", WED, ["17:30", "19:00"], { location: "Main auditorium", categoryId: "seminar" }),
+    fixed("Dinner with friends", SAT, ["19:00", "22:00"], { priority: "normal" }),
   ];
 
-  const tasks: Task[] = [
-    recurringTask("lunch", "Lunch", 45, local(from(daily), "11:30"), daily, "mandatory"),
-    { ...recurringTask("gym", "Gym", 60, local(from(gym), "17:00"), gym, "high"), categoryId: "health" },
-    recurringTask("language", "Language practice", 20, local(from(daily), "10:00"), daily),
+  const tasks: NewTask[] = [
+    recurringTask("Lunch", 45, local(from(daily), "11:30"), daily, "mandatory"),
+    { ...recurringTask("Gym", 60, local(from(gym), "17:00"), gym, "high"), categoryId: "health" },
+    recurringTask("Language practice", 20, local(from(daily), "10:00"), daily),
     {
-      ...flexible("calc-pset", "Calculus problem set", 3 * 60, [local(MON, "00:00"), local(THU, "14:00")]),
+      ...flexible("Calculus problem set", 3 * 60, [local(MON, "00:00"), local(THU, "14:00")]),
       categoryId: "calc",
     },
     {
-      ...flexible("cs-project", "CS project", 8 * 60, [local(MON, "00:00"), local(lastDay, "23:00")]),
+      ...flexible("CS project", 8 * 60, [local(MON, "00:00"), local(lastDay, "23:00")]),
       split: { minChunkMin: 60, maxChunkMin: 2 * 60 },
       spread: "even",
       categoryId: "cs",
     },
     {
-      ...flexible("essay", "Essay draft", 2 * 60, [local(MON, "00:00"), local(FRI, "17:00")]),
+      ...flexible("Essay draft", 2 * 60, [local(MON, "00:00"), local(FRI, "17:00")]),
       spread: "just-in-time",
       categoryId: "seminar",
     },
     {
-      ...flexible("reading", "Reading for seminar", 60, [local(MON, "00:00"), local(WED, "23:00")]),
+      ...flexible("Reading for seminar", 60, [local(MON, "00:00"), local(WED, "23:00")]),
       categoryId: "seminar",
     },
-    flexible("side-project", "Side project", 4 * 60, [local(MON, "00:00"), local(lastDay, "23:00")], "low"),
-    flexible("research-paper", "Research paper", 10 * 60, [local(MON, "00:00"), local(TUE, "12:00")]),
+    flexible("Side project", 4 * 60, [local(MON, "00:00"), local(lastDay, "23:00")], "low"),
+    flexible("Research paper", 10 * 60, [local(MON, "00:00"), local(TUE, "12:00")]),
   ];
 
   return { categories, fixedItems, tasks, settings, planFrom: startOfDay(repeatFrom, settings.timeZone) };

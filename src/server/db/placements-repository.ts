@@ -126,11 +126,9 @@ export async function insertPlacements(tx: WorkspaceTx, toInsert: Placement[]): 
   );
 }
 
-/** Deletes the item's placements; with `from`, only the pending ones (see `isPending`) as of then. */
-export async function deletePlacements(tx: WorkspaceTx, itemId: string, from?: Date): Promise<void> {
-  await tx
-    .delete(placements)
-    .where(and(ownedBy(tx, placements), eq(placements.itemId, itemId), from && pendingAt(from)));
+/** Deletes the task's pending placements (see `isPending`) as of `now`, those of all its occurrences. */
+export async function deletePendingPlacements(tx: WorkspaceTx, itemId: string, now: Date): Promise<void> {
+  await tx.delete(placements).where(and(ownedBy(tx, placements), eq(placements.itemId, itemId), pendingAt(now)));
 }
 
 /** Moves the placements of series `fromId`'s occurrences on local date `fromDate` or later to series `toId`. */

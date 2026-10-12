@@ -1,22 +1,19 @@
-import { isFixed, isTask, type Item, itemSpan, type NewItem } from "@/lib/items";
+import { isTask, type Item, itemSpan, type NewItem } from "@/lib/items";
 import type { PlacementRef, PlacementStatus } from "@/lib/placements";
-import { occurrenceId, parseOccurrenceId } from "@/lib/recurrence";
+import { occurrenceId, type Occurrences, parseOccurrenceId } from "@/lib/recurrence";
 import type { TimeZone } from "@/lib/time/time-zone";
 import type { WorkspaceTx } from "@/server/db/workspace-transaction";
 import {
   deleteItem,
-  deleteOverrides,
   insertItem,
   loadItem,
-  moveOverrides,
   setItemDone,
-  setOccurrenceDone,
-  skipOccurrence as saveSkip,
+  setOccurrences,
   updateItem,
 } from "@/server/db/items-repository";
 import {
   checkOffStarted,
-  deletePlacements,
+  deletePendingPlacements,
   dropPlanned,
   dropPlannedOccurrences,
   loadPlacement,
@@ -33,7 +30,8 @@ export function createItem(tx: WorkspaceTx, item: NewItem): Promise<string> {
 /**
  * Saves `item` over the stored item `id`, from `item`'s first local date on. A series that already occurred before
  * that date keeps those occurrences: it ends the day before, and `item` is saved as a new item that takes over the
- * series' overrides and the blocks of its occurrences from that date if it recurs. Anything else is updated in place.
+ * series' occurrence states and the blocks of its occurrences from that date if it recurs. Anything else is updated
+ * in place, or replaced by a new item if its kind changes.
  * Returns the id that now holds `item`, or `undefined` if no item has `id`.
  */
 export async function editItem(
@@ -46,35 +44,27 @@ export async function editItem(
   const existing = await loadItem(tx, id);
   if (!existing) return undefined;
 
-  const from = localDate(itemSpan(item).start, timeZone);
-  if (!(await endSeriesBefore(tx, existing, from, now, timeZone))) {
-    await saveInPlace(tx, id, item, now);
-    return id;
+  const from = localDate(itemSpan(item).start, timeZone).toString();
+  if (!occurredBefore(existing, from, timeZone)) {
+    return saveInPlace(tx, existing, item, item.recurrence ? existing.occurrences : {}, now);
   }
 
-  const newId = await insertItem(tx, item);
-  if (item.recurrence) {
-    await moveOverrides(tx, id, newId, from.toString());
-    if (isTask(item)) await moveOccurrencePlacements(tx, id, newId, from.toString());
-  }
+  const newId = await insertItem(tx, item, item.recurrence ? occurrencesFrom(existing.occurrences, from) : {});
+  await endSeriesBefore(tx, existing, from, now, item.recurrence && isTask(item) ? newId : undefined);
   return newId;
 }
 
 /**
  * Removes the stored item `id` from today on: a series that already occurred before today ends yesterday and keeps
- * its past, dropping the planned blocks of the removed occurrences; anything else is deleted. Returns `false` if no
- * item has `id`.
+ * its past; anything else is deleted. Returns `false` if no item has `id`.
  */
 export async function removeItem(tx: WorkspaceTx, id: string, now: Date, timeZone: TimeZone): Promise<boolean> {
   const existing = await loadItem(tx, id);
   if (!existing) return false;
 
-  const today = localDate(now, timeZone);
-  if (await endSeriesBefore(tx, existing, today, now, timeZone)) {
-    await dropPlannedOccurrences(tx, id, today.toString(), now);
-  } else {
-    await deleteItem(tx, id);
-  }
+  const today = localDate(now, timeZone).toString();
+  if (occurredBefore(existing, today, timeZone)) await endSeriesBefore(tx, existing, today, now);
+  else await deleteItem(tx, existing);
   return true;
 }
 
@@ -86,7 +76,7 @@ export async function skipOccurrence(tx: WorkspaceTx, itemId: string, date: stri
   const item = await loadItem(tx, itemId);
   if (!item?.recurrence) return false;
 
-  await saveSkip(tx, itemId, date);
+  await setOccurrences(tx, item, { ...item.occurrences, [date]: "skipped" });
   await dropPlanned(tx, occurrenceId(itemId, date), now);
   return true;
 }
@@ -106,8 +96,12 @@ export async function setTaskDone(
   const item = await loadItem(tx, itemId);
   if (!item || !isTask(item) || (date !== null) !== (item.recurrence !== null)) return false;
 
-  if (date) await setOccurrenceDone(tx, itemId, date, done);
-  else await setItemDone(tx, itemId, done);
+  if (date) {
+    const { [date]: _, ...others } = item.occurrences;
+    await setOccurrences(tx, item, done ? { ...others, [date]: "done" } : others);
+  } else {
+    await setItemDone(tx, itemId, done);
+  }
   if (done) {
     const taskId = date ? occurrenceId(itemId, date) : itemId;
     await checkOffStarted(tx, taskId, now);
@@ -155,37 +149,54 @@ export async function setPlacementPinned(
 }
 
 /**
- * Replaces the stored item `id` with `item`. A task keeps all but its pending placements, so time already spent
- * on it still counts, and the rest are placed again; a fixed item has none. Overrides stay only while it recurs.
+ * Replaces `existing` with `item` and `occurrences`, returning the id that now holds it: a new one if the kind
+ * changes, which drops a task's placements. A task kept as one keeps all but its pending placements, so time already
+ * spent on it still counts, and the rest are placed again.
  */
-async function saveInPlace(tx: WorkspaceTx, id: string, item: NewItem, now: Date): Promise<void> {
-  await deletePlacements(tx, id, isFixed(item) ? undefined : now);
-  if (!item.recurrence) await deleteOverrides(tx, id);
-  await updateItem(tx, id, item);
+async function saveInPlace(
+  tx: WorkspaceTx,
+  existing: Item,
+  item: NewItem,
+  occurrences: Occurrences,
+  now: Date,
+): Promise<string> {
+  if (existing.timing !== item.timing) {
+    await deleteItem(tx, existing);
+    return insertItem(tx, item, occurrences);
+  }
+  if (isTask(item)) await deletePendingPlacements(tx, existing.id, now);
+  await updateItem(tx, existing.id, item, occurrences);
+  return existing.id;
+}
+
+/** Whether `item` is a series that occurred before local date `date`. */
+function occurredBefore(item: Item, date: string, timeZone: TimeZone): boolean {
+  const first = item.recurrence && firstOccurrence(item, timeZone);
+  return !!first && parseOccurrenceId(first.id).date! < date;
 }
 
 /**
- * If `item` is a series that occurred before `date`, ends it the day before (unless it already ends earlier) and
- * returns `true`.
+ * Ends series `item` the day before local date `date` (unless it already ends earlier), keeping the states of the
+ * occurrences before it. The blocks of those from it on that aren't pending move to series `successorId`, or the
+ * planned ones are dropped.
  */
 async function endSeriesBefore(
   tx: WorkspaceTx,
   item: Item,
-  date: Temporal.PlainDate,
+  date: string,
   now: Date,
-  timeZone: TimeZone,
-): Promise<boolean> {
-  const first = firstOccurrence(item, timeZone);
-  const firstDate = first && parseOccurrenceId(first.id).date;
-  if (!item.recurrence || !firstDate || firstDate >= date.toString()) return false;
-
-  const dayBefore = date.subtract({ days: 1 }).toString();
-  const { until } = item.recurrence;
-  await saveInPlace(
-    tx,
-    item.id,
-    { ...item, recurrence: { ...item.recurrence, until: until && until < dayBefore ? until : dayBefore } },
-    now,
-  );
-  return true;
+  successorId?: string,
+): Promise<void> {
+  const dayBefore = Temporal.PlainDate.from(date).subtract({ days: 1 }).toString();
+  const { until } = item.recurrence!;
+  const ended = { ...item, recurrence: { ...item.recurrence!, until: until && until < dayBefore ? until : dayBefore } };
+  await saveInPlace(tx, item, ended, occurrencesBefore(item.occurrences, date), now);
+  if (successorId) await moveOccurrencePlacements(tx, item.id, successorId, date);
+  else await dropPlannedOccurrences(tx, item.id, date, now);
 }
+
+const occurrencesFrom = (occurrences: Occurrences, date: string): Occurrences =>
+  Object.fromEntries(Object.entries(occurrences).filter(([day]) => day >= date));
+
+const occurrencesBefore = (occurrences: Occurrences, date: string): Occurrences =>
+  Object.fromEntries(Object.entries(occurrences).filter(([day]) => day < date));

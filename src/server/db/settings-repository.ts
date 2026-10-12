@@ -4,7 +4,7 @@ import type { SchedulerSettings } from "@/lib/settings";
 import { isTimeZone, type TimeZone } from "@/lib/time/time-zone";
 import { sameLocalTime } from "@/server/time/temporal";
 import { ownedBy, type WorkspaceTx } from "./workspace-transaction";
-import { items, placements, settings } from "./schema";
+import { fixedItems, placements, settings, tasks } from "./schema";
 
 export async function loadSettings(tx: WorkspaceTx): Promise<SchedulerSettings> {
   const row = (await tx.query.settings.findFirst({ where: ownedBy(tx, settings) }))!;
@@ -24,14 +24,13 @@ export async function moveToTimeZone(tx: WorkspaceTx, timeZone: TimeZone): Promi
   const { timeZone: from } = await loadSettings(tx);
   const shift = (column: PgColumn) => sql`(${column} at time zone ${from}) at time zone ${timeZone}`;
   await tx
-    .update(items)
-    .set({
-      startAt: shift(items.startAt),
-      endAt: shift(items.endAt),
-      earliestStart: shift(items.earliestStart),
-      deadline: shift(items.deadline),
-    })
-    .where(ownedBy(tx, items));
+    .update(fixedItems)
+    .set({ startAt: shift(fixedItems.startAt), endAt: shift(fixedItems.endAt) })
+    .where(ownedBy(tx, fixedItems));
+  await tx
+    .update(tasks)
+    .set({ earliestStart: shift(tasks.earliestStart), deadline: shift(tasks.deadline) })
+    .where(ownedBy(tx, tasks));
   // Reinserted rather than updated: shifting rows one by one could briefly clash on a task's unique start.
   const moved = await tx.delete(placements).where(ownedBy(tx, placements)).returning();
   if (moved.length > 0) {

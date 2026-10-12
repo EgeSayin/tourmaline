@@ -12,9 +12,9 @@ import { SLOT_MIN } from "@/lib/placements";
 import type { Interval } from "@/lib/time/interval";
 import { intervalArb, SPAN_MIN } from "./intervals";
 
-/** `item` as it's saved, without the id and overrides the database adds. */
-export function unsaved<T extends Item>({ id, overrides, ...item }: T): Omit<T, "id" | "overrides"> & NewItem {
-  return item as Omit<T, "id" | "overrides"> & NewItem;
+/** `item` as it's saved, without the id and occurrence states the database adds. */
+export function unsaved<T extends Item>({ id, occurrences, ...item }: T): Omit<T, "id" | "occurrences"> & NewItem {
+  return item as Omit<T, "id" | "occurrences"> & NewItem;
 }
 
 export function fixed(
@@ -29,7 +29,7 @@ export function fixed(
     priority: "mandatory",
     timing: "fixed",
     recurrence: null,
-    overrides: [],
+    occurrences: {},
     categoryId: null,
     start,
     end,
@@ -46,7 +46,7 @@ export function flexible(title: string, durationMin: number, window: Interval, p
     priority,
     timing: "flexible",
     recurrence: null,
-    overrides: [],
+    occurrences: {},
     categoryId: null,
     durationMin,
     earliestStart: window.start,

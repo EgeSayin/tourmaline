@@ -4,7 +4,6 @@ import type { Placement, PlacementStatus } from "@/lib/placements";
 import { occurrenceId, type Recurrence } from "@/lib/recurrence";
 import { insertItem, loadItem, loadItems } from "@/server/db/items-repository";
 import { insertPlacements, loadPlacement, loadPlacements } from "@/server/db/placements-repository";
-import { occurrenceOverrides } from "@/server/db/schema";
 import {
   editItem,
   removeItem,
@@ -47,11 +46,7 @@ describe("editItem", () => {
   it("ends a series that already occurred the day before the edit, and saves the edit as a new series", async ({
     tx,
   }) => {
-    const id = await insertItem(tx, lecture);
-    await tx.insert(occurrenceOverrides).values([
-      { itemId: id, occurrenceDate: "2026-09-14", skipped: true },
-      { itemId: id, occurrenceDate: "2026-10-19", skipped: true },
-    ]);
+    const id = await insertItem(tx, lecture, { "2026-09-14": "skipped", "2026-10-19": "done" });
 
     // From Mon Oct 12 on, at 14:00.
     const edited = movedTo("2026-10-12T18:00", "2026-10-12T19:15", { title: "Lecture (new room)" });
@@ -62,12 +57,12 @@ describe("editItem", () => {
       id,
       ...lecture,
       recurrence: { ...lecture.recurrence, until: "2026-10-11" },
-      overrides: [{ date: "2026-09-14", skipped: true, done: false }],
+      occurrences: { "2026-09-14": "skipped" },
     });
     expect(await loadItem(tx, newId!)).toEqual({
       id: newId,
       ...edited,
-      overrides: [{ date: "2026-10-19", skipped: true, done: false }],
+      occurrences: { "2026-10-19": "done" },
     });
   });
 
@@ -93,15 +88,14 @@ describe("editItem", () => {
 
   it("keeps an earlier end date, and ends the series for an edit that stops it repeating", async ({ tx }) => {
     const endsSoon = { ...lecture, recurrence: { ...lecture.recurrence!, until: "2026-09-20" } };
-    const id = await insertItem(tx, endsSoon);
-    await tx.insert(occurrenceOverrides).values({ itemId: id, occurrenceDate: "2026-10-19", skipped: true });
+    const id = await insertItem(tx, endsSoon, { "2026-10-19": "skipped" });
 
     const once = movedTo("2026-10-12T18:00", "2026-10-12T19:15", { recurrence: null });
     const newId = await editItem(tx, id, once, now, tz);
 
     expect(await loadItems(tx)).toHaveLength(2);
     expect(await loadItem(tx, id)).toMatchObject({ recurrence: { until: "2026-09-20" } });
-    expect(await loadItem(tx, newId!)).toMatchObject({ recurrence: null, overrides: [] });
+    expect(await loadItem(tx, newId!)).toMatchObject({ recurrence: null, occurrences: {} });
   });
 
   it("updates in place what hasn't occurred before the edit, and reports a missing item", async ({ tx }) => {
@@ -110,7 +104,7 @@ describe("editItem", () => {
       const id = await insertItem(tx, lecture);
       const edited = movedTo(start, start.replace("15:00", "16:00"), { title: "Earlier" });
       expect(await editItem(tx, id, edited, now, tz)).toBe(id);
-      expect(await loadItem(tx, id)).toEqual({ id, ...edited, overrides: [] });
+      expect(await loadItem(tx, id)).toEqual({ id, ...edited, occurrences: {} });
     }
 
     // A series whose start isn't one of its days first occurs later: Wednesday start, Mondays only.
@@ -174,7 +168,7 @@ describe("removeItem", () => {
 });
 
 describe("editing in place", () => {
-  it("keeps a task's started and pinned placements, drops a fixed item's, and drops overrides once it stops recurring", async ({
+  it("keeps a task's started and pinned placements, replaces an item whose kind changes, and drops occurrence states once it stops recurring", async ({
     tx,
   }) => {
     const essay = unsaved(flexible("Essay", 240, utc("2026-10-05T04:00", "2026-10-12T04:00")));
@@ -192,14 +186,20 @@ describe("editing in place", () => {
 
     await editItem(tx, essayId, { ...essay, durationMin: 300 }, now, tz);
     expect(await loadPlacements(tx, week)).toEqual([started, pinned]); // the rest is placed again
-    await editItem(tx, essayId, movedTo("2026-10-08T15:00", "2026-10-08T16:00", { recurrence: null }), now, tz);
-    expect(await loadPlacements(tx, week)).toEqual([]); // fixed items have none
+    // A new kind is saved as a new item, which for a fixed item drops the task's blocks.
+    const asFixed = movedTo("2026-10-08T15:00", "2026-10-08T16:00", { recurrence: null });
+    const fixedId = await editItem(tx, essayId, asFixed, now, tz);
+    expect(fixedId).not.toBe(essayId);
+    expect(await loadItem(tx, essayId)).toBeUndefined();
+    expect(await loadItem(tx, fixedId!)).toEqual({ id: fixedId, ...asFixed, occurrences: {} });
+    expect(await loadPlacements(tx, week)).toEqual([]);
 
     // A series that hasn't occurred yet, edited to happen once.
-    const laterId = await insertItem(tx, movedTo("2026-10-12T15:00", "2026-10-12T16:15"));
-    await tx.insert(occurrenceOverrides).values({ itemId: laterId, occurrenceDate: "2026-10-19", skipped: true });
+    const laterId = await insertItem(tx, movedTo("2026-10-12T15:00", "2026-10-12T16:15"), {
+      "2026-10-19": "skipped",
+    });
     await editItem(tx, laterId, movedTo("2026-10-12T15:00", "2026-10-12T16:15", { recurrence: null }), now, tz);
-    expect(await loadItem(tx, laterId)).toMatchObject({ recurrence: null, overrides: [] });
+    expect(await loadItem(tx, laterId)).toMatchObject({ recurrence: null, occurrences: {} });
   });
 });
 
@@ -207,7 +207,7 @@ describe("skipOccurrence", () => {
   it("skips an occurrence of a series, dropping its later blocks, and refuses anything else", async ({ tx }) => {
     const seriesId = await insertItem(tx, lecture);
     expect(await skipOccurrence(tx, seriesId, "2026-09-14", now)).toBe(true);
-    expect(await loadItem(tx, seriesId)).toMatchObject({ overrides: [{ date: "2026-09-14", skipped: true }] });
+    expect(await loadItem(tx, seriesId)).toMatchObject({ occurrences: { "2026-09-14": "skipped" } });
 
     const gymId = await insertItem(tx, gym);
     const started = gymBlock(gymId, "2026-10-07", "2026-10-07T15:30", "2026-10-07T16:30");
@@ -220,7 +220,7 @@ describe("skipOccurrence", () => {
     const onceId = await insertItem(tx, { ...lecture, recurrence: null });
     expect(await skipOccurrence(tx, onceId, "2026-09-14", now)).toBe(false);
     expect(await skipOccurrence(tx, "00000000-0000-4000-8000-000000000000", "2026-09-14", now)).toBe(false);
-    expect(await loadItem(tx, onceId)).toMatchObject({ overrides: [] });
+    expect(await loadItem(tx, onceId)).toMatchObject({ occurrences: {} });
   });
 });
 
@@ -290,7 +290,9 @@ describe("setTaskDone", () => {
       recurrence: { frequency: "daily", interval: 1, until: null },
     });
     expect(await setTaskDone(tx, gymId, "2026-10-08", true, now)).toBe(true);
-    expect((await loadItem(tx, gymId))?.overrides).toEqual([{ date: "2026-10-08", skipped: false, done: true }]);
+    expect((await loadItem(tx, gymId))?.occurrences).toEqual({ "2026-10-08": "done" });
+    expect(await setTaskDone(tx, gymId, "2026-10-08", false, now)).toBe(true);
+    expect((await loadItem(tx, gymId))?.occurrences).toEqual({});
 
     // A one-off task has no occurrences, a series is only done one occurrence at a time, and a fixed item never.
     const lectureId = await insertItem(tx, lecture);

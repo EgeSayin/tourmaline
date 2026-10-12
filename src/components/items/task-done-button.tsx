@@ -16,7 +16,7 @@ export function TaskDoneButton({
   compact?: boolean;
   onChanged?: () => void;
 }) {
-  const done = date ? task.overrides.some((override) => override.date === date && override.done) : task.done;
+  const done = date ? task.occurrences[date] === "done" : task.done;
   const label = (which: string) => (done ? `Reopen${which}` : `Mark${which} done`);
   const name = label(date ? ` ${formatLocalDate(date)}` : "");
 

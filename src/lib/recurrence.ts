@@ -17,11 +17,11 @@ export type Recurrence =
       weekdays: Weekday[];
     });
 
-export interface OccurrenceOverride {
-  date: string;
-  skipped: boolean;
-  done: boolean;
-}
+/** What happened to one occurrence of a recurring item; one that occurs as planned has no state. */
+export type OccurrenceState = "skipped" | "done";
+
+/** The states of a recurring item's occurrences, by local date (`YYYY-MM-DD`). */
+export type Occurrences = Record<string, OccurrenceState>;
 
 const OCCURRENCE_SEPARATOR = "@";
 

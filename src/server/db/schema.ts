@@ -1,4 +1,4 @@
-import { relations, sql } from "drizzle-orm";
+import { sql } from "drizzle-orm";
 import {
   boolean,
   check,
@@ -8,7 +8,6 @@ import {
   jsonb,
   pgEnum,
   pgTable,
-  primaryKey,
   text,
   timestamp,
   unique,
@@ -17,14 +16,13 @@ import {
 import { CATEGORY_COLORS } from "@/lib/categories";
 import type { Downtime } from "@/lib/downtime";
 import type { SavedQueue } from "@/server/db/plans-repository";
-import { type Item, PRIORITIES, SPREAD_STRATEGIES } from "@/lib/items";
+import { PRIORITIES, SPREAD_STRATEGIES } from "@/lib/items";
 import { PLACEMENT_STATUSES, SLOT_MIN } from "@/lib/placements";
-import type { Recurrence } from "@/lib/recurrence";
+import type { Occurrences, Recurrence } from "@/lib/recurrence";
 import { DEFAULT_SETTINGS, type FocusCaps } from "@/lib/settings";
 import type { TimeZone } from "@/lib/time/time-zone";
 
 export const priorityEnum = pgEnum("priority", PRIORITIES);
-export const timingEnum = pgEnum("timing", ["fixed", "flexible"] as const satisfies readonly Item["timing"][]);
 export const spreadEnum = pgEnum("spread", SPREAD_STRATEGIES);
 export const placementStatusEnum = pgEnum("placement_status", PLACEMENT_STATUSES);
 export const categoryColorEnum = pgEnum("category_color", CATEGORY_COLORS);
@@ -98,69 +96,61 @@ export const categories = pgTable(
   (t) => [unique("categories_workspace_name").on(t.workspaceId, t.name)],
 );
 
-/** One row per item. The other kind's columns stay null, which `items_kind` enforces along with each kind's own. */
-export const items = pgTable(
-  "items",
+/** What fixed items and tasks share. */
+const itemColumns = () => ({
+  id: uuid("id").primaryKey().defaultRandom(),
+  workspaceId: workspaceId(),
+  title: text("title").notNull(),
+  priority: priorityEnum("priority").notNull().default("normal"),
+  recurrence: jsonb("recurrence").$type<Recurrence>(),
+  /** The repository empties it when the item stops recurring. */
+  occurrences: jsonb("occurrences").$type<Occurrences>().notNull().default({}),
+  categoryId: uuid("category_id").references(() => categories.id, { onDelete: "set null" }),
+  ...auditColumns,
+});
+
+export const fixedItems = pgTable(
+  "fixed_items",
   {
-    id: uuid("id").primaryKey().defaultRandom(),
-    workspaceId: workspaceId(),
-    title: text("title").notNull(),
-    priority: priorityEnum("priority").notNull().default("normal"),
-    timing: timingEnum("timing").notNull(),
-    recurrence: jsonb("recurrence").$type<Recurrence>(),
-    categoryId: uuid("category_id").references(() => categories.id, { onDelete: "set null" }),
-    /** A one-off task marked done; occurrences use their override. Not part of the item's own fields. */
-    done: boolean("done").notNull().default(false),
-    // Fixed items
-    startAt: timestamptz("start_at"),
-    endAt: timestamptz("end_at"),
+    ...itemColumns(),
+    startAt: timestamptz("start_at").notNull(),
+    endAt: timestamptz("end_at").notNull(),
     location: text("location"),
-    bufferBeforeMin: integer("buffer_before_min"),
-    bufferAfterMin: integer("buffer_after_min"),
-    // Tasks
-    durationMin: integer("duration_min"),
-    earliestStart: timestamptz("earliest_start"),
-    deadline: timestamptz("deadline"),
-    splitMinChunkMin: integer("split_min_chunk_min"),
-    splitMaxChunkMin: integer("split_max_chunk_min"),
-    spread: spreadEnum("spread"),
-    ...auditColumns,
+    bufferBeforeMin: integer("buffer_before_min").notNull(),
+    bufferAfterMin: integer("buffer_after_min").notNull(),
   },
   (t) => [
-    index("items_workspace").on(t.workspaceId),
+    index("fixed_items_workspace").on(t.workspaceId),
+    check("fixed_items_times", sql`${t.startAt} < ${t.endAt}`),
+    check("fixed_items_buffers", sql`${t.bufferBeforeMin} >= 0 and ${t.bufferAfterMin} >= 0`),
+  ],
+);
+
+export const tasks = pgTable(
+  "tasks",
+  {
+    ...itemColumns(),
+    durationMin: integer("duration_min").notNull(),
+    earliestStart: timestamptz("earliest_start").notNull(),
+    deadline: timestamptz("deadline").notNull(),
+    splitMinChunkMin: integer("split_min_chunk_min"),
+    splitMaxChunkMin: integer("split_max_chunk_min"),
+    spread: spreadEnum("spread").notNull(),
+    /** A one-off task marked done; occurrences use their state. Not part of the task's own fields. */
+    done: boolean("done").notNull().default(false),
+  },
+  (t) => [
+    index("tasks_workspace").on(t.workspaceId),
+    check("tasks_window", sql`${t.earliestStart} < ${t.deadline}`),
+    check("tasks_duration", sql`${t.durationMin} > 0 and ${t.durationMin} % ${slotMin} = 0`),
     check(
-      "items_kind",
-      sql`case ${t.timing}
-        when 'fixed' then num_nonnulls(${t.startAt}, ${t.endAt}, ${t.bufferBeforeMin}, ${t.bufferAfterMin}) = 4
-          and num_nonnulls(${t.durationMin}, ${t.earliestStart}, ${t.deadline}, ${t.splitMinChunkMin}, ${t.splitMaxChunkMin}, ${t.spread}) = 0
-          and ${t.startAt} < ${t.endAt} and ${t.bufferBeforeMin} >= 0 and ${t.bufferAfterMin} >= 0
-        else num_nonnulls(${t.durationMin}, ${t.earliestStart}, ${t.deadline}, ${t.spread}) = 4
-          and num_nonnulls(${t.startAt}, ${t.endAt}, ${t.location}, ${t.bufferBeforeMin}, ${t.bufferAfterMin}) = 0
-          and ${t.earliestStart} < ${t.deadline} and ${t.durationMin} > 0 and ${t.durationMin} % ${slotMin} = 0
-      end`,
-    ),
-    check(
-      "items_split",
+      "tasks_split",
       sql`(${t.splitMinChunkMin} is null) = (${t.splitMaxChunkMin} is null) and (${t.splitMinChunkMin} is null or (${t.splitMinChunkMin} between 1 and ${t.splitMaxChunkMin} and ${t.splitMinChunkMin} % ${slotMin} = 0 and ${t.splitMaxChunkMin} % ${slotMin} = 0))`,
     ),
   ],
 );
 
-/** Per-occurrence state of a recurring item. The repository removes an item's overrides when it stops recurring. */
-export const occurrenceOverrides = pgTable(
-  "occurrence_overrides",
-  {
-    itemId: uuid("item_id")
-      .notNull()
-      .references(() => items.id, { onDelete: "cascade" }),
-    occurrenceDate: date("occurrence_date").notNull(),
-    skipped: boolean("skipped").notNull().default(false),
-    done: boolean("done").notNull().default(false),
-  },
-  (t) => [primaryKey({ columns: [t.itemId, t.occurrenceDate] })],
-);
-
-/** Where flexible tasks are scheduled. Fixed items never have placements. */
+/** Where tasks are scheduled. */
 export const placements = pgTable(
   "placements",
   {
@@ -168,14 +158,13 @@ export const placements = pgTable(
     workspaceId: workspaceId(),
     itemId: uuid("item_id")
       .notNull()
-      .references(() => items.id, { onDelete: "cascade" }),
+      .references(() => tasks.id, { onDelete: "cascade" }),
     /** Which occurrence of a recurring task this is for; `null` for a one-off task. */
     occurrenceDate: date("occurrence_date"),
     startAt: timestamptz("start_at").notNull(),
     endAt: timestamptz("end_at").notNull(),
     pinned: boolean("pinned").notNull().default(false),
     status: placementStatusEnum("status").notNull().default("planned"),
-    createdAt: timestamptz("created_at").notNull().defaultNow(),
   },
   (t) => [
     check("placements_times", sql`${t.startAt} < ${t.endAt}`),
@@ -183,11 +172,3 @@ export const placements = pgTable(
     index("placements_workspace_start_at").on(t.workspaceId, t.startAt),
   ],
 );
-
-export const itemsRelations = relations(items, ({ many }) => ({
-  overrides: many(occurrenceOverrides),
-}));
-
-export const occurrenceOverridesRelations = relations(occurrenceOverrides, ({ one }) => ({
-  item: one(items, { fields: [occurrenceOverrides.itemId], references: [items.id] }),
-}));

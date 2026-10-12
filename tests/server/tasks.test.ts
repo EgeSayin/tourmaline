@@ -3,7 +3,7 @@ import { describe, expect } from "vitest";
 import type { Placement } from "@/lib/placements";
 import type { Recurrence } from "@/lib/recurrence";
 import { OCCURRENCES_SHOWN } from "@/lib/settings";
-import { insertItem, setItemDone, setOccurrenceDone, skipOccurrence } from "@/server/db/items-repository";
+import { insertItem, loadItem, setItemDone, setOccurrences } from "@/server/db/items-repository";
 import { insertPlacements } from "@/server/db/placements-repository";
 import { settings } from "@/server/db/schema";
 import { loadCalendar } from "@/server/calendar";
@@ -100,8 +100,7 @@ describe("the task list", () => {
       placed(`${gym}@2026-10-07`, "2026-10-07T18:00", "2026-10-07T19:00"),
       placed(`${gym}@2026-10-08`, "2026-10-08T18:00", "2026-10-08T19:00"),
     ]);
-    await skipOccurrence(tx, gym, "2026-10-09");
-    await setOccurrenceDone(tx, gym, "2026-10-08", true);
+    await setOccurrences(tx, (await loadItem(tx, gym))!, { "2026-10-08": "done", "2026-10-09": "skipped" });
 
     const essaySchedule = await loadSchedule(tx, essay, wednesdayNoon, timeZone);
     expect(essaySchedule.occurrences).toEqual([]);

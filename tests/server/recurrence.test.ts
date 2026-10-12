@@ -1,6 +1,6 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
-import { type Recurrence, WEEKDAYS } from "@/lib/recurrence";
+import { type Occurrences, type Recurrence, WEEKDAYS } from "@/lib/recurrence";
 import { expandOccurrences, nextOccurrence, occurrenceDates, upcomingOccurrences } from "@/server/recurrence";
 import { utc } from "../support/intervals";
 import { fixed, flexible } from "../support/items";
@@ -99,10 +99,7 @@ describe("expandOccurrences", () => {
     const lecture = {
       ...fixed("Lecture", utc("2026-10-26T15:00", "2026-10-26T16:15")), // Mon 11:00 EDT
       recurrence: { frequency: "weekly", interval: 1, weekdays: [1, 3], until: "2026-11-09" } satisfies Recurrence,
-      overrides: [
-        { date: "2026-10-28", skipped: true, done: false },
-        { date: "2026-11-02", skipped: false, done: false }, // still occurs
-      ],
+      occurrences: { "2026-10-28": "skipped" } satisfies Occurrences,
     };
     const times = (start: string, end: string) => ({ ...lecture, ...utc(start, end) });
 
@@ -138,14 +135,11 @@ describe("expandOccurrences", () => {
     ]);
   });
 
-  it("gives each task occurrence a window that runs until the rule next occurs, done if its override says so", () => {
+  it("gives each task occurrence a window that runs until the rule next occurs, done if its state says so", () => {
     const gym = {
       ...flexible("Gym", 60, utc("2026-10-05T14:00", "2026-10-09T14:00")), // Mon 10:00 EDT to Fri 10:00
       recurrence: { frequency: "weekly", interval: 1, weekdays: [1, 5], until: "2026-10-16" } satisfies Recurrence,
-      overrides: [
-        { date: "2026-10-12", skipped: true, done: false },
-        { date: "2026-10-16", skipped: false, done: true },
-      ],
+      occurrences: { "2026-10-12": "skipped", "2026-10-16": "done" } satisfies Occurrences,
     };
     const window = (start: string, end: string) => {
       const { start: earliestStart, end: deadline } = utc(start, end);
@@ -186,10 +180,7 @@ describe("upcoming occurrences", () => {
 
     const skipping = {
       ...seminar,
-      overrides: [
-        { date: "2026-10-19", skipped: true, done: false },
-        { date: "2026-11-02", skipped: true, done: false },
-      ],
+      occurrences: { "2026-10-19": "skipped", "2026-11-02": "skipped" } satisfies Occurrences,
     };
     expect(next(skipping, "2026-10-05T16:15Z")).toBe("Seminar@2026-11-16");
 
@@ -202,10 +193,7 @@ describe("upcoming occurrences", () => {
     const standup = {
       ...fixed("Standup", utc("2026-10-05T13:00", "2026-10-05T13:30")),
       recurrence: { frequency: "weekly", interval: 1, weekdays: [1, 3], until: "2026-10-21" } satisfies Recurrence,
-      overrides: [
-        { date: "2026-10-12", skipped: true, done: false },
-        { date: "2026-10-14", skipped: true, done: false },
-      ],
+      occurrences: { "2026-10-12": "skipped", "2026-10-14": "skipped" } satisfies Occurrences,
     };
     const upcoming = (from: string, count: number) =>
       upcomingOccurrences(standup, new Date(from), count, tz).map((occurrence) => occurrence.id);

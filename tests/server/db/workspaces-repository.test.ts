@@ -31,8 +31,8 @@ describe("guest workspaces", () => {
     expect(await loadItems(tx)).toEqual([]);
     expect(await loadPlacements(tx, week)).toEqual([]);
     expect((await loadCategories(tx)).map((category) => category.name)).toEqual(["CS 101"]);
-    expect(await updateItem(tx, guestItem.id, { ...guestItem, title: "Taken over" })).toBe(false);
-    expect(await deleteItem(tx, guestItem.id)).toBe(false);
+    await updateItem(tx, guestItem.id, { ...guestItem, title: "Taken over" }, {});
+    await deleteItem(tx, guestItem);
     expect(await deleteCategory(tx, guestCategory.id)).toBe(false);
     expect((await inGuest(loadItems)).map((item) => item.title)).toContain(guestItem.title);
   });

@@ -47,7 +47,7 @@ export function occurrenceDates(
  * as it is. Occurrences keep the first one's local start time; fixed ones also keep its length, so a clock change
  * moves their end instead of inverting them. A recurring task's window runs from its earliest
  * start to the same time on the date the rule next occurs, even past `until` or a skipped date, and it's done if
- * its override says so.
+ * its occurrence state says so.
  */
 export function expandOccurrences<T extends Item>(item: T, range: Interval, timeZone: TimeZone): T[] {
   if (!item.recurrence) return [item];
@@ -69,19 +69,17 @@ export function expandOccurrences<T extends Item>(item: T, range: Interval, time
 
   // The last date only bounds the window before it: dates run a full period past `range`, so it starts after it.
   const { until } = item.recurrence;
-  const skipped = new Set(item.overrides.filter((override) => override.skipped).map((override) => override.date));
-  const done = new Set(item.overrides.filter((override) => override.done).map((override) => override.date));
   const occurrences: T[] = [];
   for (const [i, date] of dates.slice(0, -1).entries()) {
     const day = date.toString();
-    if ((until && day > until) || skipped.has(day)) continue;
+    if ((until && day > until) || item.occurrences[day] === "skipped") continue;
 
     const start = startOn(date);
     const end = isFixed(item) ? addMinutes(start, lengthMin) : startOn(dates[i + 1]);
     if (start >= range.end || end <= range.start) continue;
 
     const occurrence = { ...withSpan(item, { start, end }), id: occurrenceId(item.id, day) };
-    occurrences.push(isTask(occurrence) ? { ...occurrence, done: done.has(day) } : occurrence);
+    occurrences.push(isTask(occurrence) ? { ...occurrence, done: item.occurrences[day] === "done" } : occurrence);
   }
   return occurrences;
 }
@@ -89,8 +87,8 @@ export function expandOccurrences<T extends Item>(item: T, range: Interval, time
 /** The first occurrence of a recurring `item`, or `undefined` if it ends before occurring. */
 export function firstOccurrence(item: NewItem, timeZone: TimeZone): Item | undefined {
   const stored: Item = isTask(item)
-    ? { ...item, id: "", overrides: [], done: false }
-    : { ...item, id: "", overrides: [] };
+    ? { ...item, id: "", occurrences: {}, done: false }
+    : { ...item, id: "", occurrences: {} };
   return nextOccurrence(stored, itemSpan(item).start, timeZone);
 }
 
@@ -115,7 +113,7 @@ export function nextOccurrence(item: Item, from: Date, timeZone: TimeZone): Item
 export function upcomingOccurrences<T extends Item>(item: T, from: Date, count: number, timeZone: TimeZone): T[] {
   if (!item.recurrence) return [];
   // Every period holds a date the rule could occur on, and each skip can push the next one a period further.
-  const periods = item.overrides.filter((override) => override.skipped).length + count;
+  const periods = Object.values(item.occurrences).filter((state) => state === "skipped").length + count;
   const range = {
     start: from,
     end: addMinutes(from, (periods * daysPerPeriod(item.recurrence) + 1) * MINUTES_PER_DAY),

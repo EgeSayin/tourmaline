@@ -1,11 +1,10 @@
 import { describe, expect } from "vitest";
-import type { FixedItem, NewItem, NewTask } from "@/lib/items";
-import type { OccurrenceOverride } from "@/lib/recurrence";
-import { insertItem, loadItems, updateItem } from "@/server/db/items-repository";
-import { items } from "@/server/db/schema";
+import type { NewFixedItem, NewItem, NewTask } from "@/lib/items";
+import type { Occurrences } from "@/lib/recurrence";
+import { insertItem, loadItem, loadItems, updateItem } from "@/server/db/items-repository";
 import { dbTest as it, savepoint } from "../../support/database";
 
-const lecture: Omit<FixedItem, "id" | "overrides"> = {
+const lecture: NewFixedItem = {
   title: "CS 101 lecture",
   priority: "mandatory",
   timing: "fixed",
@@ -31,28 +30,31 @@ const essay: NewTask = {
   spread: "just-in-time",
 };
 
-/** `item` as loaded: with its id and overrides, and a task not done. */
-const stored = (id: string, item: NewItem, overrides: OccurrenceOverride[] = []) => ({
+/** `item` as loaded: with its id and occurrence states, and a task not done. */
+const stored = (id: string, item: NewItem, occurrences: Occurrences = {}) => ({
   id,
-  overrides,
+  occurrences,
   ...item,
   ...(item.timing === "flexible" && { done: false }),
 });
 
 describe("items repository", () => {
-  it("reads back fixed items and tasks exactly as they were inserted", async ({ tx }) => {
-    const lectureId = await insertItem(tx, lecture);
+  it("reads back fixed items and tasks exactly as they were inserted, with their occurrence states", async ({ tx }) => {
+    const occurrences: Occurrences = { "2026-10-07": "skipped" };
+    const lectureId = await insertItem(tx, lecture, occurrences);
     const essayId = await insertItem(tx, essay);
 
     const loaded = await loadItems(tx);
 
     expect(loaded).toHaveLength(2);
-    expect(loaded).toContainEqual(stored(lectureId, lecture));
+    expect(loaded).toContainEqual(stored(lectureId, lecture, occurrences));
     expect(loaded).toContainEqual(stored(essayId, essay));
+    expect(await loadItem(tx, essayId)).toEqual(stored(essayId, essay));
+    expect(await loadItem(tx, "00000000-0000-4000-8000-000000000000")).toBeUndefined();
   });
 
-  it("updates an item in place, including switching between fixed and flexible", async ({ tx }) => {
-    const id = await insertItem(tx, lecture);
+  it("updates an item in place", async ({ tx }) => {
+    const id = await insertItem(tx, lecture, { "2026-10-07": "skipped" });
 
     const moved = {
       ...lecture,
@@ -60,22 +62,11 @@ describe("items repository", () => {
       start: new Date("2026-10-06T15:00:00Z"),
       end: new Date("2026-10-06T16:15:00Z"),
     };
-    expect(await updateItem(tx, id, moved)).toBe(true);
+    await updateItem(tx, id, moved, {});
     expect(await loadItems(tx)).toEqual([stored(id, moved)]);
-
-    expect(await updateItem(tx, id, essay)).toBe(true);
-    expect(await loadItems(tx)).toEqual([stored(id, essay)]);
-    expect(await updateItem(tx, id, lecture)).toBe(true);
-    expect(await loadItems(tx)).toEqual([stored(id, lecture)]);
-    expect(await updateItem(tx, "00000000-0000-4000-8000-000000000000", essay)).toBe(false);
   });
 
-  it("rejects task durations and chunk sizes off the 5-minute grid, and a kind's missing fields", async ({ tx }) => {
-    await expect(
-      savepoint(tx, (inner) =>
-        inner.insert(items).values({ workspaceId: inner.workspaceId, title: "No times", timing: "fixed" }),
-      ),
-    ).rejects.toThrow();
+  it("rejects task durations and chunk sizes off the 5-minute grid", async ({ tx }) => {
     const offGrid: NewItem[] = [
       { ...essay, durationMin: 62 },
       { ...essay, split: { minChunkMin: 32, maxChunkMin: 90 } },

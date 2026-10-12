@@ -162,6 +162,13 @@
       "when": 1791760622864,
       "tag": "0022_saved_plans",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1791847314200,
+      "tag": "0023_items_by_kind",
+      "breakpoints": true
     }
   ]
 }

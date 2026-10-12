@@ -5,7 +5,7 @@ import type { Placement, PlacementStatus } from "@/lib/placements";
 import type { Recurrence } from "@/lib/recurrence";
 import { NO_FOCUS_CAPS, RECURRENCE_LOOKAHEAD_DAYS, type SchedulerSettings } from "@/lib/settings";
 import type { WorkspaceTx } from "@/server/db/workspace-transaction";
-import { deleteItem, insertItem, loadItems, setItemDone, setOccurrenceDone } from "@/server/db/items-repository";
+import { deleteItem, insertItem, loadItem, loadItems, setItemDone, setOccurrences } from "@/server/db/items-repository";
 import { insertPlacements, loadPlacements } from "@/server/db/placements-repository";
 import { placements } from "@/server/db/schema";
 import { syncPlan } from "@/server/planning/sync-plan";
@@ -104,7 +104,7 @@ describe("syncPlan", () => {
     });
     await plan(tx, wednesdayNoon);
     await setItemDone(tx, essayId, true);
-    await setOccurrenceDone(tx, gymId, "2026-10-08", true);
+    await setOccurrences(tx, (await loadItem(tx, gymId))!, { "2026-10-08": "done" });
 
     const result = await plan(tx, wednesdayNoon);
 
@@ -154,7 +154,7 @@ describe("syncPlan", () => {
     await insertItem(tx, { ...flexible("Gym", 60, utc("2026-10-07T14:00", "2026-10-08T14:00")), recurrence: daily });
     expect((await plan(tx, wednesdayNoon)).placements).toHaveLength(3);
 
-    await deleteItem(tx, appointmentId);
+    await deleteItem(tx, (await loadItem(tx, appointmentId))!);
     const result = await plan(tx, wednesdayNoon);
 
     expect(result.placements).toHaveLength(1);

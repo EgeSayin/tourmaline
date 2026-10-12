@@ -1,7 +1,7 @@
 import { and, desc, eq, lte } from "drizzle-orm";
 import { insertCategory } from "@/server/db/categories-repository";
 import { insertItem, loadItems } from "@/server/db/items-repository";
-import { categories, items, placements, settings } from "@/server/db/schema";
+import { categories, fixedItems, placements, settings, tasks } from "@/server/db/schema";
 import { ownedBy, type WorkspaceTx } from "@/server/db/workspace-transaction";
 import { replanWorkspace } from "@/server/planning/saved-plan";
 import { type Plan, syncPlan } from "@/server/planning/sync-plan";
@@ -16,7 +16,8 @@ export async function seedWorkspace(tx: WorkspaceTx, now: Date): Promise<Plan> {
   const sample = sampleWeek(now);
   const { timeZone, downtime, focusCaps } = sample.settings;
 
-  await tx.delete(items).where(ownedBy(tx, items));
+  await tx.delete(fixedItems).where(ownedBy(tx, fixedItems));
+  await tx.delete(tasks).where(ownedBy(tx, tasks));
   await tx.delete(categories).where(ownedBy(tx, categories));
   await tx.update(settings).set({ timeZone, downtime, focusCapsMin: focusCaps }).where(ownedBy(tx, settings));
   const categoryIds = new Map<string, string>();

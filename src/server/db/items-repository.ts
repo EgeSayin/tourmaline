@@ -1,155 +1,152 @@
-import { and, eq, gte, type SQL } from "drizzle-orm";
-import type { Item, NewItem } from "@/lib/items";
+import { and, eq } from "drizzle-orm";
+import type { FixedItem, Item, NewFixedItem, NewItem, NewTask, Task } from "@/lib/items";
+import type { Occurrences } from "@/lib/recurrence";
 import { ownedBy, type WorkspaceTx } from "./workspace-transaction";
-import { items, occurrenceOverrides } from "./schema";
+import { fixedItems, tasks } from "./schema";
 
-export async function insertItem(tx: WorkspaceTx, item: NewItem): Promise<string> {
-  const [{ id }] = await tx
-    .insert(items)
-    .values({ ...toRow(item), workspaceId: tx.workspaceId })
-    .returning({ id: items.id });
+export async function insertItem(tx: WorkspaceTx, item: NewItem, occurrences: Occurrences = {}): Promise<string> {
+  const values = { workspaceId: tx.workspaceId, occurrences };
+  const [{ id }] =
+    item.timing === "fixed"
+      ? await tx
+          .insert(fixedItems)
+          .values({ ...fixedRow(item), ...values })
+          .returning({ id: fixedItems.id })
+      : await tx
+          .insert(tasks)
+          .values({ ...taskRow(item), ...values })
+          .returning({ id: tasks.id });
   return id;
 }
 
-/** Returns `false` if no item has `id`. */
-export async function updateItem(tx: WorkspaceTx, id: string, item: NewItem): Promise<boolean> {
-  const updated = await tx
-    .update(items)
-    .set(toRow(item))
-    .where(and(ownedBy(tx, items), eq(items.id, id)))
-    .returning({ id: items.id });
-  return updated.length > 0;
+/** Saves `item` over the stored item `id`, which must be of the same kind. */
+export async function updateItem(tx: WorkspaceTx, id: string, item: NewItem, occurrences: Occurrences): Promise<void> {
+  if (item.timing === "fixed") {
+    await tx
+      .update(fixedItems)
+      .set({ ...fixedRow(item), occurrences })
+      .where(and(ownedBy(tx, fixedItems), eq(fixedItems.id, id)));
+  } else {
+    await tx
+      .update(tasks)
+      .set({ ...taskRow(item), occurrences })
+      .where(and(ownedBy(tx, tasks), eq(tasks.id, id)));
+  }
 }
 
-/** Returns `false` if no item has `id`. */
-export async function deleteItem(tx: WorkspaceTx, id: string): Promise<boolean> {
-  const deleted = await tx
-    .delete(items)
-    .where(and(ownedBy(tx, items), eq(items.id, id)))
-    .returning({ id: items.id });
-  return deleted.length > 0;
-}
-
-export function loadItems(tx: WorkspaceTx): Promise<Item[]> {
-  return findItems(tx);
-}
-
-export async function loadItem(tx: WorkspaceTx, id: string): Promise<Item | undefined> {
-  const [item] = await findItems(tx, eq(items.id, id));
-  return item;
+export async function setOccurrences(tx: WorkspaceTx, item: Item, occurrences: Occurrences): Promise<void> {
+  if (item.timing === "fixed") {
+    await tx
+      .update(fixedItems)
+      .set({ occurrences })
+      .where(and(ownedBy(tx, fixedItems), eq(fixedItems.id, item.id)));
+  } else {
+    await tx
+      .update(tasks)
+      .set({ occurrences })
+      .where(and(ownedBy(tx, tasks), eq(tasks.id, item.id)));
+  }
 }
 
 export async function setItemDone(tx: WorkspaceTx, id: string, done: boolean): Promise<void> {
   await tx
-    .update(items)
+    .update(tasks)
     .set({ done })
-    .where(and(ownedBy(tx, items), eq(items.id, id)));
+    .where(and(ownedBy(tx, tasks), eq(tasks.id, id)));
 }
 
-// Overrides go by item id: callers first load the item, which checks it is in their workspace.
-export async function setOccurrenceDone(tx: WorkspaceTx, itemId: string, date: string, done: boolean): Promise<void> {
-  await tx
-    .insert(occurrenceOverrides)
-    .values({ itemId, occurrenceDate: date, done })
-    .onConflictDoUpdate({ target: [occurrenceOverrides.itemId, occurrenceOverrides.occurrenceDate], set: { done } });
-}
-
-export async function skipOccurrence(tx: WorkspaceTx, itemId: string, date: string): Promise<void> {
-  await tx
-    .insert(occurrenceOverrides)
-    .values({ itemId, occurrenceDate: date, skipped: true })
-    .onConflictDoUpdate({
-      target: [occurrenceOverrides.itemId, occurrenceOverrides.occurrenceDate],
-      set: { skipped: true },
-    });
-}
-
-export async function deleteOverrides(tx: WorkspaceTx, itemId: string): Promise<void> {
-  await tx.delete(occurrenceOverrides).where(eq(occurrenceOverrides.itemId, itemId));
-}
-
-/** Moves `fromId`'s occurrence overrides dated `fromDate` or later to `toId`. */
-export async function moveOverrides(tx: WorkspaceTx, fromId: string, toId: string, fromDate: string): Promise<void> {
-  await tx
-    .update(occurrenceOverrides)
-    .set({ itemId: toId })
-    .where(and(eq(occurrenceOverrides.itemId, fromId), gte(occurrenceOverrides.occurrenceDate, fromDate)));
-}
-
-async function findItems(tx: WorkspaceTx, where?: SQL): Promise<Item[]> {
-  const rows = await tx.query.items.findMany({
-    where: and(ownedBy(tx, items), where),
-    with: { overrides: { orderBy: (override, { asc }) => [asc(override.occurrenceDate)] } },
-  });
-  return rows.map(toItem);
-}
-
-const NO_FIXED = { startAt: null, endAt: null, location: null, bufferBeforeMin: null, bufferAfterMin: null };
-const NO_TASK = {
-  durationMin: null,
-  earliestStart: null,
-  deadline: null,
-  splitMinChunkMin: null,
-  splitMaxChunkMin: null,
-  spread: null,
-};
-
-/** `item`'s columns, clearing the other kind's. */
-function toRow(item: NewItem) {
-  const { title, priority, timing, recurrence, categoryId } = item;
-  const shared = { title, priority, timing, recurrence, categoryId };
-  return item.timing === "fixed"
-    ? {
-        ...shared,
-        ...NO_TASK,
-        startAt: item.start,
-        endAt: item.end,
-        location: item.location,
-        bufferBeforeMin: item.bufferBeforeMin,
-        bufferAfterMin: item.bufferAfterMin,
-      }
-    : {
-        ...shared,
-        ...NO_FIXED,
-        durationMin: item.durationMin,
-        earliestStart: item.earliestStart,
-        deadline: item.deadline,
-        splitMinChunkMin: item.split?.minChunkMin ?? null,
-        splitMaxChunkMin: item.split?.maxChunkMin ?? null,
-        spread: item.spread,
-      };
-}
-
-// The `!`s hold by the `items_kind` check.
-function toItem(row: typeof items.$inferSelect & { overrides: (typeof occurrenceOverrides.$inferSelect)[] }): Item {
-  const shared = {
-    id: row.id,
-    title: row.title,
-    priority: row.priority,
-    recurrence: row.recurrence,
-    categoryId: row.categoryId,
-    overrides: row.overrides.map(({ occurrenceDate, skipped, done }) => ({ date: occurrenceDate, skipped, done })),
-  };
-  if (row.timing === "fixed") {
-    return {
-      ...shared,
-      timing: "fixed",
-      start: row.startAt!,
-      end: row.endAt!,
-      location: row.location,
-      bufferBeforeMin: row.bufferBeforeMin!,
-      bufferAfterMin: row.bufferAfterMin!,
-    };
+/** Deletes `item` and, for a task, its placements. */
+export async function deleteItem(tx: WorkspaceTx, item: Item): Promise<void> {
+  if (item.timing === "fixed") {
+    await tx.delete(fixedItems).where(and(ownedBy(tx, fixedItems), eq(fixedItems.id, item.id)));
+  } else {
+    await tx.delete(tasks).where(and(ownedBy(tx, tasks), eq(tasks.id, item.id)));
   }
+}
+
+export async function loadItems(tx: WorkspaceTx): Promise<Item[]> {
+  const [fixedRows, taskRows] = await Promise.all([
+    tx.select().from(fixedItems).where(ownedBy(tx, fixedItems)),
+    tx.select().from(tasks).where(ownedBy(tx, tasks)),
+  ]);
+  return [...fixedRows.map(toFixedItem), ...taskRows.map(toTask)];
+}
+
+export async function loadItem(tx: WorkspaceTx, id: string): Promise<Item | undefined> {
+  const [[fixedRow], [taskRow]] = await Promise.all([
+    tx
+      .select()
+      .from(fixedItems)
+      .where(and(ownedBy(tx, fixedItems), eq(fixedItems.id, id))),
+    tx
+      .select()
+      .from(tasks)
+      .where(and(ownedBy(tx, tasks), eq(tasks.id, id))),
+  ]);
+  return fixedRow ? toFixedItem(fixedRow) : taskRow && toTask(taskRow);
+}
+
+const sharedRow = ({ title, priority, recurrence, categoryId }: NewItem) => ({
+  title,
+  priority,
+  recurrence,
+  categoryId,
+});
+
+function fixedRow(item: NewFixedItem) {
+  const { start, end, location, bufferBeforeMin, bufferAfterMin } = item;
+  return { ...sharedRow(item), startAt: start, endAt: end, location, bufferBeforeMin, bufferAfterMin };
+}
+
+function taskRow(item: NewTask) {
+  const { durationMin, earliestStart, deadline, split, spread } = item;
   return {
-    ...shared,
+    ...sharedRow(item),
+    durationMin,
+    earliestStart,
+    deadline,
+    splitMinChunkMin: split?.minChunkMin ?? null,
+    splitMaxChunkMin: split?.maxChunkMin ?? null,
+    spread,
+  };
+}
+
+function toFixedItem(row: typeof fixedItems.$inferSelect): FixedItem {
+  const { id, title, priority, recurrence, occurrences, categoryId, location, bufferBeforeMin, bufferAfterMin } = row;
+  return {
+    id,
+    title,
+    priority,
+    timing: "fixed",
+    recurrence,
+    occurrences,
+    categoryId,
+    start: row.startAt,
+    end: row.endAt,
+    location,
+    bufferBeforeMin,
+    bufferAfterMin,
+  };
+}
+
+function toTask(row: typeof tasks.$inferSelect): Task {
+  const { id, title, priority, recurrence, occurrences, categoryId, durationMin, earliestStart, deadline } = row;
+  return {
+    id,
+    title,
+    priority,
     timing: "flexible",
-    durationMin: row.durationMin!,
-    earliestStart: row.earliestStart!,
-    deadline: row.deadline!,
+    recurrence,
+    occurrences,
+    categoryId,
+    durationMin,
+    earliestStart,
+    deadline,
     split:
-      row.splitMinChunkMin === null ? null : { minChunkMin: row.splitMinChunkMin, maxChunkMin: row.splitMaxChunkMin! },
-    spread: row.spread!,
+      row.splitMinChunkMin === null || row.splitMaxChunkMin === null
+        ? null
+        : { minChunkMin: row.splitMinChunkMin, maxChunkMin: row.splitMaxChunkMin },
+    spread: row.spread,
     done: row.done,
   };
 }

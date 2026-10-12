@@ -1,4 +1,4 @@
-import type { OccurrenceOverride, Recurrence } from "./recurrence";
+import type { Occurrences, Recurrence } from "./recurrence";
 import type { Interval } from "./time/interval";
 
 /** Most to least important. */
@@ -16,8 +16,8 @@ interface BaseItem {
   priority: Priority;
   /** `null` for a one-off item. The item's own start sets each occurrence's local time and the series' first date. */
   recurrence: Recurrence | null;
-  /** At most one per occurrence date, sorted by date; empty for a one-off item. */
-  overrides: OccurrenceOverride[];
+  /** Empty for a one-off item. */
+  occurrences: Occurrences;
   categoryId: string | null;
 }
 
@@ -43,19 +43,21 @@ export interface Task extends BaseItem {
   deadline: Date;
   split: ChunkSizes | null;
   spread: SpreadStrategy;
-  /** Marked done as a whole, so it isn't planned. An occurrence's comes from its override. */
+  /** Marked done as a whole, so it isn't planned. An occurrence's comes from its state. */
   done: boolean;
 }
 
 export type Item = FixedItem | Task;
 
 /**
- * An item as created or edited: the database assigns its `id`, occurrences are overridden separately, and a task is
- * marked done separately.
+ * An item as created or edited: the database assigns its `id`, and its occurrences' states and whether a task is
+ * done are set separately.
  */
-export type NewItem = Omit<FixedItem, "id" | "overrides"> | NewTask;
+export type NewItem = NewFixedItem | NewTask;
 
-export type NewTask = Omit<Task, "id" | "overrides" | "done">;
+export type NewFixedItem = Omit<FixedItem, "id" | "occurrences">;
+
+export type NewTask = Omit<Task, "id" | "occurrences" | "done">;
 
 export const isFixed = <T extends NewItem>(item: T): item is Extract<T, { timing: "fixed" }> => item.timing === "fixed";
 export const isTask = <T extends NewItem>(item: T): item is Extract<T, { timing: "flexible" }> =>
