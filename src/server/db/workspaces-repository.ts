@@ -2,6 +2,7 @@ import { createHash, randomBytes } from "node:crypto";
 import { and, desc, eq, lt, ne, notInArray } from "drizzle-orm";
 import type { Executor } from "./connection";
 import { categories, fixedItems, sessions, settings, tasks, workspaces } from "./schema";
+import { SESSION_TOUCH_MIN } from "@/server/workspaces/guest-limits";
 import { ownedBy, PERSONAL_WORKSPACE_ID, type WorkspaceTx } from "./workspace-transaction";
 
 const hash = (token: string) => createHash("sha256").update(token).digest("hex");
@@ -18,14 +19,25 @@ export async function createGuestWorkspace(executor: Executor): Promise<{ worksp
   return { workspaceId, token };
 }
 
-/** The workspace of the session `token` opens, marked as used `now`; `undefined` once it was deleted. */
+/**
+ * The workspace of the session `token` opens, marked as used `now` unless it was within `SESSION_TOUCH_MIN`;
+ * `undefined` once it was deleted.
+ */
 export async function openSession(executor: Executor, token: string, now: Date): Promise<string | undefined> {
   const [session] = await executor
     .select({ workspaceId: sessions.workspaceId })
     .from(sessions)
     .where(eq(sessions.tokenHash, hash(token)));
   if (!session) return undefined;
-  await executor.update(workspaces).set({ lastUsedAt: now }).where(eq(workspaces.id, session.workspaceId));
+  await executor
+    .update(workspaces)
+    .set({ lastUsedAt: now })
+    .where(
+      and(
+        eq(workspaces.id, session.workspaceId),
+        lt(workspaces.lastUsedAt, new Date(now.getTime() - SESSION_TOUCH_MIN * 60_000)),
+      ),
+    );
   return session.workspaceId;
 }
 

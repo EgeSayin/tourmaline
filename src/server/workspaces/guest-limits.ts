@@ -4,5 +4,8 @@ export const GUEST_IDLE_DAYS = 7;
 /** How long a guest's session cookie lasts; their workspace may be deleted sooner, once idle. */
 export const SESSION_COOKIE_DAYS = 30;
 
+/** How long a guest workspace counts as just used: opening a session within it doesn't write to the database. */
+export const SESSION_TOUCH_MIN = 60;
+
 /** The most guest workspaces kept, so crawlers can't fill the database: the least recently used go first. */
 export const GUEST_WORKSPACES_KEPT = 1000;

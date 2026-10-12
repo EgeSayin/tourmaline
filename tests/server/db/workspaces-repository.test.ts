@@ -64,5 +64,15 @@ describe("guest workspaces", () => {
     expect(left.map((workspace) => workspace.id).sort()).toEqual([PERSONAL_WORKSPACE_ID, recent.workspaceId].sort());
     expect(await openSession(tx, idle.token, now)).toBeUndefined();
     expect(await openSession(tx, recent.token, now)).toBe(recent.workspaceId);
+
+    // Opening it marks it used, but not again within the next hour.
+    const lastUsed = async () =>
+      (await tx.select().from(workspaces).where(eq(workspaces.id, recent.workspaceId)))[0].lastUsedAt;
+    expect(await lastUsed()).toEqual(now);
+    await openSession(tx, recent.token, new Date(now.getTime() + 59 * 60_000));
+    expect(await lastUsed()).toEqual(now);
+    const later = new Date(now.getTime() + 61 * 60_000);
+    await openSession(tx, recent.token, later);
+    expect(await lastUsed()).toEqual(later);
   });
 });
