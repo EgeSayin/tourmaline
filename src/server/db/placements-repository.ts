@@ -1,4 +1,4 @@
-import { and, asc, eq, gt, gte, isNull, lt, lte } from "drizzle-orm";
+import { and, asc, eq, gt, gte, isNull, lt, lte, type SQL } from "drizzle-orm";
 import { isPending, type Placement, type PlacementRef } from "@/lib/placements";
 import { occurrenceId, parseOccurrenceId } from "@/lib/recurrence";
 import type { Interval } from "@/lib/time/interval";
@@ -6,11 +6,20 @@ import { ownedBy, type WorkspaceTx } from "./workspace-transaction";
 import { placements } from "./schema";
 
 /** Placements overlapping `range`, sorted by start. */
-export async function loadPlacements(tx: WorkspaceTx, range: Interval): Promise<Placement[]> {
+export function loadPlacements(tx: WorkspaceTx, range: Interval): Promise<Placement[]> {
+  return findPlacements(tx, and(lt(placements.startAt, range.end), gt(placements.endAt, range.start)));
+}
+
+/** Placements that end after `start`, sorted by start. */
+export function loadPlacementsFrom(tx: WorkspaceTx, start: Date): Promise<Placement[]> {
+  return findPlacements(tx, gt(placements.endAt, start));
+}
+
+async function findPlacements(tx: WorkspaceTx, where: SQL | undefined): Promise<Placement[]> {
   const rows = await tx
     .select()
     .from(placements)
-    .where(and(ownedBy(tx, placements), lt(placements.startAt, range.end), gt(placements.endAt, range.start)))
+    .where(and(ownedBy(tx, placements), where))
     .orderBy(asc(placements.startAt));
   return rows.map(toPlacement);
 }

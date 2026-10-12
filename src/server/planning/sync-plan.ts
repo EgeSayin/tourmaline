@@ -4,7 +4,7 @@ import { RECURRENCE_LOOKAHEAD_DAYS, type SchedulerSettings } from "@/lib/setting
 import { addMinutes } from "@/lib/time/duration";
 import { earlier, type Interval, later } from "@/lib/time/interval";
 import type { WorkspaceTx } from "@/server/db/workspace-transaction";
-import { loadPlacements, replacePendingPlacements } from "@/server/db/placements-repository";
+import { loadPlacementsFrom, replacePendingPlacements } from "@/server/db/placements-repository";
 import { expandOccurrences } from "@/server/recurrence";
 import { replan } from "@/server/scheduler/replan";
 import { localDate, startOfDay } from "@/server/time/temporal";
@@ -37,7 +37,8 @@ export async function syncPlan(tx: WorkspaceTx, items: Item[], settings: Schedul
   // Earlier placements matter as time already spent on a planned task, and today's toward today's focus cap.
   const todayStart = startOfDay(localDate(now, settings.timeZone), settings.timeZone);
   const historyStart = tasks.reduce((start, task) => earlier(start, task.earliestStart), todayStart);
-  const existing = await loadPlacements(tx, { start: historyStart, end: horizon.end });
+  // Not bounded by the horizon, so pending blocks past it, left from a longer plan, are compared and replaced too.
+  const existing = await loadPlacementsFrom(tx, historyStart);
   const { placements, unplaced } = replan({
     horizon,
     fixedItems: expand(items.filter(isFixed), { start: todayStart, end: horizon.end }),

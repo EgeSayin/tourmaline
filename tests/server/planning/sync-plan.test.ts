@@ -5,7 +5,7 @@ import type { Placement, PlacementStatus } from "@/lib/placements";
 import type { Recurrence } from "@/lib/recurrence";
 import { NO_FOCUS_CAPS, RECURRENCE_LOOKAHEAD_DAYS, type SchedulerSettings } from "@/lib/settings";
 import type { WorkspaceTx } from "@/server/db/workspace-transaction";
-import { insertItem, loadItems, setItemDone, setOccurrenceDone } from "@/server/db/items-repository";
+import { deleteItem, insertItem, loadItems, setItemDone, setOccurrenceDone } from "@/server/db/items-repository";
 import { insertPlacements, loadPlacements } from "@/server/db/placements-repository";
 import { placements } from "@/server/db/schema";
 import { syncPlan } from "@/server/planning/sync-plan";
@@ -146,6 +146,19 @@ describe("syncPlan", () => {
     for (const p of result.placements) {
       expect(standups.some((s) => p.start < s.end && p.end > s.start)).toBe(false);
     }
+  });
+
+  it("drops pending blocks past the plan's end when it shrinks", async ({ tx }) => {
+    // The appointment on Friday makes the plan reach Friday's gym.
+    const appointmentId = await insertItem(tx, fixed("Appointment", utc("2026-10-09T14:00", "2026-10-09T15:00")));
+    await insertItem(tx, { ...flexible("Gym", 60, utc("2026-10-07T14:00", "2026-10-08T14:00")), recurrence: daily });
+    expect((await plan(tx, wednesdayNoon)).placements).toHaveLength(3);
+
+    await deleteItem(tx, appointmentId);
+    const result = await plan(tx, wednesdayNoon);
+
+    expect(result.placements).toHaveLength(1);
+    expect(await loadPlacements(tx, week)).toEqual(result.placements);
   });
 
   it(`plans recurring tasks at most ${RECURRENCE_LOOKAHEAD_DAYS} days ahead, however far the plan reaches`, async ({
