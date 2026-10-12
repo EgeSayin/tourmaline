@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Geist } from "next/font/google";
+import { Fraunces, Geist } from "next/font/google";
 import { ThemeProvider } from "next-themes";
 import { CategoryFilterProvider } from "@/components/categories/category-filter";
 import { RefreshWhenStale } from "@/components/shell/refresh-when-stale";
@@ -11,6 +11,12 @@ const geistSans = Geist({
   subsets: ["latin"],
 });
 
+const fraunces = Fraunces({
+  variable: "--font-fraunces",
+  subsets: ["latin"],
+  axes: ["SOFT", "opsz"],
+});
+
 export const metadata: Metadata = {
   title: APP_NAME,
   description: "Auto-scheduling planner",
@@ -18,7 +24,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="en" suppressHydrationWarning className={`${geistSans.variable} antialiased`}>
+    <html lang="en" suppressHydrationWarning className={`${geistSans.variable} ${fraunces.variable} antialiased`}>
       <body>
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
           <CategoryFilterProvider>{children}</CategoryFilterProvider>
