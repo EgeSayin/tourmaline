@@ -3,9 +3,8 @@ import { isFixed, isTask, type Item, itemSpan, type NewItem, type NewTask, withS
 import { occurrenceId, type Recurrence } from "@/lib/recurrence";
 import type { TimeZone } from "@/lib/time/time-zone";
 import type { Interval } from "@/lib/time/interval";
+import { MINUTES_PER_DAY } from "@/lib/time/time-of-day";
 import { localDate, toDate, zoned } from "@/server/time/temporal";
-
-const MINUTES_PER_DAY = 24 * 60;
 
 /**
  * Local dates in `[from, to)` on which a series starting on `first` occurs, in order. Nothing occurs before

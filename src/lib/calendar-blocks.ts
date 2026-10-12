@@ -3,9 +3,8 @@ import type { FixedItem, Item } from "./items";
 import { type Placement, type PlacementRef, type PlacementState, placementState } from "./placements";
 import { overlaps } from "./time/interval";
 import { toLocal } from "./time/local-time";
+import { MINUTES_PER_DAY } from "./time/time-of-day";
 import type { TimeZone } from "./time/time-zone";
-
-const MINUTES_PER_DAY = 24 * 60;
 
 /** The item a block or entry belongs to, as the editor opens it, and which occurrence it is. */
 export interface EditTarget {

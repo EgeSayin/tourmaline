@@ -3,13 +3,12 @@ import { isPending, type Placement } from "@/lib/placements";
 import { RECURRENCE_LOOKAHEAD_DAYS, type SchedulerSettings } from "@/lib/settings";
 import { addMinutes, minutesBetween } from "@/lib/time/duration";
 import { earlier, type Interval, later } from "@/lib/time/interval";
+import { MINUTES_PER_DAY } from "@/lib/time/time-of-day";
 import type { WorkspaceTx } from "@/server/db/workspace-transaction";
 import { loadPlacementsFrom, replacePendingPlacements } from "@/server/db/placements-repository";
 import { expandOccurrences } from "@/server/recurrence";
 import { replan } from "@/server/scheduler/replan";
 import { localDate, startOfDay } from "@/server/time/temporal";
-
-const MINUTES_PER_DAY = 24 * 60;
 
 export interface Plan {
   /** The planned tasks: one-off tasks, and the occurrences of recurring ones. */
