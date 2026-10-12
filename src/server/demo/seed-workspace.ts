@@ -5,12 +5,11 @@ import { categories, items, placements, settings } from "@/server/db/schema";
 import { ownedBy, type WorkspaceTx } from "@/server/db/workspace-transaction";
 import { replanWorkspace } from "@/server/planning/saved-plan";
 import { type Plan, syncPlan } from "@/server/planning/sync-plan";
-import { weekContaining } from "@/server/time/days";
 import { sampleWeek } from "./sample-week";
 
 /**
- * Replaces the workspace's items, categories and settings with the sample week for the current week, planned from
- * the week's start, with the placements that ended before now checked off as done, but for one to review and one
+ * Replaces the workspace's items, categories and settings with the sample week around `now`, planned from its start,
+ * with the placements that ended before now checked off as done, but for one to review and one
  * missed, then planned again from `now`.
  */
 export async function seedWorkspace(tx: WorkspaceTx, now: Date): Promise<Plan> {
@@ -28,7 +27,7 @@ export async function seedWorkspace(tx: WorkspaceTx, now: Date): Promise<Plan> {
     await insertItem(tx, { ...item, categoryId: item.categoryId && categoryIds.get(item.categoryId)! });
   }
 
-  const plan = await syncPlan(tx, await loadItems(tx), sample.settings, weekContaining(now, timeZone).range.start);
+  const plan = await syncPlan(tx, await loadItems(tx), sample.settings, sample.planFrom);
   const ended = and(ownedBy(tx, placements), lte(placements.endAt, now));
   await tx.update(placements).set({ status: "done" }).where(ended);
   // Show the review list and a missed block: the latest past block is left to review, the one before is missed.
