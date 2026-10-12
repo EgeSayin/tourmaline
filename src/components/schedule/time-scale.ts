@@ -24,11 +24,12 @@ export function timeScale(firstHour: number, lastHour: number, hourHeight: numbe
   };
 }
 
-/** The hours of `shownMinutes(downtime)`, stretched to every block. */
+/** The hours of `shownMinutes(downtime)`, stretched to every block and buffer. */
 export function timeScaleFor(blocks: CalendarBlock[], downtime: Downtime): TimeScale {
   const shown = shownMinutes(downtime);
-  const firstMinute = Math.min(shown.startMinute, ...blocks.map((block) => block.startMinute));
-  const lastMinute = Math.max(shown.endMinute, ...blocks.map((block) => block.endMinute));
+  const spans = blocks.flatMap((block) => [block, ...block.buffers]);
+  const firstMinute = Math.min(shown.startMinute, ...spans.map((span) => span.startMinute));
+  const lastMinute = Math.max(shown.endMinute, ...spans.map((span) => span.endMinute));
   return timeScale(Math.floor(firstMinute / 60), Math.ceil(lastMinute / 60), PX_PER_HOUR);
 }
 

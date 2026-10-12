@@ -7,7 +7,7 @@ import type { CalendarBlock } from "@/lib/calendar-blocks";
 import { matchesFilter } from "@/lib/categories";
 import { formatTimeRange } from "@/lib/time/format";
 import type { TimeZone } from "@/lib/time/time-zone";
-import { BLOCK_STYLES, blockFill, CONFLICT_STYLE } from "./block-styles";
+import { BLOCK_STYLES, blockFill, BUFFER_STYLE, CONFLICT_STYLE } from "./block-styles";
 import type { TimeScale } from "./time-scale";
 
 export function ScheduleBlock({
@@ -60,6 +60,45 @@ export function ScheduleBlock({
           {placement?.pinned && <Pin className="ml-auto size-3 shrink-0" aria-hidden />}
         </div>
       </button>
+    </div>
+  );
+}
+
+/** A fixed item's buffer, in its block's lane; drawn under the blocks, and opening the item like its block does. */
+export function BufferStrip({
+  block,
+  buffer,
+  scale,
+  onSelect,
+}: {
+  block: CalendarBlock;
+  buffer: CalendarBlock["buffers"][number];
+  scale: TimeScale;
+  onSelect: () => void;
+}) {
+  const [filter] = useCategoryFilter();
+  const top = scale.top(buffer.startMinute);
+  return (
+    <div
+      className="absolute px-0.5 md:px-1"
+      style={{
+        top,
+        height: scale.top(buffer.endMinute) - top,
+        left: `${(block.lane / block.lanes) * 100}%`,
+        width: `${100 / block.lanes}%`,
+      }}
+    >
+      {/* The block itself is the accessible way to open the item. */}
+      <button
+        type="button"
+        tabIndex={-1}
+        aria-hidden
+        onClick={onSelect}
+        className={`block size-full cursor-pointer ${blockFill(block.color)} ${
+          matchesFilter(block.target.item.categoryId, filter) ? BUFFER_STYLE.className : "opacity-15"
+        }`}
+        style={BUFFER_STYLE.style}
+      />
     </div>
   );
 }

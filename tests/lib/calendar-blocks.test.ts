@@ -11,8 +11,13 @@ const tz = "America/New_York";
 describe("toCalendarBlocks", () => {
   it("places blocks on their local day with a style per kind and state, their category's colour and their edit target, skipping items that are gone", () => {
     const cs = { id: "cs", name: "CSC 101", color: "green" } as const;
-    const lecture = { ...fixed("Lecture", utc("2026-10-05T15:00", "2026-10-05T16:15")), categoryId: cs.id }; // Mon 11:00–12:15 EDT
-    const party = { ...fixed("Party", utc("2026-10-06T02:30", "2026-10-06T05:00")), priority: "normal" as const }; // Mon 22:30–01:00
+    // Mon 11:00–12:15 EDT, with 15 minutes before and 10 after.
+    const lecture = { ...fixed("Lecture", utc("2026-10-05T15:00", "2026-10-05T16:15"), 15, 10), categoryId: cs.id };
+    // Mon 22:30–01:00, with half an hour after, all past midnight.
+    const party = {
+      ...fixed("Party", utc("2026-10-06T02:30", "2026-10-06T05:00"), 0, 30),
+      priority: "normal" as const,
+    };
     const reading = {
       ...flexible("Reading", 60, utc("2026-10-05T04:00", "2026-10-09T04:00"), "low"),
       categoryId: cs.id,
@@ -57,6 +62,10 @@ describe("toCalendarBlocks", () => {
         target: { item: lecture, occurrenceDate: null },
         placement: null,
         conflict: false,
+        buffers: [
+          { startMinute: 10 * 60 + 45, endMinute: 11 * 60 },
+          { startMinute: 12 * 60 + 15, endMinute: 12 * 60 + 25 },
+        ],
       },
       {
         key: expect.any(String),
@@ -73,6 +82,7 @@ describe("toCalendarBlocks", () => {
         target: { item: party, occurrenceDate: null },
         placement: null,
         conflict: false,
+        buffers: [],
       },
       ...(
         [
@@ -94,6 +104,7 @@ describe("toCalendarBlocks", () => {
         target: { item: reading, occurrenceDate: "2026-10-05" },
         placement: { ref: { taskId, start }, state, pinned },
         conflict: false,
+        buffers: [],
       })),
     ]);
   });

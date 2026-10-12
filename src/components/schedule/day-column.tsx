@@ -3,7 +3,7 @@ import type { DayRange } from "@/lib/time/time-of-day";
 import type { TimeZone } from "@/lib/time/time-zone";
 import { DowntimeBands } from "./downtime-bands";
 import { NowLine } from "./now-line";
-import { ScheduleBlock } from "./schedule-block";
+import { BufferStrip, ScheduleBlock } from "./schedule-block";
 import { hourLines, type TimeScale } from "./time-scale";
 
 export function DayColumn({
@@ -29,6 +29,17 @@ export function DayColumn({
     <div role="group" aria-label={label} className={`relative border-l ${className}`} style={hourLines(scale, 4)}>
       <DowntimeBands ranges={downtime} scale={scale} />
       <NowLine date={date} scale={scale} timeZone={timeZone} />
+      {blocks.map((block) =>
+        block.buffers.map((buffer) => (
+          <BufferStrip
+            key={`${block.key}-${buffer.startMinute}`}
+            block={block}
+            buffer={buffer}
+            scale={scale}
+            onSelect={() => onSelect(block)}
+          />
+        )),
+      )}
       {blocks.map((block) => (
         <ScheduleBlock
           key={block.key}

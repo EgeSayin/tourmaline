@@ -21,6 +21,15 @@ export function blockFill(color: CategoryColor | null): string {
   return color ? CATEGORY_FILLS[color] : BLOCK_FILL;
 }
 
+/** A fixed item's buffer: its fill striped with the page background, faded, without an outline. */
+export const BUFFER_STYLE = {
+  label: "Buffer",
+  className: "opacity-60",
+  style: {
+    backgroundImage: "repeating-linear-gradient(135deg, transparent 0 3px, var(--background) 3px 6px)",
+  } satisfies React.CSSProperties,
+};
+
 export const CONFLICT_STYLE = { label: "Conflict", className: "ring-2 ring-red-500 dark:ring-red-400" };
 
 export const BLOCK_STYLES: Record<BlockStyle, { label: string; className: string }> = {

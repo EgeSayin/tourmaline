@@ -1,6 +1,7 @@
 import type { Category, CategoryColor } from "./categories";
 import type { FixedItem, Item } from "./items";
 import { type Placement, type PlacementRef, type PlacementState, placementState } from "./placements";
+import { addMinutes } from "./time/duration";
 import { overlaps } from "./time/interval";
 import { toLocal } from "./time/local-time";
 import { MINUTES_PER_DAY } from "./time/time-of-day";
@@ -45,6 +46,8 @@ export interface CalendarBlock {
   placement: BlockPlacement | null;
   /** A fixed item overlapping another one. */
   conflict: boolean;
+  /** A fixed item's buffers before and after it, on the same date, in local minutes. */
+  buffers: { startMinute: number; endMinute: number }[];
 }
 
 /** Positions blocks on the local day they start, cut off at midnight. Placements whose item is gone are skipped. */
@@ -58,22 +61,40 @@ export function toCalendarBlocks(
 ): CalendarBlock[] {
   const colors = new Map(categories.map((category) => [category.id, category.color]));
   const unpositioned = [
-    ...fixedItems.map((item) => ({ key: item.id, id: item.id, start: item.start, end: item.end, placement: null })),
+    ...fixedItems.map((item) => ({
+      key: item.id,
+      id: item.id,
+      start: item.start,
+      end: item.end,
+      placement: null,
+      bufferMin: [item.bufferBeforeMin, item.bufferAfterMin],
+    })),
     ...placements.map((placement) => ({
       key: `${placement.taskId}@${placement.start.toISOString()}`,
       id: placement.taskId,
       start: placement.start,
       end: placement.end,
       placement: toBlockPlacement(placement, now),
+      bufferMin: [0, 0],
     })),
   ];
 
-  const positioned = unpositioned.flatMap(({ id, ...block }) => {
+  const positioned = unpositioned.flatMap(({ id, bufferMin: [beforeMin, afterMin], ...block }) => {
     const target = targetFor(id);
     if (!target) return [];
     const { item } = target;
     const start = toLocal(block.start, timeZone);
     const end = toLocal(block.end, timeZone);
+    const endMinute = end.date === start.date ? end.minuteOfDay : MINUTES_PER_DAY;
+    // Cut off at the block's date, like the block.
+    const minuteOn = (date: Date, outside: number) => {
+      const local = toLocal(date, timeZone);
+      return local.date === start.date ? local.minuteOfDay : outside;
+    };
+    const buffers = [
+      { startMinute: minuteOn(addMinutes(block.start, -beforeMin), 0), endMinute: start.minuteOfDay },
+      { startMinute: endMinute, endMinute: minuteOn(addMinutes(block.end, afterMin), MINUTES_PER_DAY) },
+    ].filter((buffer) => buffer.startMinute < buffer.endMinute);
     return {
       ...block,
       title: item.title,
@@ -81,8 +102,9 @@ export function toCalendarBlocks(
       color: colors.get(item.categoryId ?? "") ?? null,
       date: start.date,
       startMinute: start.minuteOfDay,
-      endMinute: end.date === start.date ? end.minuteOfDay : MINUTES_PER_DAY,
+      endMinute,
       target,
+      buffers,
     };
   });
   const fixed = positioned.filter((block) => block.placement === null);
