@@ -20,28 +20,29 @@ const cap = z.preprocess(
 
 const steps = z.string().regex(new RegExp(`^[01]{${DOWNTIME_STEPS}}$`), "Paint downtime on the calendar");
 
+const week = z.object({ caps: z.array(cap), downtime: z.array(steps) });
+
 /** Validates each weekday's downtime steps and cap in minutes, empty for no cap. */
 export function parseWeekSettings(fields: Record<string, unknown>): ParsedWeekSettings {
-  const parsed = z
-    .object(
-      Object.fromEntries(
-        WEEKDAYS.flatMap((weekday) => [
-          [focusCapField(weekday), cap],
-          [downtimeField(weekday), steps],
-        ]),
-      ),
-    )
-    .safeParse(fields);
-  if (!parsed.success) return { ok: false, errors: z.flattenError(parsed.error).fieldErrors };
+  const parsed = week.safeParse({
+    caps: WEEKDAYS.map((weekday) => fields[focusCapField(weekday)]),
+    downtime: WEEKDAYS.map((weekday) => fields[downtimeField(weekday)]),
+  });
+  if (!parsed.success) {
+    const errors: FormErrors = {};
+    for (const { path, message } of parsed.error.issues) {
+      const [list, day] = path as ["caps" | "downtime", number];
+      const name = (list === "caps" ? focusCapField : downtimeField)(WEEKDAYS[day]);
+      (errors[name] ??= []).push(message);
+    }
+    return { ok: false, errors };
+  }
 
-  const field = (name: string) => parsed.data[name] as string | number | null;
   return {
     ok: true,
     settings: {
-      downtime: WEEKDAYS.map((weekday) =>
-        fromSteps([...(field(downtimeField(weekday)) as string)].map((s) => s === "1")),
-      ),
-      focusCaps: WEEKDAYS.map((weekday) => field(focusCapField(weekday)) as number | null),
+      downtime: parsed.data.downtime.map((day) => fromSteps([...day].map((step) => step === "1"))),
+      focusCaps: parsed.data.caps,
     },
   };
 }
