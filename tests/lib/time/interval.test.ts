@@ -18,6 +18,7 @@ describe("mergeIntervals", () => {
     expect(mergeIntervals(busy)).toEqual([iv("10:00", "12:45"), iv("14:00", "18:00")]);
     expect(busy).toEqual(snapshot);
     expect(mergeIntervals([])).toEqual([]);
+    expect(mergeIntervals([iv("10:00", "10:00")])).toEqual([]); // empty
   });
 
   it("covers exactly the input's minutes, sorted with gaps, without mutating input", () => {
@@ -50,6 +51,7 @@ describe("subtractIntervals", () => {
     expect(subtractIntervals(free, busy)).toEqual([iv("10:30", "12:00"), iv("14:00", "15:00"), iv("17:00", "19:00")]);
     expect(subtractIntervals(free, [])).toEqual([iv("10:00", "12:00"), iv("14:00", "20:00")]);
     expect(subtractIntervals(free, [iv("08:00", "22:00")])).toEqual([]);
+    expect(subtractIntervals(free, [iv("11:00", "11:00")])).toEqual([iv("10:00", "12:00"), iv("14:00", "20:00")]); // empty, splits nothing
   });
 
   it("covers exactly the free minutes not busy, sorted with gaps", () => {

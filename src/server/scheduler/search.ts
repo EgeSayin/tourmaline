@@ -141,7 +141,7 @@ export function evenTargets(free: IntervalSet, window: Interval, durationMin: nu
 }
 
 /** The time `minute` minutes of free time into `parts`, or `null` when they hold no free time. */
-function atFreeMinute(parts: Interval[], minute: number): Date | null {
+function atFreeMinute(parts: readonly Interval[], minute: number): Date | null {
   let left = minute;
   for (const part of parts) {
     const length = minutesBetween(part.start, part.end);
