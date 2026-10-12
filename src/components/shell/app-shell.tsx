@@ -1,5 +1,6 @@
 import { CalendarDays, ListTodo, Plus, Settings, Tags } from "lucide-react";
 import Link from "next/link";
+import { SiteFooter } from "@/components/shell/site-footer";
 import { Wordmark } from "@/components/shell/wordmark";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { buttonVariants } from "@/components/ui/button";
@@ -52,7 +53,12 @@ export function AppShell({
         <AddItemLink />
       </header>
 
-      <div className={`space-y-4 overflow-y-auto p-4 md:border-r ${shownOn("left")}`}>{left}</div>
+      <div
+        className={`flex-col gap-4 overflow-y-auto p-4 md:flex md:border-r ${phoneSection === "left" ? "flex" : "hidden"}`}
+      >
+        {left}
+        <SiteFooter className="mt-auto hidden pt-4 md:flex" />
+      </div>
       <section
         aria-label={page === "settings" ? "Settings" : PAGES.find((entry) => entry.page === page)!.region}
         className={`space-y-3 overflow-y-auto p-4 ${sideOpen ? "" : "md:col-span-2"} ${shownOn("main")}`}
@@ -60,6 +66,7 @@ export function AppShell({
         {main}
       </section>
       {side}
+      <SiteFooter className="px-4 py-6 md:hidden" />
       {phoneNav}
     </div>
   );

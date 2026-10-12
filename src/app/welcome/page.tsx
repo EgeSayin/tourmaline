@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { connection } from "next/server";
+import { SiteFooter } from "@/components/shell/site-footer";
 import { APP_NAME, Wordmark } from "@/components/shell/wordmark";
 import { ScreenshotCarousel } from "@/components/welcome/screenshot-carousel";
 import { StartDemoButton } from "@/components/welcome/start-demo-button";
@@ -73,6 +74,22 @@ export default async function Welcome() {
           ))}
         </ol>
       </section>
+
+      <section className="max-w-2xl">
+        <h2 className="font-display text-2xl font-medium tracking-tight">Why I built it</h2>
+        <p className="mt-4 leading-relaxed text-muted-foreground">
+          Growing up, &ldquo;have a planner&rdquo; was the one suggestion I always heard. However, planners never worked
+          for me, as I found it hard to decide what I would do the next week. What if something comes up? What if I
+          don&apos;t feel like it? It was even more painful when I couldn&apos;t follow my plan, as then I not only had
+          to plan my next week, but also find slots for the things I couldn&apos;t do before. These reasons pushed me
+          away from having a planner, but I also understand the value of one. Thus, I wanted to build a planner that
+          works for me, and hopefully for others as well. I built it around the idea that it should be the scheduler
+          that handles the thinking, not me. I should just provide my fixed schedule and the tasks I have, and it should
+          build the most optimal schedule around my preferences.
+        </p>
+      </section>
+
+      <SiteFooter className="border-t pt-6" />
     </main>
   );
 }
