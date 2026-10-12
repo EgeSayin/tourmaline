@@ -69,7 +69,7 @@ export async function deleteItemAction(id: string): Promise<void> {
 export async function skipOccurrenceAction(id: string, date: string): Promise<void> {
   const validId = itemId.parse(id);
   const validDate = z.iso.date().parse(date);
-  const found = await changeWorkspace((tx) => skipOccurrence(tx, validId, validDate));
+  const found = await changeWorkspace((tx) => skipOccurrence(tx, validId, validDate, new Date()));
   if (!found) throw new Error(`Series ${validId} not found`);
   refresh();
 }

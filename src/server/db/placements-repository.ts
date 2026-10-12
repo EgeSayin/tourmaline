@@ -44,12 +44,36 @@ export async function updatePlacement(
   await tx.update(placements).set(changes).where(matching(tx, ref));
 }
 
-/** Checks off the task's placements still to review as of `now`: planned and ended. */
-export async function checkOffToReview(tx: WorkspaceTx, taskId: string, now: Date): Promise<void> {
+/** Checks off the task's planned placements that started before `now`. */
+export async function checkOffStarted(tx: WorkspaceTx, taskId: string, now: Date): Promise<void> {
   await tx
     .update(placements)
     .set({ status: "done" })
-    .where(and(ofTask(tx, taskId), eq(placements.status, "planned"), lte(placements.endAt, now)));
+    .where(and(ofTask(tx, taskId), eq(placements.status, "planned"), lt(placements.startAt, now)));
+}
+
+/** Deletes the task's planned placements from `now` on, pinned ones too, once it is no longer planned. */
+export async function dropPlanned(tx: WorkspaceTx, taskId: string, now: Date): Promise<void> {
+  await tx.delete(placements).where(and(ofTask(tx, taskId), plannedFrom(now)));
+}
+
+/** Like `dropPlanned`, for every occurrence of series `itemId` on local date `fromDate` or later. */
+export async function dropPlannedOccurrences(
+  tx: WorkspaceTx,
+  itemId: string,
+  fromDate: string,
+  now: Date,
+): Promise<void> {
+  await tx
+    .delete(placements)
+    .where(
+      and(
+        ownedBy(tx, placements),
+        eq(placements.itemId, itemId),
+        gte(placements.occurrenceDate, fromDate),
+        plannedFrom(now),
+      ),
+    );
 }
 
 function ofTask(tx: WorkspaceTx, taskId: string) {
@@ -110,5 +134,9 @@ export async function replacePendingPlacements(tx: WorkspaceTx, from: Date, next
 }
 
 function pendingAt(now: Date) {
-  return and(eq(placements.status, "planned"), eq(placements.pinned, false), gte(placements.startAt, now));
+  return and(plannedFrom(now), eq(placements.pinned, false));
+}
+
+function plannedFrom(now: Date) {
+  return and(eq(placements.status, "planned"), gte(placements.startAt, now));
 }

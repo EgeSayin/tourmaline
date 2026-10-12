@@ -1,7 +1,7 @@
 import { describe, expect } from "vitest";
 import type { NewItem } from "@/lib/items";
-import type { Placement } from "@/lib/placements";
-import type { Recurrence } from "@/lib/recurrence";
+import type { Placement, PlacementStatus } from "@/lib/placements";
+import { occurrenceId, type Recurrence } from "@/lib/recurrence";
 import { insertItem, loadItem, loadItems } from "@/server/db/items-repository";
 import { insertPlacements, loadPlacement, loadPlacements } from "@/server/db/placements-repository";
 import { occurrenceOverrides } from "@/server/db/schema";
@@ -27,6 +27,21 @@ const lecture = unsaved({
 });
 const movedTo = (start: string, end: string, changes: Partial<NewItem> = {}): NewItem =>
   ({ ...lecture, ...utc(start, end), ...changes }) as NewItem;
+
+// Daily from Mon Oct 5, 10:00 EDT to 10:00 the next day.
+const gym = {
+  ...unsaved(flexible("Gym", 60, utc("2026-10-05T14:00", "2026-10-06T14:00"))),
+  recurrence: { frequency: "daily", interval: 1, until: null } satisfies Recurrence,
+};
+const gymBlock = (
+  gymId: string,
+  date: string,
+  start: string,
+  end: string,
+  pinned = false,
+  status: PlacementStatus = "planned",
+): Placement => ({ taskId: occurrenceId(gymId, date), ...utc(start, end), pinned, status });
+const week = utc("2026-10-05T04:00", "2026-10-12T04:00");
 
 describe("editItem", () => {
   it("ends a series that already occurred the day before the edit, and saves the edit as a new series", async ({
@@ -118,6 +133,24 @@ describe("removeItem", () => {
 
     expect(await removeItem(tx, onceId, now, tz)).toBe(false);
   });
+
+  it("drops the planned blocks of the removed occurrences from now on, pinned too, and keeps the rest", async ({
+    tx,
+  }) => {
+    const gymId = await insertItem(tx, gym);
+    const yesterdays = gymBlock(gymId, "2026-10-06", "2026-10-06T14:00", "2026-10-06T15:00", false, "done");
+    const doneToday = gymBlock(gymId, "2026-10-07", "2026-10-07T14:00", "2026-10-07T15:00", false, "done");
+    await insertPlacements(tx, [
+      yesterdays,
+      doneToday,
+      gymBlock(gymId, "2026-10-07", "2026-10-07T17:00", "2026-10-07T18:00", true),
+      gymBlock(gymId, "2026-10-08", "2026-10-08T14:00", "2026-10-08T15:00", true),
+    ]);
+
+    await removeItem(tx, gymId, now, tz);
+
+    expect(await loadPlacements(tx, week)).toEqual([yesterdays, doneToday]);
+  });
 });
 
 describe("editing in place", () => {
@@ -151,14 +184,22 @@ describe("editing in place", () => {
 });
 
 describe("skipOccurrence", () => {
-  it("skips an occurrence of a series, and refuses anything else", async ({ tx }) => {
+  it("skips an occurrence of a series, dropping its later blocks, and refuses anything else", async ({ tx }) => {
     const seriesId = await insertItem(tx, lecture);
-    expect(await skipOccurrence(tx, seriesId, "2026-09-14")).toBe(true);
+    expect(await skipOccurrence(tx, seriesId, "2026-09-14", now)).toBe(true);
     expect(await loadItem(tx, seriesId)).toMatchObject({ overrides: [{ date: "2026-09-14", skipped: true }] });
 
+    const gymId = await insertItem(tx, gym);
+    const started = gymBlock(gymId, "2026-10-07", "2026-10-07T15:30", "2026-10-07T16:30");
+    const tomorrows = gymBlock(gymId, "2026-10-08", "2026-10-08T14:00", "2026-10-08T15:00", true);
+    await insertPlacements(tx, [started, gymBlock(gymId, "2026-10-07", "2026-10-07T17:00", "2026-10-07T17:30", true)]);
+    await insertPlacements(tx, [tomorrows]);
+    await skipOccurrence(tx, gymId, "2026-10-07", now);
+    expect(await loadPlacements(tx, week)).toEqual([started, tomorrows]);
+
     const onceId = await insertItem(tx, { ...lecture, recurrence: null });
-    expect(await skipOccurrence(tx, onceId, "2026-09-14")).toBe(false);
-    expect(await skipOccurrence(tx, "00000000-0000-4000-8000-000000000000", "2026-09-14")).toBe(false);
+    expect(await skipOccurrence(tx, onceId, "2026-09-14", now)).toBe(false);
+    expect(await skipOccurrence(tx, "00000000-0000-4000-8000-000000000000", "2026-09-14", now)).toBe(false);
     expect(await loadItem(tx, onceId)).toMatchObject({ overrides: [] });
   });
 });
@@ -199,7 +240,9 @@ describe("placement commands", () => {
 });
 
 describe("setTaskDone", () => {
-  it("marks a task or an occurrence done, checking off its blocks to review, and reopens it", async ({ tx }) => {
+  it("marks a task or an occurrence done, checking off its started blocks and dropping later ones, and reopens it", async ({
+    tx,
+  }) => {
     const essayId = await insertItem(tx, flexible("Essay", 120, utc("2026-10-05T04:00", "2026-10-09T21:00")));
     const block = (start: string, end: string): Placement => ({
       taskId: essayId,
@@ -208,15 +251,16 @@ describe("setTaskDone", () => {
       status: "planned",
     });
     const past = block("2026-10-07T14:00", "2026-10-07T15:00");
-    const future = block("2026-10-08T14:00", "2026-10-08T15:00");
-    await insertPlacements(tx, [past, future]);
+    const inProgress = block("2026-10-07T15:30", "2026-10-07T16:30");
+    const pinned = { ...block("2026-10-08T14:00", "2026-10-08T15:00"), pinned: true };
+    await insertPlacements(tx, [past, inProgress, pinned, block("2026-10-08T16:00", "2026-10-08T17:00")]);
 
     expect(await setTaskDone(tx, essayId, null, true, now)).toBe(true);
     expect(await loadItem(tx, essayId)).toMatchObject({ done: true });
-    // The past block is checked off; the future one is left for re-planning to drop.
+    // Started blocks are checked off, and later ones dropped, pinned too.
     expect(await loadPlacements(tx, utc("2026-10-05T04:00", "2026-10-12T04:00"))).toEqual([
       { ...past, status: "done" },
-      future,
+      { ...inProgress, status: "done" },
     ]);
     expect(await setTaskDone(tx, essayId, null, false, now)).toBe(true);
     expect(await loadItem(tx, essayId)).toMatchObject({ done: false });

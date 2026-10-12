@@ -14,7 +14,14 @@ import {
   skipOccurrence as saveSkip,
   updateItem,
 } from "@/server/db/items-repository";
-import { checkOffToReview, deletePlacements, loadPlacement, updatePlacement } from "@/server/db/placements-repository";
+import {
+  checkOffStarted,
+  deletePlacements,
+  dropPlanned,
+  dropPlannedOccurrences,
+  loadPlacement,
+  updatePlacement,
+} from "@/server/db/placements-repository";
 import { firstOccurrence } from "@/server/recurrence";
 import { localDate } from "@/server/time/temporal";
 
@@ -51,29 +58,39 @@ export async function editItem(
 
 /**
  * Removes the stored item `id` from today on: a series that already occurred before today ends yesterday and keeps
- * its past; anything else is deleted. Returns `false` if no item has `id`.
+ * its past, dropping the planned blocks of the removed occurrences; anything else is deleted. Returns `false` if no
+ * item has `id`.
  */
 export async function removeItem(tx: WorkspaceTx, id: string, now: Date, timeZone: TimeZone): Promise<boolean> {
   const existing = await loadItem(tx, id);
   if (!existing) return false;
 
-  if (!(await endSeriesBefore(tx, existing, localDate(now, timeZone), now, timeZone))) await deleteItem(tx, id);
+  const today = localDate(now, timeZone);
+  if (await endSeriesBefore(tx, existing, today, now, timeZone)) {
+    await dropPlannedOccurrences(tx, id, today.toString(), now);
+  } else {
+    await deleteItem(tx, id);
+  }
   return true;
 }
 
-/** Skips the occurrence of series `itemId` on local date `date`. Returns `false` if no series has `itemId`. */
-export async function skipOccurrence(tx: WorkspaceTx, itemId: string, date: string): Promise<boolean> {
+/**
+ * Skips the occurrence of series `itemId` on local date `date`, dropping its planned blocks from `now` on. Returns
+ * `false` if no series has `itemId`.
+ */
+export async function skipOccurrence(tx: WorkspaceTx, itemId: string, date: string, now: Date): Promise<boolean> {
   const item = await loadItem(tx, itemId);
   if (!item?.recurrence) return false;
 
   await saveSkip(tx, itemId, date);
+  await dropPlanned(tx, occurrenceId(itemId, date), now);
   return true;
 }
 
 /**
  * Marks the one-off task `itemId`, or with `date` its series' occurrence on that local date, done or not done.
- * Marking it done also checks off its placements still to review as of `now`. Returns `false` if there is no such
- * task.
+ * Marking it done also checks off its blocks started before `now` and drops the later ones. Returns `false` if there
+ * is no such task.
  */
 export async function setTaskDone(
   tx: WorkspaceTx,
@@ -87,7 +104,11 @@ export async function setTaskDone(
 
   if (date) await setOccurrenceDone(tx, itemId, date, done);
   else await setItemDone(tx, itemId, done);
-  if (done) await checkOffToReview(tx, date ? occurrenceId(itemId, date) : itemId, now);
+  if (done) {
+    const taskId = date ? occurrenceId(itemId, date) : itemId;
+    await checkOffStarted(tx, taskId, now);
+    await dropPlanned(tx, taskId, now);
+  }
   return true;
 }
 
