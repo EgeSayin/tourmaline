@@ -3,6 +3,7 @@ import {
   boolean,
   check,
   date,
+  foreignKey,
   index,
   integer,
   jsonb,
@@ -12,6 +13,7 @@ import {
   timestamp,
   unique,
   uuid,
+  type PgColumn,
 } from "drizzle-orm/pg-core";
 import { CATEGORY_COLORS } from "@/lib/categories";
 import type { Downtime } from "@/lib/downtime";
@@ -93,7 +95,11 @@ export const categories = pgTable(
     color: categoryColorEnum("color").notNull(),
     ...auditColumns,
   },
-  (t) => [unique("categories_workspace_name").on(t.workspaceId, t.name)],
+  (t) => [
+    unique("categories_workspace_name").on(t.workspaceId, t.name),
+    // For items' foreign key, which keeps their category in their workspace.
+    unique("categories_workspace_id").on(t.workspaceId, t.id),
+  ],
 );
 
 /** What fixed items and tasks share. */
@@ -105,9 +111,23 @@ const itemColumns = () => ({
   recurrence: jsonb("recurrence").$type<Recurrence>(),
   /** The repository empties it when the item stops recurring. */
   occurrences: jsonb("occurrences").$type<Occurrences>().notNull().default({}),
-  categoryId: uuid("category_id").references(() => categories.id, { onDelete: "set null" }),
+  categoryId: uuid("category_id"),
   ...auditColumns,
 });
+
+/**
+ * What fixed items and tasks are both held to. Deleting a category clears it from its items: the migration makes the
+ * foreign key set only `category_id` null, which Drizzle can't express.
+ */
+const itemConstraints = (table: string, t: { workspaceId: PgColumn; recurrence: PgColumn; categoryId: PgColumn }) => [
+  index(`${table}_workspace`).on(t.workspaceId),
+  check(`${table}_interval`, sql`(${t.recurrence}->>'interval')::integer >= 1`),
+  foreignKey({
+    name: `${table}_category_fk`,
+    columns: [t.workspaceId, t.categoryId],
+    foreignColumns: [categories.workspaceId, categories.id],
+  }).onDelete("set null"),
+];
 
 export const fixedItems = pgTable(
   "fixed_items",
@@ -120,7 +140,7 @@ export const fixedItems = pgTable(
     bufferAfterMin: integer("buffer_after_min").notNull(),
   },
   (t) => [
-    index("fixed_items_workspace").on(t.workspaceId),
+    ...itemConstraints("fixed_items", t),
     check("fixed_items_times", sql`${t.startAt} < ${t.endAt}`),
     check("fixed_items_buffers", sql`${t.bufferBeforeMin} >= 0 and ${t.bufferAfterMin} >= 0`),
   ],
@@ -140,7 +160,7 @@ export const tasks = pgTable(
     done: boolean("done").notNull().default(false),
   },
   (t) => [
-    index("tasks_workspace").on(t.workspaceId),
+    ...itemConstraints("tasks", t),
     check("tasks_window", sql`${t.earliestStart} < ${t.deadline}`),
     check("tasks_duration", sql`${t.durationMin} > 0 and ${t.durationMin} % ${slotMin} = 0`),
     check(

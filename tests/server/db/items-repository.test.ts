@@ -1,7 +1,9 @@
 import { describe, expect } from "vitest";
 import type { NewFixedItem, NewItem, NewTask } from "@/lib/items";
 import type { Occurrences } from "@/lib/recurrence";
+import { deleteCategory, insertCategory } from "@/server/db/categories-repository";
 import { insertItem, loadItem, loadItems, updateItem } from "@/server/db/items-repository";
+import { createGuestWorkspace } from "@/server/db/workspaces-repository";
 import { dbTest as it, savepoint } from "../../support/database";
 
 const lecture: NewFixedItem = {
@@ -64,6 +66,30 @@ describe("items repository", () => {
     };
     await updateItem(tx, id, moved, {});
     expect(await loadItems(tx)).toEqual([stored(id, moved)]);
+  });
+
+  it("keeps an item's category in its workspace, saving a deleted or another workspace's one as none", async ({
+    tx,
+  }) => {
+    const categoryId = await insertCategory(tx, { name: "CS 101", color: "blue" });
+    const lectureId = await insertItem(tx, { ...lecture, categoryId });
+    const essayId = await insertItem(tx, { ...essay, categoryId });
+    expect(await loadItem(tx, lectureId)).toMatchObject({ categoryId });
+
+    await deleteCategory(tx, categoryId);
+    expect((await loadItems(tx)).map((item) => item.categoryId)).toEqual([null, null]);
+    await updateItem(tx, essayId, { ...essay, categoryId }, {}); // deleted in the meantime
+    expect(await loadItem(tx, essayId)).toMatchObject({ categoryId: null });
+
+    const { workspaceId } = await createGuestWorkspace(tx);
+    const guestCategoryId = await savepoint(
+      tx,
+      (guestTx) => insertCategory(guestTx, { name: "Theirs", color: "red" }),
+      workspaceId,
+    );
+    expect(await loadItem(tx, await insertItem(tx, { ...lecture, categoryId: guestCategoryId }))).toMatchObject({
+      categoryId: null,
+    });
   });
 
   it("rejects task durations and chunk sizes off the 5-minute grid", async ({ tx }) => {

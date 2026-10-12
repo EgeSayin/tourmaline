@@ -1,8 +1,8 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import type { FixedItem, Item, NewFixedItem, NewItem, NewTask, Task } from "@/lib/items";
 import type { Occurrences } from "@/lib/recurrence";
 import { ownedBy, type WorkspaceTx } from "./workspace-transaction";
-import { fixedItems, tasks } from "./schema";
+import { categories, fixedItems, tasks } from "./schema";
 
 export async function insertItem(tx: WorkspaceTx, item: NewItem, occurrences: Occurrences = {}): Promise<string> {
   const values = { workspaceId: tx.workspaceId, occurrences };
@@ -10,11 +10,11 @@ export async function insertItem(tx: WorkspaceTx, item: NewItem, occurrences: Oc
     item.timing === "fixed"
       ? await tx
           .insert(fixedItems)
-          .values({ ...fixedRow(item), ...values })
+          .values({ ...fixedRow(tx, item), ...values })
           .returning({ id: fixedItems.id })
       : await tx
           .insert(tasks)
-          .values({ ...taskRow(item), ...values })
+          .values({ ...taskRow(tx, item), ...values })
           .returning({ id: tasks.id });
   return id;
 }
@@ -24,12 +24,12 @@ export async function updateItem(tx: WorkspaceTx, id: string, item: NewItem, occ
   if (item.timing === "fixed") {
     await tx
       .update(fixedItems)
-      .set({ ...fixedRow(item), occurrences })
+      .set({ ...fixedRow(tx, item), occurrences })
       .where(and(ownedBy(tx, fixedItems), eq(fixedItems.id, id)));
   } else {
     await tx
       .update(tasks)
-      .set({ ...taskRow(item), occurrences })
+      .set({ ...taskRow(tx, item), occurrences })
       .where(and(ownedBy(tx, tasks), eq(tasks.id, id)));
   }
 }
@@ -86,22 +86,23 @@ export async function loadItem(tx: WorkspaceTx, id: string): Promise<Item | unde
   return fixedRow ? toFixedItem(fixedRow) : taskRow && toTask(taskRow);
 }
 
-const sharedRow = ({ title, priority, recurrence, categoryId }: NewItem) => ({
-  title,
-  priority,
-  recurrence,
-  categoryId,
-});
-
-function fixedRow(item: NewFixedItem) {
-  const { start, end, location, bufferBeforeMin, bufferAfterMin } = item;
-  return { ...sharedRow(item), startAt: start, endAt: end, location, bufferBeforeMin, bufferAfterMin };
+/** A category deleted meanwhile, or another workspace's, is saved as none, as deleting it later would leave it. */
+function sharedRow(tx: WorkspaceTx, { title, priority, recurrence, categoryId }: NewItem) {
+  return { title, priority, recurrence, categoryId: categoryId && categoryInWorkspace(tx, categoryId) };
 }
 
-function taskRow(item: NewTask) {
+const categoryInWorkspace = (tx: WorkspaceTx, id: string) =>
+  sql<string>`(select ${categories.id} from ${categories} where ${and(ownedBy(tx, categories), eq(categories.id, id))})`;
+
+function fixedRow(tx: WorkspaceTx, item: NewFixedItem) {
+  const { start, end, location, bufferBeforeMin, bufferAfterMin } = item;
+  return { ...sharedRow(tx, item), startAt: start, endAt: end, location, bufferBeforeMin, bufferAfterMin };
+}
+
+function taskRow(tx: WorkspaceTx, item: NewTask) {
   const { durationMin, earliestStart, deadline, split, spread } = item;
   return {
-    ...sharedRow(item),
+    ...sharedRow(tx, item),
     durationMin,
     earliestStart,
     deadline,

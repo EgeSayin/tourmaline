@@ -169,6 +169,13 @@
       "when": 1791847314200,
       "tag": "0023_items_by_kind",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1791847567600,
+      "tag": "0024_item_category_in_workspace",
+      "breakpoints": true
     }
   ]
 }
