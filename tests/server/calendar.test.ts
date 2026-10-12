@@ -2,7 +2,7 @@ import { nightly } from "@/lib/downtime";
 import { describe, expect } from "vitest";
 import type { Placement } from "@/lib/placements";
 import type { Recurrence } from "@/lib/recurrence";
-import { type Calendar, loadCalendar } from "@/server/calendar";
+import type { Calendar } from "@/server/calendar";
 import type { WorkspaceTx } from "@/server/db/workspace-transaction";
 import { insertItem } from "@/server/db/items-repository";
 import { insertPlacements } from "@/server/db/placements-repository";
