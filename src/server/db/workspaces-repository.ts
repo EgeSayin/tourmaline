@@ -1,8 +1,8 @@
 import { createHash, randomBytes } from "node:crypto";
 import { and, desc, eq, lt, ne, notInArray } from "drizzle-orm";
 import type { Executor } from "./connection";
-import { sessions, settings, workspaces } from "./schema";
-import { PERSONAL_WORKSPACE_ID } from "./workspace-transaction";
+import { categories, fixedItems, sessions, settings, tasks, workspaces } from "./schema";
+import { ownedBy, PERSONAL_WORKSPACE_ID, type WorkspaceTx } from "./workspace-transaction";
 
 const hash = (token: string) => createHash("sha256").update(token).digest("hex");
 
@@ -43,4 +43,11 @@ export async function deleteIdleWorkspaces(executor: Executor, idleSince: Date, 
   await executor
     .delete(workspaces)
     .where(and(ne(workspaces.id, PERSONAL_WORKSPACE_ID), notInArray(workspaces.id, recent)));
+}
+
+/** Deletes the workspace's items, with their placements, and its categories; its settings stay. */
+export async function clearWorkspace(tx: WorkspaceTx): Promise<void> {
+  await tx.delete(fixedItems).where(ownedBy(tx, fixedItems));
+  await tx.delete(tasks).where(ownedBy(tx, tasks));
+  await tx.delete(categories).where(ownedBy(tx, categories));
 }

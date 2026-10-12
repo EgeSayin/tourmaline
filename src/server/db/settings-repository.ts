@@ -12,6 +12,14 @@ export async function loadSettings(tx: WorkspaceTx): Promise<SchedulerSettings> 
   return { timeZone: row.timeZone, downtime: row.downtime, focusCaps: row.focusCapsMin };
 }
 
+/** Replaces the settings as they are, without moving items to a new time zone (see `moveToTimeZone`). */
+export async function saveSettings(
+  tx: WorkspaceTx,
+  { timeZone, downtime, focusCaps }: SchedulerSettings,
+): Promise<void> {
+  await tx.update(settings).set({ timeZone, downtime, focusCapsMin: focusCaps }).where(ownedBy(tx, settings));
+}
+
 export async function saveWeekSettings(
   tx: WorkspaceTx,
   { downtime, focusCaps }: Pick<SchedulerSettings, "downtime" | "focusCaps">,

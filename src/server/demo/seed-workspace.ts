@@ -1,8 +1,9 @@
-import { and, desc, eq, lte } from "drizzle-orm";
 import { insertCategory } from "@/server/db/categories-repository";
 import { insertItem, loadItems } from "@/server/db/items-repository";
-import { categories, fixedItems, placements, settings, tasks } from "@/server/db/schema";
-import { ownedBy, type WorkspaceTx } from "@/server/db/workspace-transaction";
+import { checkOffEnded, updatePlacement } from "@/server/db/placements-repository";
+import { saveSettings } from "@/server/db/settings-repository";
+import type { WorkspaceTx } from "@/server/db/workspace-transaction";
+import { clearWorkspace } from "@/server/db/workspaces-repository";
 import { replanWorkspace } from "@/server/planning/saved-plan";
 import { type Plan, syncPlan } from "@/server/planning/sync-plan";
 import { sampleWeek } from "./sample-week";
@@ -14,12 +15,9 @@ import { sampleWeek } from "./sample-week";
  */
 export async function seedWorkspace(tx: WorkspaceTx, now: Date): Promise<Plan> {
   const sample = sampleWeek(now);
-  const { timeZone, downtime, focusCaps } = sample.settings;
 
-  await tx.delete(fixedItems).where(ownedBy(tx, fixedItems));
-  await tx.delete(tasks).where(ownedBy(tx, tasks));
-  await tx.delete(categories).where(ownedBy(tx, categories));
-  await tx.update(settings).set({ timeZone, downtime, focusCapsMin: focusCaps }).where(ownedBy(tx, settings));
+  await clearWorkspace(tx);
+  await saveSettings(tx, sample.settings);
   const categoryIds = new Map<string, string>();
   for (const [key, category] of Object.entries(sample.categories)) {
     categoryIds.set(key, await insertCategory(tx, category));
@@ -29,17 +27,13 @@ export async function seedWorkspace(tx: WorkspaceTx, now: Date): Promise<Plan> {
   }
 
   const plan = await syncPlan(tx, await loadItems(tx), sample.settings, sample.planFrom);
-  const ended = and(ownedBy(tx, placements), lte(placements.endAt, now));
-  await tx.update(placements).set({ status: "done" }).where(ended);
+  await checkOffEnded(tx, now);
   // Show the review list and a missed block: the latest past block is left to review, the one before is missed.
-  const [toReview, missed] = await tx
-    .select({ id: placements.id })
-    .from(placements)
-    .where(ended)
-    .orderBy(desc(placements.endAt))
-    .limit(2);
-  if (toReview) await tx.update(placements).set({ status: "planned" }).where(eq(placements.id, toReview.id));
-  if (missed) await tx.update(placements).set({ status: "missed" }).where(eq(placements.id, missed.id));
+  const [toReview, missed] = plan.placements
+    .filter((placement) => placement.end <= now)
+    .sort((a, b) => b.end.getTime() - a.end.getTime());
+  if (toReview) await updatePlacement(tx, toReview, { status: "planned" });
+  if (missed) await updatePlacement(tx, missed, { status: "missed" });
   await replanWorkspace(tx, now);
   return plan;
 }

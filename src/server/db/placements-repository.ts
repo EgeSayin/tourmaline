@@ -61,6 +61,14 @@ export async function checkOffStarted(tx: WorkspaceTx, taskId: string, now: Date
     .where(and(ofTask(tx, taskId), eq(placements.status, "planned"), lt(placements.startAt, now)));
 }
 
+/** Checks off every planned placement that ended by `now`. */
+export async function checkOffEnded(tx: WorkspaceTx, now: Date): Promise<void> {
+  await tx
+    .update(placements)
+    .set({ status: "done" })
+    .where(and(ownedBy(tx, placements), eq(placements.status, "planned"), lte(placements.endAt, now)));
+}
+
 /** Deletes the task's planned placements from `now` on, pinned ones too, once it is no longer planned. */
 export async function dropPlanned(tx: WorkspaceTx, taskId: string, now: Date): Promise<void> {
   await tx.delete(placements).where(and(ofTask(tx, taskId), plannedFrom(now)));
