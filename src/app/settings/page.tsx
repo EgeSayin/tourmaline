@@ -4,14 +4,16 @@ import { TimeZoneForm } from "@/components/settings/time-zone-form";
 import { WeekSettingsForm } from "@/components/settings/week-settings-form";
 import { Workspace } from "@/components/workspace/workspace";
 import { loadCalendar } from "@/server/calendar";
-import { DEMO_MODE, withWorkspace } from "@/server/workspaces/current-workspace";
+import { DEMO_MODE, readWorkspace } from "@/server/workspaces/current-workspace";
 import { GUEST_IDLE_DAYS } from "@/server/workspaces/guest-limits";
 import { timeZoneOptions } from "@/server/settings/time-zone-options";
 
 export default async function Settings() {
   await connection();
-  const now = new Date();
-  const calendar = await withWorkspace((tx) => loadCalendar(tx, now));
+  const { calendar, timeZones } = await readWorkspace(async (tx, now) => ({
+    calendar: await loadCalendar(tx, now),
+    timeZones: timeZoneOptions(now),
+  }));
 
   return (
     <Workspace
@@ -20,7 +22,7 @@ export default async function Settings() {
       main={
         <>
           <h1 className="text-lg font-semibold tracking-tight">Settings</h1>
-          <TimeZoneForm key={calendar.timeZone} timeZone={calendar.timeZone} options={timeZoneOptions(now)} />
+          <TimeZoneForm key={calendar.timeZone} timeZone={calendar.timeZone} options={timeZones} />
           <WeekSettingsForm downtime={calendar.downtime} focusCaps={calendar.focusCaps} />
           {DEMO_MODE && <DemoReset idleDays={GUEST_IDLE_DAYS} />}
         </>

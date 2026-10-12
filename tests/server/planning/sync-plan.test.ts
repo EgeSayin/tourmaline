@@ -1,6 +1,6 @@
 import { nightly } from "@/lib/downtime";
 import { describe, expect } from "vitest";
-import { isFixed } from "@/lib/items";
+import { isFixed, type Task } from "@/lib/items";
 import type { Placement, PlacementStatus } from "@/lib/placements";
 import type { Recurrence } from "@/lib/recurrence";
 import { NO_FOCUS_CAPS, RECURRENCE_LOOKAHEAD_DAYS, type SchedulerSettings } from "@/lib/settings";
@@ -8,7 +8,7 @@ import type { WorkspaceTx } from "@/server/db/workspace-transaction";
 import { deleteItem, insertItem, loadItem, loadItems, setItemDone, setOccurrences } from "@/server/db/items-repository";
 import { insertPlacements, loadPlacements } from "@/server/db/placements-repository";
 import { placements } from "@/server/db/schema";
-import { syncPlan } from "@/server/planning/sync-plan";
+import { loadUnplaced, syncPlan } from "@/server/planning/sync-plan";
 import { expandOccurrences } from "@/server/recurrence";
 import { dbTest as it } from "../../support/database";
 import { utc } from "../../support/intervals";
@@ -28,7 +28,14 @@ const auto = (taskId: string, times: { start: Date; end: Date }, status: Placeme
   pinned: false,
   status,
 });
-const plan = async (tx: WorkspaceTx, now: Date) => syncPlan(tx, await loadItems(tx), settings, now);
+const plan = async (tx: WorkspaceTx, now: Date, planSettings = settings) => {
+  const items = await loadItems(tx);
+  const result = await syncPlan(tx, items, planSettings, now);
+  // The queue read back from the saved plan is what planning reported.
+  const remaining = (tasks: Task[]) => tasks.map(({ id, durationMin }) => ({ id, durationMin }));
+  expect(remaining(await loadUnplaced(tx, items, planSettings, now))).toEqual(remaining(result.unplaced));
+  return result;
+};
 
 describe("syncPlan", () => {
   it("plans from now on around fixed items, saves the plan, and reports what doesn't fit", async ({ tx }) => {
@@ -36,6 +43,8 @@ describe("syncPlan", () => {
     const essayId = await insertItem(tx, flexible("Essay", 90, utc("2026-10-05T04:00", "2026-10-09T21:00"))); // due Fri
     const lateId = await insertItem(tx, flexible("Late reading", 30, utc("2026-10-05T04:00", "2026-10-06T04:00")));
     const marathonId = await insertItem(tx, flexible("Marathon", 24 * 60, utc("2026-10-05T04:00", "2026-10-09T21:00")));
+    // Missed on Monday: its time counts as not spent.
+    await insertPlacements(tx, [auto(lateId, utc("2026-10-05T14:00", "2026-10-05T14:30"), "missed")]);
 
     const result = await plan(tx, wednesdayNoon);
 
@@ -47,7 +56,10 @@ describe("syncPlan", () => {
         [marathonId, 24 * 60],
       ].sort(),
     );
-    expect(await loadPlacements(tx, week)).toEqual(result.placements);
+    expect(await loadPlacements(tx, week)).toEqual([
+      auto(lateId, utc("2026-10-05T14:00", "2026-10-05T14:30"), "missed"),
+      ...result.placements,
+    ]);
   });
 
   it("keeps the saved plan when re-planning, adding a task that fits, or as time passes", async ({ tx }) => {
@@ -182,7 +194,7 @@ describe("syncPlan", () => {
     await insertItem(tx, lecture);
     const essayId = await insertItem(tx, flexible("Essay", 180, utc("2026-10-07T16:00", "2026-10-09T21:00")));
 
-    const result = await syncPlan(tx, await loadItems(tx), capped, wednesdayNoon);
+    const result = await plan(tx, wednesdayNoon, capped);
 
     expect(result.placements).toEqual([auto(essayId, utc("2026-10-08T16:00", "2026-10-08T19:00"))]); // Thu 12:00
   });

@@ -17,7 +17,6 @@ import {
 } from "drizzle-orm/pg-core";
 import { CATEGORY_COLORS } from "@/lib/categories";
 import type { Downtime } from "@/lib/downtime";
-import type { SavedQueue } from "@/server/db/plans-repository";
 import { PRIORITIES, SPREAD_STRATEGIES } from "@/lib/items";
 import { PLACEMENT_STATUSES, SLOT_MIN } from "@/lib/placements";
 import type { Occurrences, Recurrence } from "@/lib/recurrence";
@@ -47,6 +46,8 @@ export const workspaces = pgTable("workspaces", {
   id: uuid("id").primaryKey().defaultRandom(),
   createdAt: timestamptz("created_at").notNull().defaultNow(),
   lastUsedAt: timestamptz("last_used_at").notNull().defaultNow(),
+  /** When it was last planned; its placements and items then make the plan. `null` until it first is. */
+  plannedAt: timestamptz("planned_at"),
 });
 
 /** A guest's session: only a hash of the token its cookie holds, so a leaked table opens no workspace. */
@@ -62,13 +63,6 @@ const workspaceId = () =>
   uuid("workspace_id")
     .notNull()
     .references(() => workspaces.id, { onDelete: "cascade" });
-
-/** A workspace's latest plan: when it was made, and the tasks that didn't fit; placements hold the rest. */
-export const plans = pgTable("plans", {
-  workspaceId: workspaceId().primaryKey(),
-  plannedAt: timestamptz("planned_at").notNull(),
-  queue: jsonb("queue").$type<SavedQueue>().notNull(),
-});
 
 /** One row per workspace. */
 export const settings = pgTable(

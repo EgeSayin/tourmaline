@@ -3,7 +3,7 @@ import { isTask, type Item, itemSpan } from "@/lib/items";
 import { parseOccurrenceId } from "@/lib/recurrence";
 import { OCCURRENCES_SHOWN } from "@/lib/settings";
 import type { TimeZone } from "@/lib/time/time-zone";
-import type { QueuedTask } from "@/server/db/plans-repository";
+import type { QueuedTask } from "@/server/planning/saved-plan";
 import type { WorkspaceTx } from "@/server/db/workspace-transaction";
 import { loadItem } from "@/server/db/items-repository";
 import { loadTaskPlacements } from "@/server/db/placements-repository";
@@ -27,7 +27,7 @@ export interface TaskEntry {
   target: EditTarget;
 }
 
-/** Every item with its status, sorted by `when`; `queue` is the plan's (see `currentQueue`). */
+/** Every item with its status, sorted by `when`; `queue` is the plan's (see `loadQueue`). */
 export function listTasks(
   items: Item[],
   queue: QueuedTask[],

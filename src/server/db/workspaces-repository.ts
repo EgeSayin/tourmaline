@@ -57,6 +57,19 @@ export async function deleteIdleWorkspaces(executor: Executor, idleSince: Date, 
     .where(and(ne(workspaces.id, PERSONAL_WORKSPACE_ID), notInArray(workspaces.id, recent)));
 }
 
+/** When the workspace was last planned, or `null` if it never was. */
+export async function loadPlannedAt(tx: WorkspaceTx): Promise<Date | null> {
+  const [{ plannedAt }] = await tx
+    .select({ plannedAt: workspaces.plannedAt })
+    .from(workspaces)
+    .where(eq(workspaces.id, tx.workspaceId));
+  return plannedAt;
+}
+
+export async function savePlannedAt(tx: WorkspaceTx, plannedAt: Date): Promise<void> {
+  await tx.update(workspaces).set({ plannedAt }).where(eq(workspaces.id, tx.workspaceId));
+}
+
 /** Deletes the workspace's items, with their placements, and its categories; its settings stay. */
 export async function clearWorkspace(tx: WorkspaceTx): Promise<void> {
   await tx.delete(fixedItems).where(ownedBy(tx, fixedItems));

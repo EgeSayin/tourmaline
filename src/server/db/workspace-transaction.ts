@@ -21,6 +21,21 @@ export function inWorkspace<T>(db: Database, workspaceId: string, work: (tx: Wor
   });
 }
 
+/**
+ * Runs `work`, which only reads, on one consistent snapshot of `workspaceId`'s rows, without waiting for its plan
+ * lock.
+ */
+export function readInWorkspace<T>(
+  db: Database,
+  workspaceId: string,
+  work: (tx: WorkspaceTx) => Promise<T>,
+): Promise<T> {
+  return db.transaction((tx) => work(Object.assign(tx, { workspaceId })), {
+    isolationLevel: "repeatable read",
+    accessMode: "read only",
+  });
+}
+
 /** Limits a query to `tx`'s workspace. */
 export function ownedBy(tx: WorkspaceTx, table: { workspaceId: PgColumn }): SQL {
   return eq(table.workspaceId, tx.workspaceId);

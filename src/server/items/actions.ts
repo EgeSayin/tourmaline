@@ -1,10 +1,10 @@
 "use server";
 
-import { changeWorkspace, withWorkspace } from "@/server/workspaces/current-workspace";
-import { refresh } from "next/cache";
+import { changeWorkspace } from "@/server/workspaces/current-workspace";
 import { type FormState, formFields } from "@/lib/form-state";
 import { z } from "zod";
 import { loadSettings } from "@/server/db/settings-repository";
+import type { WorkspaceTx } from "@/server/db/workspace-transaction";
 import { PLACEMENT_STATUSES, type PlacementRef, type PlacementStatus } from "@/lib/placements";
 import { parseOccurrenceId } from "@/lib/recurrence";
 import {
@@ -27,72 +27,62 @@ const placementRef = z.object({
   start: z.date(),
 });
 
-async function loadTimeZone() {
-  return (await withWorkspace(loadSettings)).timeZone;
-}
-
-async function parseSubmission(formData: FormData, now: Date) {
-  const timeZone = await loadTimeZone();
+/** Parses an item form inside `tx`, so its time zone is the one the change is saved against. */
+async function parseSubmission(tx: WorkspaceTx, formData: FormData, now: Date) {
   const fields = formFields(formData);
+  const { timeZone } = await loadSettings(tx);
   return { fields, timeZone, parsed: parseItemForm(fields, timeZone, now) };
 }
 
-export async function createItemAction(_previous: FormState, formData: FormData): Promise<FormState> {
-  const { fields, parsed } = await parseSubmission(formData, new Date());
-  if (!parsed.ok) return { status: "invalid", errors: parsed.errors, fields };
+// An item or block another tab deleted meanwhile is left alone: the refreshed page shows it gone.
 
-  await changeWorkspace((tx) => createItem(tx, parsed.item));
-  refresh();
-  return { status: "saved" };
+export async function createItemAction(_previous: FormState, formData: FormData): Promise<FormState> {
+  return changeWorkspace(async (tx, now): Promise<FormState> => {
+    const { fields, parsed } = await parseSubmission(tx, formData, now);
+    if (!parsed.ok) return { status: "invalid", errors: parsed.errors, fields };
+    await createItem(tx, parsed.item);
+    return { status: "saved" };
+  });
 }
 
 export async function updateItemAction(id: string, _previous: FormState, formData: FormData): Promise<FormState> {
   const validId = itemId.parse(id);
-  const now = new Date();
-  const { fields, timeZone, parsed } = await parseSubmission(formData, now);
-  if (!parsed.ok) return { status: "invalid", errors: parsed.errors, fields };
-
-  const found = await changeWorkspace((tx) => editItem(tx, validId, parsed.item, now, timeZone));
-  if (!found) throw new Error(`Item ${validId} not found`);
-  refresh();
-  return { status: "saved" };
+  return changeWorkspace(async (tx, now): Promise<FormState> => {
+    const { fields, timeZone, parsed } = await parseSubmission(tx, formData, now);
+    if (!parsed.ok) return { status: "invalid", errors: parsed.errors, fields };
+    await editItem(tx, validId, parsed.item, now, timeZone);
+    return { status: "saved" };
+  });
 }
 
 export async function deleteItemAction(id: string): Promise<void> {
   const validId = itemId.parse(id);
-  const timeZone = await loadTimeZone();
-  const found = await changeWorkspace((tx) => removeItem(tx, validId, new Date(), timeZone));
-  if (!found) throw new Error(`Item ${validId} not found`);
-  refresh();
+  await changeWorkspace(async (tx, now) => {
+    await removeItem(tx, validId, now, (await loadSettings(tx)).timeZone);
+  });
 }
 
 export async function skipOccurrenceAction(id: string, date: string): Promise<void> {
   const validId = itemId.parse(id);
   const validDate = z.iso.date().parse(date);
-  const found = await changeWorkspace((tx) => skipOccurrence(tx, validId, validDate, new Date()));
-  if (!found) throw new Error(`Series ${validId} not found`);
-  refresh();
+  await changeWorkspace((tx, now) => skipOccurrence(tx, validId, validDate, now));
 }
 
 export async function setPlacementStatusAction(ref: PlacementRef, status: PlacementStatus): Promise<void> {
   const validRef = placementRef.parse(ref);
   const validStatus = z.enum(PLACEMENT_STATUSES).parse(status);
-  const found = await changeWorkspace((tx) => setPlacementStatus(tx, validRef, validStatus, new Date()));
-  if (!found) throw new Error(`Placement of ${validRef.taskId} at ${validRef.start.toISOString()} not found`);
-  refresh();
+  await changeWorkspace((tx, now) => setPlacementStatus(tx, validRef, validStatus, now));
 }
 
 export async function setPlacementPinnedAction(ref: PlacementRef, pinned: boolean): Promise<void> {
   const validRef = placementRef.parse(ref);
-  const found = await changeWorkspace((tx) => setPlacementPinned(tx, validRef, z.boolean().parse(pinned), new Date()));
-  if (!found) throw new Error(`Placement of ${validRef.taskId} at ${validRef.start.toISOString()} not found`);
-  refresh();
+  const validPinned = z.boolean().parse(pinned);
+  await changeWorkspace((tx, now) => setPlacementPinned(tx, validRef, validPinned, now));
 }
 
 export async function setTaskDoneAction(id: string, date: string | null, done: boolean): Promise<void> {
   const validId = itemId.parse(id);
   const validDate = z.iso.date().nullable().parse(date);
-  const found = await changeWorkspace((tx) => setTaskDone(tx, validId, validDate, z.boolean().parse(done), new Date()));
-  if (!found) throw new Error(`Task ${validId} not found`);
-  refresh();
+  const validDone = z.boolean().parse(done);
+  await changeWorkspace((tx, now) => setTaskDone(tx, validId, validDate, validDone, now));
 }

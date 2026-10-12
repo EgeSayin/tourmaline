@@ -2,12 +2,11 @@
 
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { refresh } from "next/cache";
 import { db } from "@/server/db/client";
 import { inWorkspace } from "@/server/db/workspace-transaction";
 import { createGuestWorkspace, deleteIdleWorkspaces } from "@/server/db/workspaces-repository";
 import { GUEST_IDLE_DAYS, GUEST_WORKSPACES_KEPT, SESSION_COOKIE_DAYS } from "@/server/workspaces/guest-limits";
-import { DEMO_MODE, SESSION_COOKIE, sessionWorkspace, withWorkspace } from "@/server/workspaces/current-workspace";
+import { DEMO_MODE, SESSION_COOKIE, changeWorkspace, sessionWorkspace } from "@/server/workspaces/current-workspace";
 import { seedWorkspace } from "./seed-workspace";
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
@@ -32,6 +31,5 @@ export async function startDemoAction(): Promise<void> {
 
 export async function resetDemoAction(): Promise<void> {
   if (!DEMO_MODE) throw new Error("Only a demo workspace can be reset");
-  await withWorkspace((tx) => seedWorkspace(tx, new Date()));
-  refresh();
+  await changeWorkspace(seedWorkspace, { replan: false });
 }
