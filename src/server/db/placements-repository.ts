@@ -124,6 +124,19 @@ export async function deletePlacements(tx: WorkspaceTx, itemId: string, from?: D
     .where(and(ownedBy(tx, placements), eq(placements.itemId, itemId), from && pendingAt(from)));
 }
 
+/** Moves the placements of series `fromId`'s occurrences on local date `fromDate` or later to series `toId`. */
+export async function moveOccurrencePlacements(
+  tx: WorkspaceTx,
+  fromId: string,
+  toId: string,
+  fromDate: string,
+): Promise<void> {
+  await tx
+    .update(placements)
+    .set({ itemId: toId })
+    .where(and(ownedBy(tx, placements), eq(placements.itemId, fromId), gte(placements.occurrenceDate, fromDate)));
+}
+
 /** Replaces the pending placements (see `isPending`) as of `from` with those among `next`; others are untouched. */
 export async function replacePendingPlacements(tx: WorkspaceTx, from: Date, next: Placement[]): Promise<void> {
   await tx.delete(placements).where(and(ownedBy(tx, placements), pendingAt(from)));

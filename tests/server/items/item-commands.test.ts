@@ -71,6 +71,26 @@ describe("editItem", () => {
     });
   });
 
+  it("moves the blocks of the occurrences it takes over to the new series", async ({ tx }) => {
+    const gymId = await insertItem(tx, gym);
+    const yesterdays = gymBlock(gymId, "2026-10-06", "2026-10-06T14:00", "2026-10-06T15:00", false, "done");
+    const doneToday = gymBlock(gymId, "2026-10-07", "2026-10-07T14:00", "2026-10-07T14:30", false, "done");
+    const pinnedToday = gymBlock(gymId, "2026-10-07", "2026-10-07T17:00", "2026-10-07T17:30", true);
+    await insertPlacements(tx, [
+      yesterdays,
+      doneToday,
+      pinnedToday,
+      gymBlock(gymId, "2026-10-08", "2026-10-08T14:00", "2026-10-08T15:00"),
+    ]);
+
+    // From today on, 90 minutes.
+    const edited = { ...gym, earliestStart: new Date("2026-10-07T14:00Z"), deadline: new Date("2026-10-08T14:00Z") };
+    const newId = await editItem(tx, gymId, { ...edited, durationMin: 90 }, now, tz);
+
+    const moved = (block: Placement) => ({ ...block, taskId: occurrenceId(newId!, "2026-10-07") });
+    expect(await loadPlacements(tx, week)).toEqual([yesterdays, moved(doneToday), moved(pinnedToday)]);
+  });
+
   it("keeps an earlier end date, and ends the series for an edit that stops it repeating", async ({ tx }) => {
     const endsSoon = { ...lecture, recurrence: { ...lecture.recurrence!, until: "2026-09-20" } };
     const id = await insertItem(tx, endsSoon);

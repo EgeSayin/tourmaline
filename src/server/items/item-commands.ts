@@ -20,6 +20,7 @@ import {
   dropPlanned,
   dropPlannedOccurrences,
   loadPlacement,
+  moveOccurrencePlacements,
   updatePlacement,
 } from "@/server/db/placements-repository";
 import { firstOccurrence } from "@/server/recurrence";
@@ -32,7 +33,7 @@ export function createItem(tx: WorkspaceTx, item: NewItem): Promise<string> {
 /**
  * Saves `item` over the stored item `id`, from `item`'s first local date on. A series that already occurred before
  * that date keeps those occurrences: it ends the day before, and `item` is saved as a new item that takes over the
- * series' overrides from that date if it recurs. Anything else is updated in place.
+ * series' overrides and the blocks of its occurrences from that date if it recurs. Anything else is updated in place.
  * Returns the id that now holds `item`, or `undefined` if no item has `id`.
  */
 export async function editItem(
@@ -52,7 +53,10 @@ export async function editItem(
   }
 
   const newId = await insertItem(tx, item);
-  if (item.recurrence) await moveOverrides(tx, id, newId, from.toString());
+  if (item.recurrence) {
+    await moveOverrides(tx, id, newId, from.toString());
+    if (isTask(item)) await moveOccurrencePlacements(tx, id, newId, from.toString());
+  }
   return newId;
 }
 
