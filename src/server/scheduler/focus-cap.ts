@@ -1,6 +1,6 @@
 import type { FocusCaps } from "@/lib/settings";
-import { minutesBetween } from "@/lib/time/duration";
-import { clipIntervals, type Interval, mergeIntervals } from "@/lib/time/interval";
+import { addMinutes, minutesBetween } from "@/lib/time/duration";
+import { clipIntervals, type Interval, type IntervalSet, mergeIntervals, subtractIntervals } from "@/lib/time/interval";
 import type { TimeZone } from "@/lib/time/time-zone";
 import { localDate, startOfDay } from "@/server/time/temporal";
 
@@ -49,6 +49,33 @@ export function overCap(days: FocusDay[], blocks: Interval[]): FocusDay[] {
     const added = minutesWithin(blocks, day);
     return day.capMin !== null && added > 0 && day.usedMin + added > day.capMin;
   });
+}
+
+/** `days` with their caps raised by `extraMin`. */
+export function raiseCaps(days: FocusDay[], extraMin: number): FocusDay[] {
+  return days.map((day) => (day.capMin === null ? day : { ...day, capMin: day.capMin + extraMin }));
+}
+
+/**
+ * `free` with each of `days`, which `blocks` fill past its cap, cut down to the minutes left under its cap, counted
+ * from where `blocks` first fill it; a search in it then fills none of them past its cap.
+ */
+export function trimToRoom(free: IntervalSet, days: FocusDay[], blocks: Interval[]): IntervalSet {
+  const room: Interval[] = [];
+  for (const day of days) {
+    let roomMin = day.capMin! - day.usedMin;
+    const from = clipIntervals(blocks, day).reduce(
+      (first, block) => (block.start < first ? block.start : first),
+      day.end,
+    );
+    for (const part of clipIntervals(free, { start: from, end: day.end })) {
+      if (roomMin <= 0) break;
+      const minutes = Math.min(roomMin, minutesBetween(part.start, part.end));
+      room.push({ start: part.start, end: addMinutes(part.start, minutes) });
+      roomMin -= minutes;
+    }
+  }
+  return mergeIntervals([...subtractIntervals(free, days), ...room]);
 }
 
 function minutesWithin(intervals: readonly Interval[], window: Interval): number {

@@ -137,12 +137,7 @@ export function WeekSettingsForm({ downtime, focusCaps }: Pick<SchedulerSettings
           </div>
         </FormSection>
       </FormStateProvider>
-      <SaveRow
-        label="Save"
-        pending={pending}
-        saved={state.status === "saved"}
-        message="Saved. Blocks are planned again."
-      />
+      <SaveRow label="Save" pending={pending} saved={state.status === "saved"} message="Saved." />
     </form>
   );
 }

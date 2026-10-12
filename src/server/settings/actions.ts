@@ -13,9 +13,10 @@ export async function saveWeekSettingsAction(_previous: FormState, formData: For
   if (!parsed.ok) return { status: "invalid", errors: parsed.errors, fields };
 
   await changeWorkspace(async (tx, now) => {
+    const { focusCaps } = await loadSettings(tx);
     await saveWeekSettings(tx, parsed.settings);
     // Kept blocks stay where they are while they fit, so only dropping them spreads the plan under new caps.
-    await replacePendingPlacements(tx, now, []);
+    if (parsed.settings.focusCaps.some((cap, i) => cap !== focusCaps[i])) await replacePendingPlacements(tx, now, []);
   });
   return { status: "saved" };
 }

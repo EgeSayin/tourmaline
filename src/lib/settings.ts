@@ -32,4 +32,10 @@ export const RECURRENCE_LOOKAHEAD_DAYS = 28;
 /** The least time between two chunks of the same task, so a split task's chunks don't run together. */
 export const CHUNK_BREAK_MIN = 30;
 
+/**
+ * How far past its focus cap a day may be filled, tried in turn, so a task that fits only over the caps goes over
+ * them as little as it can.
+ */
+export const FOCUS_CAP_RAISES_MIN = [0, 30, 60, 120, 240, 480, Infinity];
+
 export const OCCURRENCES_SHOWN = 7;

@@ -53,4 +53,35 @@ describe("focus caps", () => {
     ]);
     expect(unplaced).toEqual([]);
   });
+
+  it("uses the room left on a day its blocks would fill past its cap, and goes over caps as little as it can", () => {
+    const settings = (focusCaps: SchedulerSettings["focusCaps"]): SchedulerSettings => ({
+      timeZone: "UTC",
+      downtime: nightly(22 * 60, 10 * 60),
+      focusCaps,
+    });
+    const range = utc("2026-10-05T00:00", "2026-10-07T00:00"); // Monday and Tuesday
+    const project = { ...flexible("Project", 120, range), split: { minChunkMin: 30, maxChunkMin: 60 } };
+    const plan = (caps: SchedulerSettings["focusCaps"]) => {
+      const { timeZone } = settings(caps);
+      const { placements } = placeTasks(
+        [project],
+        freeTimeMap(range, [], settings(caps)),
+        [],
+        focusDays(range, [], caps, timeZone),
+      );
+      return placements.map(({ start, end }) => ({ start, end }));
+    };
+
+    // An hour fits on Monday, the rest on Tuesday.
+    expect(plan([60, null, ...NO_FOCUS_CAPS.slice(2)])).toEqual([
+      utc("2026-10-05T10:00", "2026-10-05T11:00"),
+      utc("2026-10-06T10:00", "2026-10-06T11:00"),
+    ]);
+    // An hour and a half in all fits under the caps: half an hour over Tuesday's is the least it takes.
+    expect(plan([60, 30, ...NO_FOCUS_CAPS.slice(2)])).toEqual([
+      utc("2026-10-05T10:00", "2026-10-05T11:00"),
+      utc("2026-10-06T10:00", "2026-10-06T11:00"),
+    ]);
+  });
 });

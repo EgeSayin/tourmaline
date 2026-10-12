@@ -1,6 +1,6 @@
 import type { SpreadStrategy, Task } from "@/lib/items";
 import type { Placement } from "@/lib/placements";
-import { CHUNK_BREAK_MIN } from "@/lib/settings";
+import { CHUNK_BREAK_MIN, FOCUS_CAP_RAISES_MIN } from "@/lib/settings";
 import { addMinutes } from "@/lib/time/duration";
 import { type Interval, type IntervalSet, subtractIntervals } from "@/lib/time/interval";
 import {
@@ -11,7 +11,7 @@ import {
   findLatestChunks,
   findLatestSlot,
 } from "./search";
-import { type FocusDay, fill, full, overCap } from "./focus-cap";
+import { type FocusDay, fill, full, overCap, raiseCaps, trimToRoom } from "./focus-cap";
 import { orderByUrgency } from "./urgency";
 
 export interface PlacementResult {
@@ -22,14 +22,14 @@ export interface PlacementResult {
 
 /**
  * Places each task, most urgent first, as its `spread` asks: at its earliest fit (`asap`), centred in its share of
- * the free time in its window (`even`, see `evenTargets`) or at its latest fit (`just-in-time`), falling back to
- * `asap` when that finds no room. A task goes in one block, or for a split task in chunks (see
- * `findEarliestChunks`) at least `CHUNK_BREAK_MIN` apart, also from its chunks in `placed`. It is placed whole or
- * not at all.
+ * the free time in its window (`even`, see `evenTargets`, falling back to `asap` when that finds no room) or at its
+ * latest fit (`just-in-time`). A task goes in one block, or for a split task in chunks (see `findEarliestChunks`) at
+ * least `CHUNK_BREAK_MIN` apart, also from its chunks in `placed`. It is placed whole or not at all.
  *
- * With focus `days`, which count what's already filled, a task first leaves out the days that are full, and each
- * day its blocks would fill past its cap, searching again until its blocks fit under every cap. Only if that finds
- * no room does it go over the caps.
+ * With focus `days`, which count what's already filled, a task first leaves out the days that are full, and cuts
+ * each day its blocks would fill past its cap down to the room left (see `trimToRoom`), searching again until its
+ * blocks fit under every cap. Only if that finds no room does it go over the caps, by as little as it can (see
+ * `FOCUS_CAP_RAISES_MIN`).
  */
 export function placeTasks(
   tasks: Task[],
@@ -44,18 +44,24 @@ export function placeTasks(
 
   for (const task of orderByUrgency(tasks, remaining)) {
     const place = (open: IntervalSet) =>
-      (task.spread === "asap" ? null : findBlocks(task, task.spread, open, placed)) ??
-      findBlocks(task, "asap", open, placed);
+      task.spread === "even"
+        ? (findBlocks(task, "even", open, placed) ?? findBlocks(task, "asap", open, placed))
+        : findBlocks(task, task.spread, open, placed);
+    const placeUnder = (caps: FocusDay[]) => {
+      for (let open = subtractIntervals(remaining, full(caps)); ;) {
+        const found = place(open);
+        if (!found) return null;
+        const over = overCap(caps, found);
+        if (over.length === 0) return found;
+        open = trimToRoom(open, over, found);
+      }
+    };
 
-    let underCaps: Interval[] | null = null;
-    for (let open = subtractIntervals(remaining, full(focus)); !underCaps;) {
-      const found = place(open);
-      if (!found) break;
-      const over = overCap(focus, found);
-      if (over.length === 0) underCaps = found;
-      else open = subtractIntervals(open, over);
+    let blocks: Interval[] | null = null;
+    for (const extraMin of FOCUS_CAP_RAISES_MIN) {
+      blocks = placeUnder(raiseCaps(focus, extraMin));
+      if (blocks) break;
     }
-    const blocks = underCaps ?? place(remaining);
     if (blocks) {
       focus = fill(focus, blocks);
       placements.push(
