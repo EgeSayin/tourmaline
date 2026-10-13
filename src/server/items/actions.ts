@@ -7,15 +7,8 @@ import { loadSettings } from "@/server/db/settings-repository";
 import type { WorkspaceTx } from "@/server/db/workspace-transaction";
 import { PLACEMENT_STATUSES, type PlacementRef, type PlacementStatus } from "@/lib/placements";
 import { parseOccurrenceId } from "@/lib/recurrence";
-import {
-  createItem,
-  editItem,
-  removeItem,
-  setPlacementPinned,
-  setPlacementStatus,
-  setTaskDone,
-  skipOccurrence,
-} from "./item-commands";
+import { createItem, editItem, removeItem, setTaskDone, skipOccurrence } from "./item-commands";
+import { setPlacementPinned, setPlacementStatus } from "./placement-commands";
 import { parseItemForm } from "./parse-item-form";
 
 const itemId = z.uuid();
