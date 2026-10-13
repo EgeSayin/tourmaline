@@ -13,6 +13,7 @@ import {
 } from "@/lib/time/interval";
 import { type FocusDay, focusDays } from "./focus-cap";
 import { BY_URGENCY, type PlanStrategy, placeTasks } from "./placement";
+import { openTo, taskWindow } from "./task-time";
 import { byEarliestDeadline, byUrgency, withFirst } from "./urgency";
 
 export interface ReplanInput {
@@ -125,7 +126,7 @@ function placeOverOptional(
  */
 function bumpedVariants(plan: ReplanResult, now: Date, priorityOf: (placement: Placement) => number): Placement[][] {
   const pending = plan.placements.filter((placement) => isPending(placement, now));
-  const windows = plan.unplaced.map((task) => ({ start: task.earliestStart, end: task.deadline }));
+  const windows = plan.unplaced.map(taskWindow);
   const variants = new Map<string, Placement[]>();
   for (let level = PRIORITIES.length - 1; level >= 0; level--) {
     const bumped = (placement: Placement) => priorityOf(placement) >= level;
@@ -190,9 +191,7 @@ function fillAroundKept(
     const remaining = task.durationMin - (placedMinutes.get(task.id) ?? 0);
     const fits =
       minutesBetween(placement.start, placement.end) <= remaining &&
-      placement.start >= task.earliestStart &&
-      placement.end <= task.deadline &&
-      subtractIntervals([placement], open).length === 0;
+      subtractIntervals([placement], openTo(task, open)).length === 0;
     if (!fits) continue;
 
     preserved.push(placement);

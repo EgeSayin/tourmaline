@@ -12,6 +12,7 @@ import {
   findLatestSlot,
 } from "./search";
 import { type FocusDay, fill, full, overCap, raiseCaps, trimToRoom } from "./focus-cap";
+import { openTo, taskWindow } from "./task-time";
 import { byUrgency, type TaskOrder } from "./urgency";
 
 /** How to place tasks: in which order, and whether to rank the rest again after each placement. */
@@ -94,12 +95,14 @@ export function placeTasks(
 }
 
 function findBlocks(
-  { id, durationMin, earliestStart, deadline, split }: Task,
+  task: Task,
   spread: SpreadStrategy,
-  free: IntervalSet,
+  freeTime: IntervalSet,
   placed: readonly Placement[],
 ): Interval[] | null {
-  const window = { start: earliestStart, end: deadline };
+  const { id, durationMin, split } = task;
+  const window = taskWindow(task);
+  const free = openTo(task, freeTime);
   if (!split) {
     const slot =
       spread === "just-in-time"
@@ -107,7 +110,7 @@ function findBlocks(
         : findEarliestSlot(
             free,
             durationMin,
-            spread === "even" ? { start: evenTargets(free, window, durationMin, 1)[0], end: deadline } : window,
+            spread === "even" ? { start: evenTargets(free, window, durationMin, 1)[0], end: window.end } : window,
           );
     return slot && [slot];
   }

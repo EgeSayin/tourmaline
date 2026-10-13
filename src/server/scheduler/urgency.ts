@@ -1,6 +1,7 @@
 import { type Task, PRIORITIES } from "@/lib/items";
-import { clipIntervals, type IntervalSet } from "@/lib/time/interval";
+import type { IntervalSet } from "@/lib/time/interval";
 import { slotMinutes } from "./search";
+import { openTo } from "./task-time";
 
 /** Ranks the tasks still to place against the free time left, first to place first. */
 export type TaskOrder = (tasks: Task[], free: IntervalSet) => Task[];
@@ -8,12 +9,12 @@ export type TaskOrder = (tasks: Task[], free: IntervalSet) => Task[];
 type Comparator = (a: Task, b: Task) => number;
 
 /**
- * Share of the usable free time between the task's `earliestStart` and `deadline` that the task needs: stretches too
+ * Share of the usable free time open to the task (see `openTo`) that it needs: stretches too
  * short on the grid for one of its blocks (or its smallest chunk) don't count. `Infinity` when none is usable.
  */
 export function pressure(task: Task, free: IntervalSet): number {
   const blockMin = Math.min(task.split?.minChunkMin ?? task.durationMin, task.durationMin);
-  const usableMin = clipIntervals(free, { start: task.earliestStart, end: task.deadline })
+  const usableMin = openTo(task, free)
     .map(slotMinutes)
     .filter((minutes) => minutes >= blockMin)
     .reduce((sum, minutes) => sum + minutes, 0);
