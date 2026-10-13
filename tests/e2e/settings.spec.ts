@@ -49,4 +49,26 @@ test.describe("settings", () => {
     await expect(settings.getByText("Enter up to 24h")).toBeVisible();
     await expect(settings.getByRole("status")).toHaveCount(0);
   });
+
+  test("paints and clears downtime with the keyboard", async ({ page }) => {
+    await page.goto("/settings");
+    const settings = page.getByRole("region", { name: "Settings" });
+    const monday = settings.getByRole("group", { name: "Mon downtime" });
+    const tuesday = settings.getByRole("group", { name: "Tue downtime" });
+    await expect(monday).toHaveText("00:00–10:00, 23:00–24:00");
+
+    // The cursor starts on Monday at 09:00; down to 12:00, then Shift with arrows paints to Tuesday 13:00.
+    await monday.focus();
+    for (let i = 0; i < 6; i++) await page.keyboard.press("ArrowDown");
+    await page.keyboard.down("Shift");
+    for (const key of ["ArrowDown", "ArrowDown", "ArrowRight"]) await page.keyboard.press(key);
+    await page.keyboard.up("Shift");
+    await expect(monday).toHaveText("00:00–10:00, 12:00–13:30, 23:00–24:00");
+    await expect(tuesday).toHaveText("00:00–10:00, 12:00–13:30, 23:00–24:00");
+
+    // Space clears the painted half hour under the cursor, Tuesday 13:00.
+    await page.keyboard.press(" ");
+    await expect(tuesday).toHaveText("00:00–10:00, 12:00–13:00, 23:00–24:00");
+    await expect(settings.getByText("Tue 13:00–13:30, free")).toBeAttached();
+  });
 });

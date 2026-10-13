@@ -1,11 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { FormDurationInput, FormSection, FormStateProvider } from "@/components/forms/form-fields";
 import { DowntimeBands } from "@/components/schedule/downtime-bands";
 import { HourAxis } from "@/components/schedule/hour-axis";
 import { hourLines, timeScale } from "@/components/schedule/time-scale";
-import { DOWNTIME_STEPS, fromSteps, toSteps } from "@/lib/downtime";
+import { DOWNTIME_STEP_MIN, DOWNTIME_STEPS, fromSteps, toSteps } from "@/lib/downtime";
 import { WEEKDAYS } from "@/lib/recurrence";
 import { downtimeField, focusCapField, type SchedulerSettings } from "@/lib/settings";
 import { WEEKDAY_NAMES } from "@/lib/time/format";
@@ -48,6 +48,15 @@ function cellAt(event: React.PointerEvent): Cell | null {
   return { day: Number(column.dataset.day), step: Math.min(Math.max(step, 0), DOWNTIME_STEPS - 1) };
 }
 
+const MOVES: Record<string, Cell> = {
+  ArrowUp: { day: 0, step: -1 },
+  ArrowDown: { day: 0, step: 1 },
+  ArrowLeft: { day: -1, step: 0 },
+  ArrowRight: { day: 1, step: 0 },
+};
+
+const clamp = (value: number, max: number) => Math.min(Math.max(value, 0), max);
+
 export function WeekSettingsForm({ downtime, focusCaps }: Pick<SchedulerSettings, "downtime" | "focusCaps">) {
   const { state, values, errors, pending, onSubmit } = useFormAction(
     saveWeekSettingsAction,
@@ -61,6 +70,35 @@ export function WeekSettingsForm({ downtime, focusCaps }: Pick<SchedulerSettings
   const [steps, setSteps] = useState(() => downtime.map(toSteps));
   const [stroke, setStroke] = useState<Stroke | null>(null);
   const shown = stroke ? applyStroke(steps, stroke) : steps;
+  // The keyboard's cell, starting on Monday at 09:00; the columns take turns holding the tab stop.
+  const [cursor, setCursor] = useState<Cell>({ day: 0, step: (9 * 60) / DOWNTIME_STEP_MIN });
+  const columns = useRef<(HTMLDivElement | null)[]>([]);
+  const toggled = (cell: Cell): Stroke => ({ from: cell, to: cell, paint: !steps[cell.day][cell.step] });
+
+  const keyHandlers = {
+    onKeyDown: (event: React.KeyboardEvent) => {
+      const move = MOVES[event.key];
+      if (move) {
+        event.preventDefault();
+        const next = { day: clamp(cursor.day + move.day, 6), step: clamp(cursor.step + move.step, DOWNTIME_STEPS - 1) };
+        if (event.shiftKey) setStroke({ ...(stroke ?? toggled(cursor)), to: next });
+        setCursor(next);
+        columns.current[next.day]?.focus();
+      } else if (event.key === " ") {
+        event.preventDefault();
+        setSteps(applyStroke(steps, toggled(cursor)));
+      } else if (event.key === "Escape") {
+        setStroke(null);
+      }
+    },
+    // A Shift+arrow stroke is painted once Shift is let go.
+    onKeyUp: (event: React.KeyboardEvent) => {
+      if (event.key !== "Shift" || !stroke) return;
+      setSteps(applyStroke(steps, stroke));
+      setStroke(null);
+    },
+  };
+  const cursorDown = shown[cursor.day][cursor.step];
 
   const strokeHandlers = {
     onPointerDown: (event: React.PointerEvent<HTMLElement>) => {
@@ -86,8 +124,9 @@ export function WeekSettingsForm({ downtime, focusCaps }: Pick<SchedulerSettings
         <FormSection title="Week">
           <p className="text-sm text-muted-foreground">
             Paint downtime by pressing and dragging; tasks are never planned in it. Drag from painted time to clear it.
-            Under each day is its focus cap, like 6h: the most time of fixed items and task blocks to plan into it.
-            Tasks go over it only to finish before their deadline. Leave it empty for no cap.
+            With the keyboard, arrows move, Space paints or clears, and Shift with arrows paints a rectangle. Under each
+            day is its focus cap, like 6h: the most time of fixed items and task blocks to plan into it. Tasks go over
+            it only to finish before their deadline. Leave it empty for no cap.
           </p>
           <div
             className="grid overflow-hidden rounded-xl border bg-card [--axis:2.75rem] md:[--axis:3.5rem]"
@@ -115,14 +154,29 @@ export function WeekSettingsForm({ downtime, focusCaps }: Pick<SchedulerSettings
               return (
                 <div
                   key={index}
+                  ref={(column) => {
+                    columns.current[index] = column;
+                  }}
                   role="group"
                   aria-label={`${WEEKDAY_NAMES[index]} downtime`}
                   data-day={index}
-                  className="relative cursor-pointer touch-none border-l select-none"
+                  tabIndex={index === cursor.day ? 0 : -1}
+                  className="group relative cursor-pointer touch-none border-l outline-none select-none"
                   style={hourLines(SCALE, 2)}
                   {...strokeHandlers}
+                  {...keyHandlers}
                 >
                   <DowntimeBands ranges={ranges} scale={SCALE} />
+                  {index === cursor.day && (
+                    <div
+                      aria-hidden
+                      className="pointer-events-none absolute inset-x-0 hidden ring-2 ring-ring group-focus-visible:block"
+                      style={{
+                        top: SCALE.top(cursor.step * DOWNTIME_STEP_MIN),
+                        height: SCALE.hourHeight / (60 / DOWNTIME_STEP_MIN),
+                      }}
+                    />
+                  )}
                   <span className="sr-only">
                     {ranges.length > 0
                       ? ranges
@@ -135,6 +189,9 @@ export function WeekSettingsForm({ downtime, focusCaps }: Pick<SchedulerSettings
               );
             })}
           </div>
+          <p aria-live="polite" className="sr-only">
+            {`${WEEKDAY_NAMES[cursor.day]} ${toTimeInputValue(cursor.step * DOWNTIME_STEP_MIN)}–${toTimeInputValue((cursor.step + 1) * DOWNTIME_STEP_MIN)}, ${cursorDown ? "downtime" : "free"}`}
+          </p>
         </FormSection>
       </FormStateProvider>
       <SaveRow label="Save" pending={pending} saved={state.status === "saved"} message="Saved." />
