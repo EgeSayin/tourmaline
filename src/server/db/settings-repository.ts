@@ -2,7 +2,6 @@ import { sql } from "drizzle-orm";
 import type { PgColumn } from "drizzle-orm/pg-core";
 import type { SchedulerSettings } from "@/lib/settings";
 import { isTimeZone, type TimeZone } from "@/lib/time/time-zone";
-import { sameLocalTime } from "@/server/time/temporal";
 import { ownedBy, type WorkspaceTx } from "./workspace-transaction";
 import { fixedItems, placements, settings, tasks } from "./schema";
 
@@ -39,16 +38,9 @@ export async function moveToTimeZone(tx: WorkspaceTx, timeZone: TimeZone): Promi
     .update(tasks)
     .set({ earliestStart: shift(tasks.earliestStart), deadline: shift(tasks.deadline) })
     .where(ownedBy(tx, tasks));
-  // Reinserted rather than updated: shifting rows one by one could briefly clash on a task's unique start.
-  const moved = await tx.delete(placements).where(ownedBy(tx, placements)).returning();
-  if (moved.length > 0) {
-    await tx.insert(placements).values(
-      moved.map((placement) => ({
-        ...placement,
-        startAt: sameLocalTime(placement.startAt, from, timeZone),
-        endAt: sameLocalTime(placement.endAt, from, timeZone),
-      })),
-    );
-  }
+  await tx
+    .update(placements)
+    .set({ startAt: shift(placements.startAt), endAt: shift(placements.endAt) })
+    .where(ownedBy(tx, placements));
   await tx.update(settings).set({ timeZone }).where(ownedBy(tx, settings));
 }

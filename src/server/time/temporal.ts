@@ -17,8 +17,3 @@ export function localDate(date: Date, timeZone: TimeZone): Temporal.PlainDate {
 export function startOfDay(day: Temporal.PlainDate, timeZone: TimeZone): Date {
   return toDate(day.toZonedDateTime(timeZone));
 }
-
-/** The instant whose local date and time in `to` are those of `date` in `from`. */
-export function sameLocalTime(date: Date, from: TimeZone, to: TimeZone): Date {
-  return toDate(zoned(date, from).toPlainDateTime().toZonedDateTime(to));
-}
