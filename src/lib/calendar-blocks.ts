@@ -44,7 +44,10 @@ export interface CalendarBlock {
   lanes: number;
   target: EditTarget;
   placement: BlockPlacement | null;
-  /** A fixed item overlapping another one. */
+  /**
+   * A fixed item overlapping another one or a block that stays where it is (pinned, in progress or done), and that
+   * block.
+   */
   conflict: boolean;
   /** A fixed item's buffers before and after it, on the same date, in local minutes. */
   buffers: { startMinute: number; endMinute: number }[];
@@ -108,10 +111,19 @@ export function toCalendarBlocks(
     };
   });
   const fixed = positioned.filter((block) => block.placement === null);
+  const staying = positioned.filter(
+    ({ placement }) =>
+      placement && (placement.pinned || placement.state === "in-progress" || placement.state === "done"),
+  );
+  const clashes = (block: (typeof positioned)[number], others: typeof positioned) =>
+    others.some((other) => other !== block && overlaps(block, other));
   return withLanes(
     positioned.map((block) => ({
       ...block,
-      conflict: block.placement === null && fixed.some((other) => other !== block && overlaps(block, other)),
+      conflict:
+        block.placement === null
+          ? clashes(block, [...fixed, ...staying])
+          : staying.includes(block) && clashes(block, fixed),
     })),
   );
 }

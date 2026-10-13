@@ -111,7 +111,7 @@ describe("toCalendarBlocks", () => {
 });
 
 describe("conflicts", () => {
-  it("marks fixed items that overlap each other, whatever their priority, and nothing else", () => {
+  it("marks fixed items that overlap each other, or a block that stays put, whatever their priority, and nothing else", () => {
     const lecture = fixed("Lecture", utc("2026-10-05T14:00", "2026-10-05T15:00"));
     const club = { ...fixed("Club", utc("2026-10-05T14:30", "2026-10-05T16:00")), priority: "low" as const };
     const dinner = fixed("Dinner", utc("2026-10-05T16:00", "2026-10-05T17:00")); // starts as the club ends
@@ -123,19 +123,30 @@ describe("conflicts", () => {
       pinned: false,
       status: "done",
     };
+    const block = (start: string, end: string, pinned: boolean): Placement => ({
+      taskId: "Reading",
+      ...utc(start, end),
+      pinned,
+      status: "planned",
+    });
+    const pinned = block("2026-10-06T14:30", "2026-10-06T15:00", true); // overlaps the next day's lecture
+    const movable = block("2026-10-06T14:00", "2026-10-06T14:30", false); // so does this one, but it can move
     const items = new Map<string, Item>([lecture, club, dinner, nextDay, reading].map((item) => [item.id, item]));
     const targetFor = (id: string): EditTarget | undefined => {
       const item = items.get(id);
       return item && { item, occurrenceDate: null };
     };
 
-    const blocks = toCalendarBlocks([lecture, club, dinner, nextDay], [done], tz, targetFor, [], new Date());
-    expect(blocks.map(({ title, conflict }) => `${title}: ${conflict}`)).toEqual([
-      "Lecture: true",
-      "Club: true",
-      "Dinner: false",
-      "Lecture again: false",
-      "Reading: false",
+    const now = new Date("2026-10-01T00:00Z");
+    const blocks = toCalendarBlocks([lecture, club, dinner, nextDay], [done, pinned, movable], tz, targetFor, [], now);
+    expect(blocks.map(({ title, start, conflict }) => `${title} ${start.toISOString()}: ${conflict}`)).toEqual([
+      "Lecture 2026-10-05T14:00:00.000Z: true",
+      "Club 2026-10-05T14:30:00.000Z: true",
+      "Dinner 2026-10-05T16:00:00.000Z: true",
+      "Lecture again 2026-10-06T14:00:00.000Z: true",
+      "Reading 2026-10-05T16:00:00.000Z: true",
+      "Reading 2026-10-06T14:30:00.000Z: true",
+      "Reading 2026-10-06T14:00:00.000Z: false",
     ]);
   });
 });
