@@ -1,5 +1,4 @@
-import { isFixed, isTask, type Item, itemSpan, type NewFixedItem, type NewItem } from "@/lib/items";
-import { addMinutes } from "@/lib/time/duration";
+import { bufferedSpan, isFixed, isTask, type Item, itemSpan, type NewItem } from "@/lib/items";
 import type { PlacementRef, PlacementStatus } from "@/lib/placements";
 import { occurrenceId, type Occurrences, parseOccurrenceId, type Recurrence } from "@/lib/recurrence";
 import type { TimeZone } from "@/lib/time/time-zone";
@@ -222,11 +221,7 @@ function planAfresh(tx: WorkspaceTx, now: Date): Promise<void> {
 function freesTime(existing: Item, item: NewItem): boolean {
   if (isTask(existing)) return isTask(item) && item.durationMin < existing.durationMin;
   if (!isFixed(item)) return true;
-  const busy = (fixed: NewFixedItem) => ({
-    start: addMinutes(fixed.start, -fixed.bufferBeforeMin),
-    end: addMinutes(fixed.end, fixed.bufferAfterMin),
-  });
-  const [before, after] = [busy(existing), busy(item)];
+  const [before, after] = [bufferedSpan(existing), bufferedSpan(item)];
   return before.start < after.start || before.end > after.end || !sameRule(existing.recurrence, item.recurrence);
 }
 

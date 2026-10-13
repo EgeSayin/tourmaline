@@ -1,4 +1,5 @@
 import type { Occurrences, Recurrence } from "./recurrence";
+import { addMinutes } from "./time/duration";
 import type { Interval } from "./time/interval";
 
 /** Most to least important. */
@@ -68,6 +69,14 @@ export function itemSpan(item: NewItem): Interval {
   return item.timing === "fixed"
     ? { start: item.start, end: item.end }
     : { start: item.earliestStart, end: item.deadline };
+}
+
+/** The time a fixed item keeps from tasks: itself and its buffers. */
+export function bufferedSpan(item: NewFixedItem): Interval {
+  return {
+    start: addMinutes(item.start, -item.bufferBeforeMin),
+    end: addMinutes(item.end, item.bufferAfterMin),
+  };
 }
 
 export function withSpan<T extends NewItem>(item: T, span: Interval): T {

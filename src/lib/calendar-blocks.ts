@@ -1,7 +1,6 @@
 import type { Category, CategoryColor } from "./categories";
-import { type FixedItem, type Item, PRIORITIES } from "./items";
+import { bufferedSpan, type FixedItem, type Item, PRIORITIES } from "./items";
 import { type Placement, type PlacementRef, type PlacementState, placementState } from "./placements";
-import { addMinutes } from "./time/duration";
 import { overlaps } from "./time/interval";
 import { toLocal } from "./time/local-time";
 import { MINUTES_PER_DAY } from "./time/time-of-day";
@@ -70,7 +69,7 @@ export function toCalendarBlocks(
       start: item.start,
       end: item.end,
       placement: null,
-      bufferMin: [item.bufferBeforeMin, item.bufferAfterMin],
+      busy: bufferedSpan(item),
     })),
     ...placements.map((placement) => ({
       key: `${placement.taskId}@${placement.start.toISOString()}`,
@@ -78,11 +77,11 @@ export function toCalendarBlocks(
       start: placement.start,
       end: placement.end,
       placement: toBlockPlacement(placement, now),
-      bufferMin: [0, 0],
+      busy: { start: placement.start, end: placement.end },
     })),
   ];
 
-  const positioned = unpositioned.flatMap(({ id, bufferMin: [beforeMin, afterMin], ...block }) => {
+  const positioned = unpositioned.flatMap(({ id, ...block }) => {
     const target = targetFor(id);
     if (!target) return [];
     const { item } = target;
@@ -95,8 +94,8 @@ export function toCalendarBlocks(
       return local.date === start.date ? local.minuteOfDay : outside;
     };
     const buffers = [
-      { startMinute: minuteOn(addMinutes(block.start, -beforeMin), 0), endMinute: start.minuteOfDay },
-      { startMinute: endMinute, endMinute: minuteOn(addMinutes(block.end, afterMin), MINUTES_PER_DAY) },
+      { startMinute: minuteOn(block.busy.start, 0), endMinute: start.minuteOfDay },
+      { startMinute: endMinute, endMinute: minuteOn(block.busy.end, MINUTES_PER_DAY) },
     ].filter((buffer) => buffer.startMinute < buffer.endMinute);
     return {
       ...block,
@@ -108,7 +107,6 @@ export function toCalendarBlocks(
       endMinute,
       target,
       buffers,
-      busy: { start: addMinutes(block.start, -beforeMin), end: addMinutes(block.end, afterMin) },
     };
   });
   type Positioned = (typeof positioned)[number];

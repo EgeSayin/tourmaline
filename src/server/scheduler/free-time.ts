@@ -1,6 +1,5 @@
 import type { Downtime } from "@/lib/downtime";
-import { addMinutes } from "@/lib/time/duration";
-import type { FixedItem } from "@/lib/items";
+import { bufferedSpan, type FixedItem } from "@/lib/items";
 import type { SchedulerSettings } from "@/lib/settings";
 import { MINUTES_PER_DAY } from "@/lib/time/time-of-day";
 import type { TimeZone } from "@/lib/time/time-zone";
@@ -9,10 +8,7 @@ import { clipIntervals, type Interval, type IntervalSet, mergeIntervals, subtrac
 
 /** Returns the parts of `range` outside downtime and fixed items (including their buffers), sorted by start. */
 export function freeTimeMap(range: Interval, fixedItems: FixedItem[], settings: SchedulerSettings): IntervalSet {
-  const busy = fixedItems.map((item) => ({
-    start: addMinutes(item.start, -item.bufferBeforeMin),
-    end: addMinutes(item.end, item.bufferAfterMin),
-  }));
+  const busy = fixedItems.map(bufferedSpan);
   return subtractIntervals([range], [...downtimeIntervals(range, settings.downtime, settings.timeZone), ...busy]);
 }
 
