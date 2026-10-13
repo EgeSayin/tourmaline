@@ -4,6 +4,7 @@ import type { Placement, PlacementStatus } from "@/lib/placements";
 import { occurrenceId, type Recurrence } from "@/lib/recurrence";
 import { insertItem, loadItem, loadItems } from "@/server/db/items-repository";
 import { insertPlacements, loadPlacement, loadPlacements } from "@/server/db/placements-repository";
+import { placements } from "@/server/db/schema";
 import {
   editItem,
   removeItem,
@@ -200,6 +201,54 @@ describe("editing in place", () => {
     });
     await editItem(tx, laterId, movedTo("2026-10-12T15:00", "2026-10-12T16:15", { recurrence: null }), now, tz);
     expect(await loadItem(tx, laterId)).toMatchObject({ recurrence: null, occurrences: {} });
+  });
+});
+
+describe("changes that free time", () => {
+  it("drop every pending block so tasks are placed anew, keeping pinned ones, and other changes keep them", async ({
+    tx,
+  }) => {
+    const essayId = await insertItem(tx, unsaved(flexible("Essay", 60, utc("2026-10-07T04:00", "2026-10-12T04:00"))));
+    const pending = {
+      taskId: essayId,
+      ...utc("2026-10-08T18:00", "2026-10-08T19:00"),
+      pinned: false,
+      status: "planned" as const,
+    };
+    const pinned = { ...pending, ...utc("2026-10-09T18:00", "2026-10-09T19:00"), pinned: true };
+    const pendingLeft = async () => (await loadPlacements(tx, week)).some((placement) => !placement.pinned);
+    const lectureId = await insertItem(tx, lecture);
+    const gymId = await insertItem(tx, gym);
+    const changes: [string, () => Promise<unknown>, boolean][] = [
+      ["renaming", () => editItem(tx, lectureId, { ...lecture, title: "Lecture (room 2)" }, now, tz), false],
+      ["more time", () => editItem(tx, gymId, { ...gym, durationMin: 90 }, now, tz), false],
+      ["less time", () => editItem(tx, gymId, { ...gym, durationMin: 30 }, now, tz), true],
+      ["shorter", () => editItem(tx, lectureId, movedTo("2026-09-07T15:00", "2026-09-07T16:00"), now, tz), true],
+      [
+        "repeating differently",
+        () =>
+          editItem(
+            tx,
+            lectureId,
+            movedTo("2026-09-07T15:00", "2026-09-07T16:00", {
+              recurrence: { ...lecture.recurrence!, weekdays: [1, 3] },
+            }),
+            now,
+            tz,
+          ),
+        true,
+      ],
+      ["skipping", () => skipOccurrence(tx, gymId, "2026-10-08", now), true],
+      ["removing", () => removeItem(tx, gymId, now, tz), true],
+    ];
+
+    for (const [change, run, frees] of changes) {
+      await insertPlacements(tx, [pending, pinned]);
+      await run();
+      expect([change, await pendingLeft()]).toEqual([change, !frees]);
+      expect(await loadPlacement(tx, pinned)).toEqual(pinned);
+      await tx.delete(placements);
+    }
   });
 });
 

@@ -6,11 +6,14 @@ test.describe("scheduled blocks", () => {
     page,
   }, testInfo) => {
     const title = `E2E flashcards (${testInfo.project.name})`;
+    // Mandatory, in a window just its length, so its block stays put when other specs' changes plan from scratch.
+    const [from, to] = testInfo.project.name === "phone" ? ["21:30", "22:00"] : ["21:00", "21:30"];
     const form = await openAddItemForm(page);
     await form.getByLabel("Title").fill(title);
+    await form.getByRole("radio", { name: "Mandatory" }).click();
     await form.getByLabel("Duration", { exact: true }).fill("30");
-    await form.getByLabel("Not before", { exact: true }).fill(localDateTime(1, "10:00"));
-    await form.getByLabel("Due").fill(localDateTime(1, "22:00"));
+    await form.getByLabel("Not before", { exact: true }).fill(localDateTime(1, from));
+    await form.getByLabel("Due").fill(localDateTime(1, to));
     await form.getByRole("button", { name: "Add item" }).click();
     await expect(form).toBeHidden();
 

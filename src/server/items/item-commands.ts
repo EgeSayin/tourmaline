@@ -1,6 +1,7 @@
-import { isTask, type Item, itemSpan, type NewItem } from "@/lib/items";
+import { isFixed, isTask, type Item, itemSpan, type NewFixedItem, type NewItem } from "@/lib/items";
+import { addMinutes } from "@/lib/time/duration";
 import type { PlacementRef, PlacementStatus } from "@/lib/placements";
-import { occurrenceId, type Occurrences, parseOccurrenceId } from "@/lib/recurrence";
+import { occurrenceId, type Occurrences, parseOccurrenceId, type Recurrence } from "@/lib/recurrence";
 import type { TimeZone } from "@/lib/time/time-zone";
 import type { WorkspaceTx } from "@/server/db/workspace-transaction";
 import {
@@ -18,6 +19,7 @@ import {
   dropPlannedOccurrences,
   loadPlacement,
   moveOccurrencePlacements,
+  replacePendingPlacements,
   updatePlacement,
 } from "@/server/db/placements-repository";
 import { firstOccurrence } from "@/server/recurrence";
@@ -31,7 +33,8 @@ export function createItem(tx: WorkspaceTx, item: NewItem): Promise<string> {
  * Saves `item` over the stored item `id`, from `item`'s first local date on. A series that already occurred before
  * that date keeps those occurrences: it ends the day before, and `item` is saved as a new item that takes over the
  * series' occurrence states and the blocks of its occurrences from that date if it recurs. Anything else is updated
- * in place, or replaced by a new item if its kind changes.
+ * in place, or replaced by a new item if its kind changes. An edit that frees time (see `freesTime`) has the plan made
+ * again from scratch.
  * Returns the id that now holds `item`, or `undefined` if no item has `id`.
  */
 export async function editItem(
@@ -44,6 +47,7 @@ export async function editItem(
   const existing = await loadItem(tx, id);
   if (!existing) return undefined;
 
+  if (freesTime(existing, item)) await planAfresh(tx, now);
   const from = localDate(itemSpan(item).start, timeZone).toString();
   if (!occurredBefore(existing, from, timeZone)) {
     return saveInPlace(tx, existing, item, item.recurrence ? existing.occurrences : {}, now);
@@ -56,12 +60,13 @@ export async function editItem(
 
 /**
  * Removes the stored item `id` from today on: a series that already occurred before today ends yesterday and keeps
- * its past; anything else is deleted. Returns `false` if no item has `id`.
+ * its past; anything else is deleted. The plan is made again from scratch. Returns `false` if no item has `id`.
  */
 export async function removeItem(tx: WorkspaceTx, id: string, now: Date, timeZone: TimeZone): Promise<boolean> {
   const existing = await loadItem(tx, id);
   if (!existing) return false;
 
+  await planAfresh(tx, now);
   const today = localDate(now, timeZone).toString();
   if (occurredBefore(existing, today, timeZone)) await endSeriesBefore(tx, existing, today, now);
   else await deleteItem(tx, existing);
@@ -69,13 +74,14 @@ export async function removeItem(tx: WorkspaceTx, id: string, now: Date, timeZon
 }
 
 /**
- * Skips the occurrence of series `itemId` on local date `date`, dropping its planned blocks from `now` on. Returns
- * `false` if no series has `itemId`.
+ * Skips the occurrence of series `itemId` on local date `date`, dropping its planned blocks from `now` on, and has the
+ * plan made again from scratch. Returns `false` if no series has `itemId`.
  */
 export async function skipOccurrence(tx: WorkspaceTx, itemId: string, date: string, now: Date): Promise<boolean> {
   const item = await loadItem(tx, itemId);
   if (!item?.recurrence) return false;
 
+  await planAfresh(tx, now);
   await setOccurrences(tx, item, { ...item.occurrences, [date]: "skipped" });
   await dropPlanned(tx, occurrenceId(itemId, date), now);
   return true;
@@ -200,3 +206,33 @@ const occurrencesFrom = (occurrences: Occurrences, date: string): Occurrences =>
 
 const occurrencesBefore = (occurrences: Occurrences, date: string): Occurrences =>
   Object.fromEntries(Object.entries(occurrences).filter(([day]) => day < date));
+
+/**
+ * Drops every pending block (see `isPending`), so the next plan places all tasks anew and they can move into time a
+ * change freed; pinned, started and done blocks stay. Otherwise planning keeps blocks where they are while they fit.
+ */
+function planAfresh(tx: WorkspaceTx, now: Date): Promise<void> {
+  return replacePendingPlacements(tx, now, []);
+}
+
+/**
+ * Whether saving `item` over `existing` frees time for other tasks: a fixed item no longer is one, or covers less
+ * of its old time with its buffers, or repeats differently; a task needs less time.
+ */
+function freesTime(existing: Item, item: NewItem): boolean {
+  if (isTask(existing)) return isTask(item) && item.durationMin < existing.durationMin;
+  if (!isFixed(item)) return true;
+  const busy = (fixed: NewFixedItem) => ({
+    start: addMinutes(fixed.start, -fixed.bufferBeforeMin),
+    end: addMinutes(fixed.end, fixed.bufferAfterMin),
+  });
+  const [before, after] = [busy(existing), busy(item)];
+  return before.start < after.start || before.end > after.end || !sameRule(existing.recurrence, item.recurrence);
+}
+
+function sameRule(a: Recurrence | null, b: Recurrence | null): boolean {
+  const weekdays = (rule: Recurrence) => (rule.frequency === "weekly" ? rule.weekdays.join() : "");
+  return a === null || b === null
+    ? a === b
+    : a.frequency === b.frequency && a.interval === b.interval && a.until === b.until && weekdays(a) === weekdays(b);
+}
