@@ -9,7 +9,7 @@ import { BlockPanelProvider, useBlockPanel } from "@/components/schedule/block-p
 import { ReviewList } from "@/components/schedule/review-list";
 import { TaskQueue } from "@/components/schedule/task-queue";
 import { type AppPage, AppShell, NAV_PAGES } from "@/components/shell/app-shell";
-import type { Shell } from "@/server/calendar";
+import type { Shell } from "@/server/shell";
 
 type List = "review" | "queue";
 

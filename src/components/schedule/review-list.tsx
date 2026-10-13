@@ -5,7 +5,7 @@ import { PlacementActions } from "@/components/items/placement-actions";
 import { formatLocalWeekday, formatTimeRange } from "@/lib/time/format";
 import { toLocal } from "@/lib/time/local-time";
 import type { TimeZone } from "@/lib/time/time-zone";
-import type { ReviewEntry } from "@/server/calendar";
+import type { ReviewEntry } from "@/server/shell";
 import { useBlockPanel } from "./block-panel-state";
 
 export function ReviewList({ entries, timeZone }: { entries: ReviewEntry[]; timeZone: TimeZone }) {

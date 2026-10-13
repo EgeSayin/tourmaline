@@ -31,14 +31,16 @@ export async function plannedToday(tx: WorkspaceTx, now: Date): Promise<boolean>
   return plannedAt !== null && localDate(plannedAt, timeZone).equals(localDate(now, timeZone));
 }
 
-/** The saved plan's queue (see `loadUnplaced`); the workspace must have been planned. */
-export async function loadQueue(tx: WorkspaceTx, items: Item[], settings: SchedulerSettings): Promise<QueuedTask[]> {
+/** The saved plan's queue (see `loadUnplaced`): its tasks still due after `now`. The workspace must have been planned. */
+export async function loadQueue(
+  tx: WorkspaceTx,
+  items: Item[],
+  settings: SchedulerSettings,
+  now: Date,
+): Promise<QueuedTask[]> {
   const plannedAt = await loadPlannedAt(tx);
   if (!plannedAt) throw new Error("The workspace hasn't been planned");
-  return (await loadUnplaced(tx, items, settings, plannedAt)).map(({ id, title, durationMin, deadline }) => ({
-    id,
-    title,
-    remainingMin: durationMin,
-    deadline,
-  }));
+  return (await loadUnplaced(tx, items, settings, plannedAt))
+    .filter((task) => task.deadline > now)
+    .map(({ id, title, durationMin, deadline }) => ({ id, title, remainingMin: durationMin, deadline }));
 }

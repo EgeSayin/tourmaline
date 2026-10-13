@@ -1,4 +1,5 @@
-import { loadShell, loadWeek } from "@/server/calendar";
+import { loadWeek } from "@/server/calendar";
+import { loadShell } from "@/server/shell";
 import type { WorkspaceTx } from "@/server/db/workspace-transaction";
 import { plannedToday, replanWorkspace } from "@/server/planning/saved-plan";
 import { loadItemList } from "@/server/tasks";

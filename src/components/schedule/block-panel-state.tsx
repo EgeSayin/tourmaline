@@ -3,7 +3,7 @@
 import { createContext, use, useEffect, useState } from "react";
 import type { CalendarBlock } from "@/lib/calendar-blocks";
 import type { TimeZone } from "@/lib/time/time-zone";
-import type { ReviewEntry } from "@/server/calendar";
+import type { ReviewEntry } from "@/server/shell";
 
 export type OpenedBlock = Pick<CalendarBlock, "key" | "title" | "start" | "end" | "target" | "placement"> &
   Partial<Pick<CalendarBlock, "style">>;

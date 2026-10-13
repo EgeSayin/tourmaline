@@ -2,7 +2,7 @@ import { CircleCheck } from "lucide-react";
 import Link from "next/link";
 import { formatDateTime, formatDuration, formatLocalDate } from "@/lib/time/format";
 import type { TimeZone } from "@/lib/time/time-zone";
-import type { QueueEntry } from "@/server/calendar";
+import type { QueueEntry } from "@/server/shell";
 
 export function TaskQueue({ entries, timeZone }: { entries: QueueEntry[]; timeZone: TimeZone }) {
   return entries.length === 0 ? (

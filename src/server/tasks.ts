@@ -6,7 +6,7 @@ import { OCCURRENCES_SHOWN } from "@/lib/settings";
 import type { TimeZone } from "@/lib/time/time-zone";
 import { loadQueue, type QueuedTask } from "@/server/planning/saved-plan";
 import type { WorkspaceTx } from "@/server/db/workspace-transaction";
-import { editTargets } from "@/server/calendar";
+import { editTargets } from "@/server/edit-targets";
 import { type CategoryEntry, listCategories } from "@/server/categories/category-list";
 import { loadCategories } from "@/server/db/categories-repository";
 import { loadItem, loadItems } from "@/server/db/items-repository";
@@ -33,13 +33,13 @@ export interface ItemEntry {
 }
 
 /** Every item with its status, sorted by `when`; `queue` is the plan's (see `loadQueue`). */
-export function listItems(
+function listItems(
   items: Item[],
   queue: QueuedTask[],
   targetFor: (id: string) => EditTarget | undefined,
   now: Date,
 ): ItemEntry[] {
-  const queued = new Set(queue.filter((task) => task.deadline > now).map((task) => parseOccurrenceId(task.id).itemId));
+  const queued = new Set(queue.map((task) => parseOccurrenceId(task.id).itemId));
   const entries = items.map((item): ItemEntry => {
     const target = targetFor(item.id)!;
     const span = itemSpan(target.item);
@@ -69,7 +69,7 @@ export async function loadItemList(tx: WorkspaceTx, now: Date): Promise<ItemList
   const { timeZone } = settings;
   return {
     timeZone,
-    items: listItems(items, await loadQueue(tx, items, settings), editTargets(items, now, timeZone), now),
+    items: listItems(items, await loadQueue(tx, items, settings, now), editTargets(items, now, timeZone), now),
     categories: listCategories(categories, items),
   };
 }

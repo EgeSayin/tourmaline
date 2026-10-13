@@ -1,6 +1,7 @@
 import { describe, expect } from "vitest";
 import { nightly } from "@/lib/downtime";
-import { loadShell, loadWeek } from "@/server/calendar";
+import { loadWeek } from "@/server/calendar";
+import { loadShell } from "@/server/shell";
 import { insertItem } from "@/server/db/items-repository";
 import { settings } from "@/server/db/schema";
 import { plannedToday, replanWorkspace } from "@/server/planning/saved-plan";
