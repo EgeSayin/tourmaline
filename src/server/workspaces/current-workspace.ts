@@ -12,6 +12,7 @@ import {
 } from "@/server/db/workspace-transaction";
 import { openSession } from "@/server/db/workspaces-repository";
 import { plannedToday, replanWorkspace } from "@/server/planning/saved-plan";
+import { SESSION_TOUCH_MIN } from "./guest-limits";
 
 /** The public demo: each visitor gets a guest workspace of their own. Otherwise there is one personal workspace. */
 export const DEMO_MODE = process.env.DEMO_MODE === "true";
@@ -24,7 +25,7 @@ const WELCOME_PATH = "/welcome";
 /** The workspace of the request's live session, if it has one. */
 export const sessionWorkspace = cache(async (): Promise<string | undefined> => {
   const token = (await cookies()).get(SESSION_COOKIE)?.value;
-  return token ? openSession(db, token, new Date()) : undefined;
+  return token ? openSession(db, token, new Date(), SESSION_TOUCH_MIN) : undefined;
 });
 
 /** The request's workspace, sending a demo visitor without a live session to the welcome page. */

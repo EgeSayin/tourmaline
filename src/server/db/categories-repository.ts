@@ -21,14 +21,12 @@ export async function insertCategory(tx: WorkspaceTx, category: NewCategory): Pr
   return id;
 }
 
-/** Returns `false` if no category has `id`. Throws if another category in the workspace has the same name. */
-export async function updateCategory(tx: WorkspaceTx, id: string, category: NewCategory): Promise<boolean> {
-  const updated = await tx
+/** Throws if another category in the workspace has the same name. */
+export async function updateCategory(tx: WorkspaceTx, id: string, category: NewCategory): Promise<void> {
+  await tx
     .update(categories)
     .set(category)
-    .where(and(ownedBy(tx, categories), eq(categories.id, id)))
-    .returning({ id: categories.id });
-  return updated.length > 0;
+    .where(and(ownedBy(tx, categories), eq(categories.id, id)));
 }
 
 export async function deleteCategory(tx: WorkspaceTx, id: string): Promise<boolean> {

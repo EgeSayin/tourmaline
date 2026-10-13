@@ -25,13 +25,8 @@ async function findPlacements(tx: WorkspaceTx, where: SQL | undefined): Promise<
 }
 
 /** Planned placements that ended by `now`, waiting to be reviewed, sorted by start. */
-export async function loadPlacementsToReview(tx: WorkspaceTx, now: Date): Promise<Placement[]> {
-  const rows = await tx
-    .select()
-    .from(placements)
-    .where(and(ownedBy(tx, placements), eq(placements.status, "planned"), lte(placements.endAt, now)))
-    .orderBy(asc(placements.startAt));
-  return rows.map(toPlacement);
+export function loadPlacementsToReview(tx: WorkspaceTx, now: Date): Promise<Placement[]> {
+  return findPlacements(tx, and(eq(placements.status, "planned"), lte(placements.endAt, now)));
 }
 
 /** Every placement of a task or of any occurrence of series `itemId`, sorted by start. */
@@ -40,9 +35,8 @@ export function loadItemPlacements(tx: WorkspaceTx, itemId: string): Promise<Pla
 }
 
 /** Every placement of a task or occurrence (by its occurrence id), sorted by start. */
-export async function loadTaskPlacements(tx: WorkspaceTx, taskId: string): Promise<Placement[]> {
-  const rows = await tx.select().from(placements).where(ofTask(tx, taskId)).orderBy(asc(placements.startAt));
-  return rows.map(toPlacement);
+export function loadTaskPlacements(tx: WorkspaceTx, taskId: string): Promise<Placement[]> {
+  return findPlacements(tx, ofTask(tx, taskId));
 }
 
 export async function loadPlacement(tx: WorkspaceTx, ref: PlacementRef): Promise<Placement | undefined> {

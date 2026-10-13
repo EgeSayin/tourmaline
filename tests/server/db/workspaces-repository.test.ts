@@ -8,6 +8,8 @@ import { loadSettings } from "@/server/db/settings-repository";
 import { PERSONAL_WORKSPACE_ID } from "@/server/db/workspace-transaction";
 import { createGuestWorkspace, deleteIdleWorkspaces, openSession } from "@/server/db/workspaces-repository";
 import { seedWorkspace } from "@/server/demo/seed-workspace";
+import { SESSION_TOUCH_MIN } from "@/server/workspaces/guest-limits";
+import { addMinutes } from "@/lib/time/duration";
 import { dbTest as it, savepoint } from "../../support/database";
 import { utc } from "../../support/intervals";
 
@@ -17,8 +19,8 @@ const week = utc("2026-10-01T00:00", "2026-10-15T00:00");
 describe("guest workspaces", () => {
   it("each sees and changes only its own data, through a session only its token opens", async ({ tx }) => {
     const guest = await createGuestWorkspace(tx);
-    expect(await openSession(tx, guest.token, now)).toBe(guest.workspaceId);
-    expect(await openSession(tx, `${guest.token}x`, now)).toBeUndefined();
+    expect(await openSession(tx, guest.token, now, SESSION_TOUCH_MIN)).toBe(guest.workspaceId);
+    expect(await openSession(tx, `${guest.token}x`, now, SESSION_TOUCH_MIN)).toBeUndefined();
 
     const inGuest = <T>(work: Parameters<typeof savepoint<T>>[1]) => savepoint(tx, work, guest.workspaceId);
     await inGuest((guestTx) => seedWorkspace(guestTx, now));
@@ -62,17 +64,17 @@ describe("guest workspaces", () => {
 
     const left = await tx.select({ id: workspaces.id }).from(workspaces);
     expect(left.map((workspace) => workspace.id).sort()).toEqual([PERSONAL_WORKSPACE_ID, recent.workspaceId].sort());
-    expect(await openSession(tx, idle.token, now)).toBeUndefined();
-    expect(await openSession(tx, recent.token, now)).toBe(recent.workspaceId);
+    expect(await openSession(tx, idle.token, now, SESSION_TOUCH_MIN)).toBeUndefined();
+    expect(await openSession(tx, recent.token, now, SESSION_TOUCH_MIN)).toBe(recent.workspaceId);
 
-    // Opening it marks it used, but not again within the next hour.
+    // Opening it marks it used, but not again within `SESSION_TOUCH_MIN`.
     const lastUsed = async () =>
       (await tx.select().from(workspaces).where(eq(workspaces.id, recent.workspaceId)))[0].lastUsedAt;
     expect(await lastUsed()).toEqual(now);
-    await openSession(tx, recent.token, new Date(now.getTime() + 59 * 60_000));
+    await openSession(tx, recent.token, addMinutes(now, SESSION_TOUCH_MIN - 1), SESSION_TOUCH_MIN);
     expect(await lastUsed()).toEqual(now);
-    const later = new Date(now.getTime() + 61 * 60_000);
-    await openSession(tx, recent.token, later);
+    const later = addMinutes(now, SESSION_TOUCH_MIN + 1);
+    await openSession(tx, recent.token, later, SESSION_TOUCH_MIN);
     expect(await lastUsed()).toEqual(later);
   });
 });
