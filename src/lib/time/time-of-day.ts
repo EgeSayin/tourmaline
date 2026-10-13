@@ -6,6 +6,12 @@ export interface DayRange {
   endMinute: number;
 }
 
+/**
+ * Ranges for each weekday, Monday first, each day's sorted with gaps between them. A stretch past midnight goes on as
+ * the next weekday's first range.
+ */
+export type WeeklyRanges = readonly (readonly DayRange[])[];
+
 const pad = (value: number) => String(value).padStart(2, "0");
 
 export function toTimeInputValue(minuteOfDay: number): string {

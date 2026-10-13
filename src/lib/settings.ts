@@ -11,7 +11,7 @@ export const NO_FOCUS_CAPS: FocusCaps = [null, null, null, null, null, null, nul
 
 export const focusCapField = (weekday: number) => `cap${weekday}`;
 
-/** Submitted as one "0" or "1" per `DOWNTIME_STEP_MIN` of the day. */
+/** Submitted as one "0" or "1" per `DAY_STEP_MIN` of the day. */
 export const downtimeField = (weekday: number) => `downtime${weekday}`;
 
 export interface SchedulerSettings {

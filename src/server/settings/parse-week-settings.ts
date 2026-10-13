@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { DOWNTIME_STEPS, fromSteps } from "@/lib/downtime";
+import { DAY_STEPS, fromSteps } from "@/lib/time/day-steps";
 import type { FormErrors } from "@/lib/form-state";
 import { WEEKDAYS } from "@/lib/recurrence";
 import { MINUTES_PER_DAY } from "@/lib/time/time-of-day";
@@ -18,7 +18,7 @@ const cap = z.preprocess(
     .nullable(),
 );
 
-const steps = z.string().regex(new RegExp(`^[01]{${DOWNTIME_STEPS}}$`), "Paint downtime on the calendar");
+const steps = z.string().regex(new RegExp(`^[01]{${DAY_STEPS}}$`), "Paint downtime on the calendar");
 
 const week = z.object({ caps: z.array(cap), downtime: z.array(steps) });
 
