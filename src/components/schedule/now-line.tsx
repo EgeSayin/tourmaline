@@ -1,13 +1,22 @@
 "use client";
 
-import { useCurrentMinute } from "@/hooks/use-current-minute";
 import { toLocal } from "@/lib/time/local-time";
 import { toTimeInputValue } from "@/lib/time/time-of-day";
 import type { TimeZone } from "@/lib/time/time-zone";
 import type { TimeScale } from "./time-scale";
 
-export function NowLine({ date, scale, timeZone }: { date: string; scale: TimeScale; timeZone: TimeZone }) {
-  const now = useCurrentMinute();
+/** `now` is the grid's one clock (see `useCurrentMinute`), `null` until it starts. */
+export function NowLine({
+  now,
+  date,
+  scale,
+  timeZone,
+}: {
+  now: Date | null;
+  date: string;
+  scale: TimeScale;
+  timeZone: TimeZone;
+}) {
   if (!now) return null;
   const local = toLocal(now, timeZone);
   const top = scale.top(local.minuteOfDay);

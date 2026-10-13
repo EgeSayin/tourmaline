@@ -7,6 +7,7 @@ import { BufferStrip, ScheduleBlock } from "./schedule-block";
 import { hourLines, type TimeScale } from "./time-scale";
 
 export function DayColumn({
+  now,
   date,
   blocks,
   downtime,
@@ -16,6 +17,7 @@ export function DayColumn({
   label,
   className = "",
 }: {
+  now: Date | null;
   date: string;
   label: string;
   blocks: CalendarBlock[];
@@ -28,7 +30,7 @@ export function DayColumn({
   return (
     <div role="group" aria-label={label} className={`relative border-l ${className}`} style={hourLines(scale, 4)}>
       <DowntimeBands ranges={downtime} scale={scale} />
-      <NowLine date={date} scale={scale} timeZone={timeZone} />
+      <NowLine now={now} date={date} scale={scale} timeZone={timeZone} />
       {blocks.map((block) =>
         block.buffers.map((buffer) => (
           <BufferStrip
