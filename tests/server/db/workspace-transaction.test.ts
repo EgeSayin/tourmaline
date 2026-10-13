@@ -61,4 +61,37 @@ describe("inWorkspace", () => {
 
     expect(await titles(tx)).toEqual(["Mine", "Taken"]);
   });
+
+  it("is held by every table with a workspace's rows, and reaches no other table", async ({ tx }) => {
+    // Read and written only by session code, as the owner.
+    const ownerOnly = ["sessions"];
+    const tables = await tx.execute<{
+      name: string;
+      scoped: boolean;
+      guarded: boolean;
+      any: boolean;
+      all: boolean;
+    }>(sql`
+      select c.relname as name,
+        c.relname = 'workspaces' or exists (
+          select from pg_attribute a where a.attrelid = c.oid and a.attname = 'workspace_id' and not a.attisdropped
+        ) as scoped,
+        c.relrowsecurity and exists (
+          select from pg_policy p where p.polrelid = c.oid and p.polname = 'own_rows'
+        ) as guarded,
+        has_table_privilege('workspace_user', c.oid, 'select, insert, update, delete') as any,
+        (select bool_and(has_table_privilege('workspace_user', c.oid, privilege))
+          from unnest(array['select', 'insert', 'update', 'delete']) privilege) as all
+      from pg_class c join pg_namespace n on n.oid = c.relnamespace
+      where n.nspname = 'public' and c.relkind = 'r'
+      order by c.relname
+    `);
+    const names = (has: (table: (typeof tables)[number]) => boolean) => tables.filter(has).map((table) => table.name);
+    const held = names((table) => table.scoped && !ownerOnly.includes(table.name));
+
+    expect(held).toContain("placements");
+    expect(names((table) => table.guarded)).toEqual(held);
+    expect(names((table) => table.any)).toEqual(held);
+    expect(names((table) => table.all)).toEqual(held);
+  });
 });
