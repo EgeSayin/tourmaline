@@ -11,19 +11,19 @@ import { type Segment, SegmentedControl } from "@/components/controls/segmented-
 import { parseDuration } from "@/lib/time/duration";
 import { formatDuration } from "@/lib/time/format";
 
-interface FormState {
+interface FieldValues {
   /** Submitted values, used as defaults so a failed submission doesn't clear the form. */
   values: Partial<Record<string, string>>;
   errors: Partial<Record<string, string[]>>;
 }
 
-const FormStateContext = createContext<FormState>({ values: {}, errors: {} });
+const FormStateContext = createContext<FieldValues>({ values: {}, errors: {} });
 
 export function useFormValue(name: string): string | undefined {
   return use(FormStateContext).values[name];
 }
 
-export function FormStateProvider({ children, ...state }: FormState & { children: React.ReactNode }) {
+export function FormStateProvider({ children, ...state }: FieldValues & { children: React.ReactNode }) {
   return <FormStateContext value={state}>{children}</FormStateContext>;
 }
 

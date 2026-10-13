@@ -6,7 +6,7 @@ import type { WorkspaceTx } from "@/server/db/workspace-transaction";
 import { insertItem } from "@/server/db/items-repository";
 import { insertPlacements } from "@/server/db/placements-repository";
 import { settings } from "@/server/db/schema";
-import { type Calendar, readCalendar } from "../support/calendar";
+import { type Pages, readPages } from "../support/pages";
 import { dbTest as it } from "../support/database";
 import { utc } from "../support/intervals";
 import { fixed, flexible } from "../support/items";
@@ -19,7 +19,7 @@ const auto = (taskId: string, times: { start: Date; end: Date }): Placement => (
   pinned: false,
   status: "planned",
 });
-const show = (calendar: Calendar | null) =>
+const show = (calendar: Pages | null) =>
   calendar!.blocks.map((block) => `${block.title} ${block.date} ${block.startMinute / 60}`);
 
 async function saveSettings(tx: WorkspaceTx) {
@@ -35,7 +35,7 @@ describe("the calendar and its lists", () => {
     const marathon = flexible("Marathon", 24 * 60, utc("2026-10-05T04:00", "2026-10-09T21:00"));
     const marathonId = await insertItem(tx, marathon);
 
-    const calendar = await readCalendar(tx, wednesdayNoon);
+    const calendar = await readPages(tx, wednesdayNoon);
 
     expect(calendar?.weekDates).toEqual([
       "2026-10-05",
@@ -71,15 +71,15 @@ describe("the calendar and its lists", () => {
     await insertPlacements(tx, [auto(essayId, utc("2026-09-30T14:00", "2026-09-30T15:00"))]); // Wed Sep 30, 10:00
     await insertItem(tx, flexible("Project", 60, utc("2026-10-12T14:00", "2026-10-16T21:00")));
 
-    const lastWeek = await readCalendar(tx, wednesdayNoon, Temporal.PlainDate.from("2026-10-01"));
+    const lastWeek = await readPages(tx, wednesdayNoon, Temporal.PlainDate.from("2026-10-01"));
     expect(lastWeek?.weekDates[0]).toBe("2026-09-28");
     expect(show(lastWeek)).toEqual(["Essay 2026-09-30 10"]);
-    expect(show(await readCalendar(tx, wednesdayNoon, Temporal.PlainDate.from("2026-10-12")))).toEqual([
+    expect(show(await readPages(tx, wednesdayNoon, Temporal.PlainDate.from("2026-10-12")))).toEqual([
       "Project 2026-10-12 10",
     ]);
 
     // Three days from Saturday reach into next week, so its blocks come along with the week's.
-    const saturday = await readCalendar(tx, wednesdayNoon, Temporal.PlainDate.from("2026-10-10"));
+    const saturday = await readPages(tx, wednesdayNoon, Temporal.PlainDate.from("2026-10-10"));
     expect(saturday?.dayDates).toEqual(["2026-10-10", "2026-10-11", "2026-10-12"]);
     expect(show(saturday)).toEqual(["Essay 2026-10-07 12", "Project 2026-10-12 10"]);
   });
@@ -102,7 +102,7 @@ describe("the calendar and its lists", () => {
       block("2026-10-07T15:30", "2026-10-07T16:30"), // in progress
     ]);
 
-    const calendar = await readCalendar(tx, wednesdayNoon);
+    const calendar = await readPages(tx, wednesdayNoon);
 
     const target = { item: { ...essay, id: essayId }, occurrenceDate: null };
     expect(calendar?.review).toEqual(
@@ -145,7 +145,7 @@ describe("the calendar and its lists", () => {
     const lectureId = await insertItem(tx, lecture);
     await insertPlacements(tx, [auto(`${lectureId}@2026-10-06`, utc("2026-10-06T14:00", "2026-10-06T15:00"))]);
 
-    const calendar = await readCalendar(tx, wednesdayNoon);
+    const calendar = await readPages(tx, wednesdayNoon);
     const standups = calendar!.blocks.filter((block) => block.title === "Standup");
 
     // Shown for the whole week, past the plan, each from its own occurrence.
@@ -164,7 +164,7 @@ describe("the calendar and its lists", () => {
     ).toMatchObject({ item: { id: lectureId }, occurrenceDate: "2026-10-06" });
 
     // A series that has ended opens as saved.
-    const lastWeek = await readCalendar(tx, wednesdayNoon, Temporal.PlainDate.from("2026-09-29"));
+    const lastWeek = await readPages(tx, wednesdayNoon, Temporal.PlainDate.from("2026-09-29"));
     expect(lastWeek!.blocks.find((block) => block.title === "Old club")?.target.item).toEqual({
       ...oldClub,
       id: oldClubId,
@@ -185,7 +185,7 @@ describe("the calendar and its lists", () => {
       { ...auto(notesId, utc("2026-10-06T14:00", "2026-10-06T15:00")), status: "missed" }, // Tue
     ]);
 
-    const calendar = await readCalendar(tx, wednesdayNoon);
+    const calendar = await readPages(tx, wednesdayNoon);
 
     expect(Object.keys(calendar!.loads)).toEqual(calendar!.weekDates);
     expect(calendar?.loads["2026-10-07"]).toEqual({ usedMin: 150, capMin: 180 });

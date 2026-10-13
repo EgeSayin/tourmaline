@@ -1,14 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { dayNavigation, daysFrom, parseDateParam, weekContaining, weekNavigation, weekOf } from "@/server/time/days";
+import { dayNavigation, daysFrom, parseDateParam, weekNavigation, weekOf } from "@/server/time/days";
+import { localDate } from "@/server/time/temporal";
 
-const at = (iso: string) => new Date(iso);
-
-describe("weekContaining and weekOf", () => {
+describe("weekOf", () => {
   it("returns the local Monday-to-Monday week, including at its edges and across DST", () => {
     const tz = "America/New_York";
+    const weekAt = (iso: string) => weekOf(localDate(new Date(iso), tz), tz);
 
     // Thu Oct 8 2026, 11:00 EDT.
-    const week = weekContaining(at("2026-10-08T15:00Z"), tz);
+    const week = weekAt("2026-10-08T15:00Z");
     expect(week.dates).toEqual([
       "2026-10-05",
       "2026-10-06",
@@ -22,11 +22,11 @@ describe("weekContaining and weekOf", () => {
     expect(weekOf(Temporal.PlainDate.from("2026-10-11"), tz)).toEqual(week); // any day of the week, Sunday included
 
     // Mon 00:00 starts the new week; Sun 23:59 still belongs to the old one.
-    expect(weekContaining(at("2026-10-12T04:00Z"), tz).dates[0]).toBe("2026-10-12");
-    expect(weekContaining(at("2026-10-12T03:59Z"), tz).dates[0]).toBe("2026-10-05");
+    expect(weekAt("2026-10-12T04:00Z").dates[0]).toBe("2026-10-12");
+    expect(weekAt("2026-10-12T03:59Z").dates[0]).toBe("2026-10-05");
 
     // Clocks go back on Sun Nov 1, so this week starts in EDT and ends in EST: 169 hours.
-    expect(weekContaining(at("2026-11-01T12:00Z"), tz).range).toEqual({
+    expect(weekAt("2026-11-01T12:00Z").range).toEqual({
       start: new Date("2026-10-26T04:00Z"),
       end: new Date("2026-11-02T05:00Z"),
     });

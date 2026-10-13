@@ -4,7 +4,7 @@ import type { CategoryColor } from "@/lib/categories";
 export const BLOCK_FILL = "bg-muted text-foreground";
 
 /** A block's fill comes from its category; the outline shows its kind and state. */
-export const CATEGORY_FILLS: Record<CategoryColor, string> = {
+const CATEGORY_FILLS: Record<CategoryColor, string> = {
   slate: "bg-slate-200 text-slate-950 dark:bg-slate-700/70 dark:text-slate-50",
   red: "bg-red-100 text-red-950 dark:bg-red-900/50 dark:text-red-50",
   orange: "bg-orange-100 text-orange-950 dark:bg-orange-900/50 dark:text-orange-50",

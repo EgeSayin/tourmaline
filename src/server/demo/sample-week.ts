@@ -99,7 +99,7 @@ function firstDate(recurrence: Recurrence, from: Temporal.PlainDate): string {
 }
 
 /** How many of the sample's seven days are already past, so every visitor starts the same way into it. */
-export const SAMPLE_DAYS_PAST = 2;
+const SAMPLE_DAYS_PAST = 2;
 
 /**
  * A student's seven days of fixed items and tasks, starting `SAMPLE_DAYS_PAST` days before `now`'s, and the categories

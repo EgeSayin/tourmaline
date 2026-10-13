@@ -7,7 +7,7 @@ import { insertItem, loadItem, setItemDone, setOccurrences } from "@/server/db/i
 import { insertPlacements } from "@/server/db/placements-repository";
 import { settings } from "@/server/db/schema";
 import { loadSchedule, loadTaskBlocks } from "@/server/tasks";
-import { readCalendar } from "../support/calendar";
+import { readPages } from "../support/pages";
 import { dbTest as it } from "../support/database";
 import { utc } from "../support/intervals";
 import { fixed, flexible, unsaved } from "../support/items";
@@ -34,7 +34,7 @@ describe("the task list", () => {
       recurrence: daily,
     });
 
-    const tasks = (await readCalendar(tx, wednesdayNoon))!.tasks;
+    const tasks = (await readPages(tx, wednesdayNoon))!.items;
 
     expect(tasks.map(({ id, kind, recurring, when, status }) => ({ id, kind, recurring, when, status }))).toEqual([
       { id: party, kind: "event", recurring: false, when: new Date("2026-10-03T23:00Z"), status: "past" },

@@ -19,7 +19,7 @@ export const DEMO_MODE = process.env.DEMO_MODE === "true";
 export const SESSION_COOKIE = "session";
 
 /** Where a demo visitor without a session starts one. */
-export const WELCOME_PATH = "/welcome";
+const WELCOME_PATH = "/welcome";
 
 /** The workspace of the request's live session, if it has one. */
 export const sessionWorkspace = cache(async (): Promise<string | undefined> => {
@@ -28,7 +28,7 @@ export const sessionWorkspace = cache(async (): Promise<string | undefined> => {
 });
 
 /** The request's workspace, sending a demo visitor without a live session to the welcome page. */
-export async function currentWorkspace(): Promise<string> {
+async function currentWorkspace(): Promise<string> {
   if (!DEMO_MODE) return PERSONAL_WORKSPACE_ID;
   return (await sessionWorkspace()) ?? redirect(WELCOME_PATH);
 }

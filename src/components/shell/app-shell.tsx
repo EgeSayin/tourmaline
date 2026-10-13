@@ -73,7 +73,7 @@ export function AppShell({
 }
 
 /** `region` names the page's main section; `nav` pages are in the page switch. */
-export const PAGES = [
+const PAGES = [
   { page: "calendar", href: "/", label: "Calendar", region: "Calendar", Icon: CalendarDays, nav: true },
   { page: "tasks", href: "/tasks", label: "Tasks", region: "Task list", Icon: ListTodo, nav: true },
   { page: "categories", href: "/categories", label: "Categories", region: "Category list", Icon: Tags, nav: true },

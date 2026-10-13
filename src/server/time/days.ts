@@ -1,16 +1,11 @@
 import type { TimeZone } from "@/lib/time/time-zone";
 import type { Interval } from "@/lib/time/interval";
-import { localDate, startOfDay } from "@/server/time/temporal";
+import { startOfDay } from "@/server/time/temporal";
 
 export interface Days {
   dates: string[];
   /** From the first day's midnight to the midnight after the last, local time. */
   range: Interval;
-}
-
-/** The Monday-to-Sunday week, in local time, that contains `time`. */
-export function weekContaining(time: Date, timeZone: TimeZone): Days {
-  return weekOf(localDate(time, timeZone), timeZone);
 }
 
 export const PHONE_DAY_COUNT = 3;

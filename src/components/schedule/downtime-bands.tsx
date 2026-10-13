@@ -1,7 +1,7 @@
 import type { DayRange } from "@/lib/time/time-of-day";
 import type { TimeScale } from "./time-scale";
 
-export const DOWNTIME_STYLE = "bg-muted-foreground/15";
+const DOWNTIME_STYLE = "bg-muted-foreground/15";
 
 export function DowntimeBands({ ranges, scale }: { ranges: readonly DayRange[]; scale: TimeScale }) {
   return ranges.map(({ startMinute, endMinute }) => {
