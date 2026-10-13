@@ -59,7 +59,7 @@ test.describe("calendar navigation", () => {
     const bar = page.getByRole("navigation", { name: "Views" });
     const calendar = bar.getByRole("link", { name: "Calendar" });
 
-    await bar.getByRole("button", { name: /^Queue/ }).click();
+    await bar.getByRole("button", { name: /^Lists/ }).click();
     await expect(page.getByRole("radiogroup", { name: "Lists" })).toBeVisible();
     await expect(calendar).not.toHaveAttribute("aria-current");
     await calendar.click();

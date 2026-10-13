@@ -68,13 +68,13 @@ export async function openItemForEditing(page: Page, testInfo: TestInfo, title: 
   return itemEditor(page);
 }
 
-/** Shows the calendar's task queue: the lists' Queue tab, behind the bottom tab on phones. */
+/** Shows the calendar's task queue: the lists' Queue tab, behind the bottom Lists tab on phones. */
 export async function showQueue(page: Page, testInfo: TestInfo) {
   await page.goto("/");
   if (isPhone(testInfo)) {
     await page
       .getByRole("navigation", { name: "Views" })
-      .getByRole("button", { name: /^Queue/ })
+      .getByRole("button", { name: /^Lists/ })
       .click();
   }
   await page

@@ -1,6 +1,6 @@
 "use client";
 
-import { Hourglass } from "lucide-react";
+import { Inbox } from "lucide-react";
 import Link from "next/link";
 import { createContext, use, useState } from "react";
 import { SegmentedControl } from "@/components/controls/segmented-control";
@@ -121,16 +121,16 @@ export function Workspace({
           ))}
           <button
             type="button"
-            aria-label={counted("Queue", waiting)}
+            aria-label={counted("Lists", waiting)}
             aria-pressed={phoneView === "lists"}
             onClick={() => setPhoneView("lists")}
             className={PHONE_TAB}
           >
             <span className="relative">
-              <Hourglass className="size-5" />
+              <Inbox className="size-5" />
               <Count n={waiting} className="absolute -top-1.5 -right-2.5" />
             </span>
-            Queue
+            Lists
           </button>
         </nav>
       }
