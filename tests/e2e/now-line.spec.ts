@@ -17,7 +17,8 @@ test.describe("now line", () => {
         .getByRole("separator", { name: "Now, 12:00" }),
     ).toBeVisible();
 
-    await page.clock.runFor(30 * 60_000);
-    await expect(now).toHaveAccessibleName("Now, 12:30");
+    // Less than `CLIENT_CACHE_SECONDS`: a stale page fetches itself again, and closing it mid-fetch logs an error.
+    await page.clock.runFor(2 * 60_000);
+    await expect(now).toHaveAccessibleName("Now, 12:02");
   });
 });
