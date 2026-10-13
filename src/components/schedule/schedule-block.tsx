@@ -3,7 +3,7 @@
 import { Pin } from "lucide-react";
 import { useCategoryFilter } from "@/components/categories/category-filter";
 import { PLACEMENT_STATE_LABELS } from "@/components/items/placement-state";
-import type { CalendarBlock } from "@/lib/calendar-blocks";
+import type { CalendarBlock, Laid } from "@/lib/calendar-blocks";
 import { matchesFilter } from "@/lib/categories";
 import { formatTimeRange } from "@/lib/time/format";
 import type { TimeZone } from "@/lib/time/time-zone";
@@ -16,7 +16,7 @@ export function ScheduleBlock({
   timeZone,
   onSelect,
 }: {
-  block: CalendarBlock;
+  block: Laid<CalendarBlock>;
   scale: TimeScale;
   timeZone: TimeZone;
   onSelect: () => void;
@@ -72,7 +72,7 @@ export function BufferStrip({
   scale,
   onSelect,
 }: {
-  block: CalendarBlock;
+  block: Laid<CalendarBlock>;
   buffer: CalendarBlock["buffers"][number];
   scale: TimeScale;
   onSelect: () => void;

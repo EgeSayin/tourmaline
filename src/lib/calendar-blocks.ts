@@ -39,8 +39,6 @@ export interface CalendarBlock {
   date: string;
   startMinute: number;
   endMinute: number;
-  lane: number;
-  lanes: number;
   target: EditTarget;
   placement: BlockPlacement | null;
   /**
@@ -52,7 +50,10 @@ export interface CalendarBlock {
   buffers: { startMinute: number; endMinute: number }[];
 }
 
-/** Positions blocks on the local day they start, cut off at midnight. Placements whose item is gone are skipped. */
+/**
+ * Positions blocks on the local day they start, cut off at midnight; `withLanes` then lays out those shown. Placements
+ * whose item is gone are skipped.
+ */
 export function toCalendarBlocks(
   fixedItems: FixedItem[],
   placements: Placement[],
@@ -125,22 +126,20 @@ export function toCalendarBlocks(
     overlaps(task, item.busy);
   const clash = (block: Positioned, other: Positioned) => other !== block && overlaps(block, other);
 
-  return withLanes(
-    positioned.map((block) => {
-      const { busy: _, ...shown } = block;
-      if (block.placement !== null) {
-        return {
-          ...shown,
-          conflict: staying.includes(block) && fixed.some((f) => clash(block, f) && !displaces(block, f)),
-        };
-      }
+  return positioned.map((block): CalendarBlock => {
+    const { busy: _, ...shown } = block;
+    if (block.placement !== null) {
       return {
         ...shown,
-        style: tasks.some((task) => displaces(task, block)) ? "displaced" : shown.style,
-        conflict: fixed.some((f) => clash(block, f)) || staying.some((t) => clash(block, t) && !displaces(t, block)),
+        conflict: staying.includes(block) && fixed.some((f) => clash(block, f) && !displaces(block, f)),
       };
-    }),
-  );
+    }
+    return {
+      ...shown,
+      style: tasks.some((task) => displaces(task, block)) ? "displaced" : shown.style,
+      conflict: fixed.some((f) => clash(block, f)) || staying.some((t) => clash(block, t) && !displaces(t, block)),
+    };
+  });
 }
 
 export interface DaySpan {
@@ -149,8 +148,10 @@ export interface DaySpan {
   endMinute: number;
 }
 
+export type Laid<T> = T & { lane: number; lanes: number };
+
 /** Overlapping spans on a date get different lanes, and all of a group share its lane count. */
-export function withLanes<T extends DaySpan>(spans: T[]): (T & { lane: number; lanes: number })[] {
+export function withLanes<T extends DaySpan>(spans: T[]): Laid<T>[] {
   const laid = spans.map((span) => ({ ...span, lane: 0, lanes: 1 }));
   const order = [...laid].sort(
     (a, b) => a.date.localeCompare(b.date) || a.startMinute - b.startMinute || b.endMinute - a.endMinute,

@@ -1,4 +1,4 @@
-import type { CalendarBlock } from "@/lib/calendar-blocks";
+import type { CalendarBlock, Laid } from "@/lib/calendar-blocks";
 import type { DayRange } from "@/lib/time/time-of-day";
 import type { TimeZone } from "@/lib/time/time-zone";
 import { DowntimeBands } from "./downtime-bands";
@@ -20,7 +20,7 @@ export function DayColumn({
   now: Date | null;
   date: string;
   label: string;
-  blocks: CalendarBlock[];
+  blocks: Laid<CalendarBlock>[];
   downtime: readonly DayRange[];
   scale: TimeScale;
   timeZone: TimeZone;

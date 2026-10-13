@@ -2,7 +2,7 @@
 
 import { useCurrentMinute } from "@/hooks/use-current-minute";
 import { useBlockPanel, useShownBlocks } from "./block-panel-state";
-import type { CalendarBlock } from "@/lib/calendar-blocks";
+import { type CalendarBlock, withLanes } from "@/lib/calendar-blocks";
 import type { Downtime } from "@/lib/downtime";
 import { formatDuration, formatLocalDate, formatLocalWeekday, localWeekdayIndex } from "@/lib/time/format";
 import type { TimeZone } from "@/lib/time/time-zone";
@@ -33,6 +33,7 @@ export function CalendarGrid({
   useShownBlocks(blocks);
   const now = useCurrentMinute();
   const scale = timeScaleFor(blocks, downtime);
+  const laid = withLanes(blocks);
   const dates = [...new Set([...weekDates, ...dayDates])].sort();
   // Hidden columns take no grid track, so each breakpoint's column count matches its visible dates.
   const shownOn = (date: string) =>
@@ -76,7 +77,7 @@ export function CalendarGrid({
             date={date}
             label={formatLocalDate(date)}
             className={shownOn(date)}
-            blocks={blocks.filter((block) => block.date === date)}
+            blocks={laid.filter((block) => block.date === date)}
             downtime={downtime[localWeekdayIndex(date)]}
             scale={scale}
             timeZone={timeZone}
