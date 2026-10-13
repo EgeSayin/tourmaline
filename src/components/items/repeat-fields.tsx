@@ -1,4 +1,4 @@
-import { FormInput, FormSection, FormSelect, FormToggleGroup } from "@/components/forms/form-fields";
+import { FormInput, FormSelect, FormToggleGroup } from "@/components/forms/form-fields";
 import { type Repeat, REPEAT_OPTIONS } from "@/lib/item-form";
 import { WEEKDAYS } from "@/lib/recurrence";
 import { WEEKDAY_NAMES } from "@/lib/time/format";
@@ -7,9 +7,15 @@ const REPEAT_LABELS = { none: "Doesn't repeat", daily: "Daily", weekly: "Weekly"
 
 const WEEKDAY_OPTIONS = WEEKDAYS.map((day) => ({ value: String(day), label: WEEKDAY_NAMES[day - 1] }));
 
-export function RepeatFields({ repeat, onRepeatChange }: { repeat: Repeat; onRepeatChange: (repeat: Repeat) => void }) {
+interface RepeatProps {
+  repeat: Repeat;
+  onRepeatChange: (repeat: Repeat) => void;
+}
+
+/** How often an item repeats, with the rule's own fields right under it once it does. */
+export function RepeatFields({ repeat, onRepeatChange }: RepeatProps) {
   return (
-    <FormSection title="Repeat">
+    <>
       <FormSelect
         name="repeat"
         label="How often"
@@ -38,6 +44,6 @@ export function RepeatFields({ repeat, onRepeatChange }: { repeat: Repeat; onRep
           />
         </div>
       )}
-    </FormSection>
+    </>
   );
 }

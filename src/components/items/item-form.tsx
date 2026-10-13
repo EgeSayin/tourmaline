@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { CategorySelect } from "./category-select";
 import { DeleteButton } from "@/components/forms/delete-button";
-import { FormChoice, FormInput, FormStateProvider } from "@/components/forms/form-fields";
+import { FormChoice, FormInput, FormSection, FormStateProvider } from "@/components/forms/form-fields";
 import { Button } from "@/components/ui/button";
 import { FieldGroup } from "@/components/ui/field";
 import { itemToFormValues, type Repeat } from "@/lib/item-form";
@@ -12,9 +12,9 @@ import { isTask, type Item, PRIORITIES, type Priority } from "@/lib/items";
 import type { TimeZone } from "@/lib/time/time-zone";
 import { useFormAction } from "@/hooks/use-form-action";
 import { createItemAction, deleteItemAction, updateItemAction } from "@/server/items/actions";
-import { FixedItemFields } from "./fixed-item-fields";
-import { TaskFields } from "./task-fields";
+import { BufferFields, FixedTimeFields } from "./fixed-item-fields";
 import { RepeatFields } from "./repeat-fields";
+import { DurationField, TaskScheduleSection, TaskWindowFields } from "./task-fields";
 import { TaskDoneButton } from "./task-done-button";
 import { TimingSwitch } from "./timing-switch";
 
@@ -66,8 +66,14 @@ export function ItemForm({
             options={PRIORITY_OPTIONS}
             defaultValue={timing === "fixed" ? "mandatory" : "normal"}
           />
-          {timing === "fixed" ? <FixedItemFields /> : <TaskFields repeat={repeat} />}
-          <RepeatFields repeat={repeat} onRepeatChange={setRepeat} />
+          {timing === "fixed" && <FormInput name="location" label="Location (optional)" />}
+          {/* The repeat rule keeps its place as the kind changes, so what's entered in it stays. */}
+          <FormSection title="When">
+            {timing === "fixed" ? <FixedTimeFields /> : <DurationField />}
+            <RepeatFields repeat={repeat} onRepeatChange={setRepeat} />
+            {timing === "fixed" ? <BufferFields /> : <TaskWindowFields repeat={repeat} />}
+          </FormSection>
+          {timing === "flexible" && <TaskScheduleSection />}
         </FieldGroup>
       </FormStateProvider>
 
