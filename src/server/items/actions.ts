@@ -1,6 +1,6 @@
 "use server";
 
-import { changeWorkspace } from "@/server/workspaces/current-workspace";
+import { changeWorkspace, changeWorkspaceForm } from "@/server/workspaces/current-workspace";
 import { type FormState, formFields } from "@/lib/form-state";
 import { z } from "zod";
 import { loadSettings } from "@/server/db/settings-repository";
@@ -37,7 +37,7 @@ async function parseSubmission(tx: WorkspaceTx, formData: FormData, now: Date) {
 // An item or block another tab deleted meanwhile is left alone: the refreshed page shows it gone.
 
 export async function createItemAction(_previous: FormState, formData: FormData): Promise<FormState> {
-  return changeWorkspace(async (tx, now): Promise<FormState> => {
+  return changeWorkspaceForm(async (tx, now) => {
     const { fields, parsed } = await parseSubmission(tx, formData, now);
     if (!parsed.ok) return { status: "invalid", errors: parsed.errors, fields };
     await createItem(tx, parsed.item);
@@ -47,7 +47,7 @@ export async function createItemAction(_previous: FormState, formData: FormData)
 
 export async function updateItemAction(id: string, _previous: FormState, formData: FormData): Promise<FormState> {
   const validId = itemId.parse(id);
-  return changeWorkspace(async (tx, now): Promise<FormState> => {
+  return changeWorkspaceForm(async (tx, now) => {
     const { fields, timeZone, parsed } = await parseSubmission(tx, formData, now);
     if (!parsed.ok) return { status: "invalid", errors: parsed.errors, fields };
     await editItem(tx, validId, parsed.item, now, timeZone);

@@ -1,6 +1,6 @@
 "use server";
 
-import { changeWorkspace } from "@/server/workspaces/current-workspace";
+import { changeWorkspace, changeWorkspaceForm } from "@/server/workspaces/current-workspace";
 import { type FormState, formFields } from "@/lib/form-state";
 import { z } from "zod";
 import { deleteCategory, insertCategory, loadCategories, updateCategory } from "@/server/db/categories-repository";
@@ -17,8 +17,8 @@ export async function saveCategoryAction(
 ): Promise<FormState> {
   const validId = id === null ? null : categoryId.parse(id);
   const fields = formFields(formData);
-  return changeWorkspace(
-    async (tx): Promise<FormState> => {
+  return changeWorkspaceForm(
+    async (tx) => {
       const parsed = parseCategoryForm(fields, await loadCategories(tx), validId);
       if (!parsed.ok) return { status: "invalid", errors: parsed.errors, fields };
       if (validId === null) await insertCategory(tx, parsed.category);

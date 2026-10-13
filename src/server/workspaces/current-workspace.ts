@@ -49,17 +49,23 @@ export async function readWorkspace<T>(work: (tx: WorkspaceTx, now: Date) => Pro
   return readInWorkspace(db, workspaceId, (tx) => work(tx, now));
 }
 
+type Change<T> = (tx: WorkspaceTx, now: Date) => Promise<T>;
+
 /**
  * Runs `work`, a change, in the request's workspace holding its lock (see `inWorkspace`), then plans it again and
- * refreshes the page; not if `work` returns an invalid form, which changed nothing. `replan: false` is for changes to
- * what the plan isn't made from.
+ * refreshes the page. `replan: false` is for changes to what the plan isn't made from.
  */
-export async function changeWorkspace<T>(
-  work: (tx: WorkspaceTx, now: Date) => Promise<T>,
-  { replan = true } = {},
-): Promise<T> {
+export async function changeWorkspace(work: Change<unknown>, { replan = true } = {}): Promise<void> {
+  await change(work, () => true, replan);
+}
+
+/** Like `changeWorkspace`, for a form: an invalid one changed nothing, so it isn't planned again or refreshed. */
+export function changeWorkspaceForm(work: Change<FormState>, { replan = true } = {}): Promise<FormState> {
+  return change(work, (state) => state.status !== "invalid", replan);
+}
+
+async function change<T>(work: Change<T>, changed: (result: T) => boolean, replan: boolean): Promise<T> {
   const now = new Date();
-  const changed = (result: T) => (result as FormState | undefined)?.status !== "invalid";
   const result = await inWorkspace(db, await currentWorkspace(), async (tx) => {
     const result = await work(tx, now);
     if (replan && changed(result)) await replanWorkspace(tx, now);
