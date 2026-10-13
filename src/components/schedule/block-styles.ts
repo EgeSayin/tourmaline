@@ -9,10 +9,10 @@ export function blockFill(color: CategoryColor | null): string {
   return color ? CATEGORY_COLOR_CLASSES[color].fill : BLOCK_FILL;
 }
 
-/** A fixed item's buffer: its fill striped with the page background, faded, without an outline. */
+/** A fixed item's buffer: its fill striped with the page background, slightly faded, without an outline. */
 export const BUFFER_STYLE = {
   label: "Buffer",
-  className: "opacity-60",
+  className: "opacity-90",
   style: {
     backgroundImage: "repeating-linear-gradient(135deg, transparent 0 3px, var(--background) 3px 6px)",
   } satisfies React.CSSProperties,
