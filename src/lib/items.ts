@@ -44,6 +44,11 @@ export interface Task extends BaseItem {
   deadline: Date;
   split: ChunkSizes | null;
   spread: SpreadStrategy;
+  /**
+   * For a repeating task: each occurrence is due by the end of its own period, its `interval` days or weeks, when that
+   * comes before the next occurrence, so time it misses is never planned past it. Always `false` for a one-off task.
+   */
+  withinPeriod: boolean;
   /** Marked done as a whole, so it isn't planned. An occurrence's comes from its state. */
   done: boolean;
 }

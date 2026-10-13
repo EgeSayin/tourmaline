@@ -53,6 +53,7 @@ export function flexible(title: string, durationMin: number, window: Interval, p
     deadline: window.end,
     split: null,
     spread: "asap",
+    withinPeriod: false,
     done: false,
   };
 }

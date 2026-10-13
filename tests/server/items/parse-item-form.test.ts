@@ -77,6 +77,7 @@ describe("parseItemForm", () => {
         deadline: new Date("2026-11-02T22:00Z"), // 17:00 EST, after clocks go back
         split: { minChunkMin: 30, maxChunkMin: 60 },
         spread: "just-in-time",
+        withinPeriod: false,
       },
     });
   });
@@ -183,6 +184,15 @@ describe("parseItemForm", () => {
     expect(
       parseItemForm({ ...gym, earliestStart: "2026-09-23T10:00", repeat: "weekly", weekdays: "1,5" }, tz, now),
     ).toMatchObject({ ok: true, item: { deadline: new Date("2026-09-28T14:00Z") } });
+
+    // Kept within its day: due at midnight instead, and only a repeating task can be.
+    expect(parseItemForm({ ...gym, catchUp: "in-period" }, tz, now)).toMatchObject({
+      ok: true,
+      item: { withinPeriod: true, deadline: new Date("2026-11-01T04:00Z") },
+    });
+    expect(
+      parseItemForm({ ...gym, repeat: "none", deadline: "2026-11-02T18:00", catchUp: "in-period" }, tz, now),
+    ).toMatchObject({ ok: true, item: { withinPeriod: false } });
   });
 
   it("reports invalid repeat rules", () => {
@@ -248,9 +258,15 @@ describe("parseItemForm", () => {
       recurrence: { frequency: "daily", interval: 1, until: null } satisfies Recurrence,
     };
 
+    const dailyLunch = {
+      ...flexible("Lunch", 45, { start: new Date("2026-10-05T15:30Z"), end: new Date("2026-10-06T04:00Z") }),
+      recurrence: { frequency: "daily", interval: 1, until: null } satisfies Recurrence,
+      withinPeriod: true,
+    };
+
     // The form leaves out what's stored apart from the item's own fields: its id, occurrence states and whether it's
     // done.
-    for (const { id, occurrences, ...item } of [lecture, essay, weeklyLecture, dailyGym]) {
+    for (const { id, occurrences, ...item } of [lecture, essay, weeklyLecture, dailyGym, dailyLunch]) {
       const parsed = parseItemForm(itemToFormValues({ id, occurrences, ...item }, tz), tz, now);
       const { done: _, ...fields } = { done: false, ...item };
       expect(parsed.ok && parsed.item).toEqual(fields);

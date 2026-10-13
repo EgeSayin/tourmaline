@@ -160,6 +160,34 @@ describe("syncPlan", () => {
     }
   });
 
+  it("plans a missed occurrence of a task kept within its day again only that day, or queues it until the day ends", async ({
+    tx,
+  }) => {
+    // Daily from 11:30, due by midnight; today's was missed.
+    const lunchId = await insertItem(tx, {
+      ...flexible("Lunch", 45, utc("2026-10-05T15:30", "2026-10-06T04:00")),
+      recurrence: daily,
+      withinPeriod: true,
+    });
+    const today = `${lunchId}@2026-10-07`;
+    const missed = auto(today, utc("2026-10-07T15:30", "2026-10-07T16:15"), "missed");
+    await insertPlacements(tx, [missed]);
+    const todays = (result: { placements: Placement[] }) => result.placements.filter((p) => p.taskId === today);
+
+    // The plan leaves the missed block out and gives its time back.
+    expect(todays(await plan(tx, wednesdayNoon))).toEqual([auto(today, utc("2026-10-07T16:00", "2026-10-07T16:45"))]);
+
+    // The rest of the day is taken: it waits in the queue rather than going to tomorrow morning.
+    await insertItem(tx, fixed("Workshop", utc("2026-10-07T16:00", "2026-10-08T03:00")));
+    const full = await plan(tx, wednesdayNoon);
+    expect(todays(full)).toEqual([]);
+    expect(full.unplaced.map((task) => [task.id, task.durationMin])).toEqual([[today, 45]]);
+
+    // Once the day is over, it's gone.
+    const thursdayNoon = new Date("2026-10-08T16:00Z");
+    expect((await plan(tx, thursdayNoon)).unplaced).toEqual([]);
+  });
+
   it("drops pending blocks past the plan's end when it shrinks", async ({ tx }) => {
     // The appointment on Friday makes the plan reach Friday's gym.
     const appointmentId = await insertItem(tx, fixed("Appointment", utc("2026-10-09T14:00", "2026-10-09T15:00")));

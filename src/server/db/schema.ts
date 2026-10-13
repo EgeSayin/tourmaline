@@ -171,12 +171,14 @@ export const tasks = pgTable(
     splitMinChunkMin: integer("split_min_chunk_min"),
     splitMaxChunkMin: integer("split_max_chunk_min"),
     spread: spreadEnum("spread").notNull(),
+    withinPeriod: boolean("within_period").notNull().default(false),
     /** A one-off task marked done; occurrences use their state. Not part of the task's own fields. */
     done: boolean("done").notNull().default(false),
   },
   (t) => [
     ...itemConstraints("tasks", t),
     check("tasks_window", sql`${t.earliestStart} < ${t.deadline}`),
+    check("tasks_within_period", sql`not ${t.withinPeriod} or ${t.recurrence} is not null`),
     check("tasks_duration", sql`${t.durationMin} > 0 and ${t.durationMin} % ${slotMin} = 0`),
     check(
       "tasks_split",

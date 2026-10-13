@@ -157,6 +157,52 @@ describe("expandOccurrences", () => {
     expect(ids(expandOccurrences(gym, utc("2026-10-10T04:00", "2026-10-11T04:00"), tz))).toEqual(["Gym@2026-10-09"]);
   });
 
+  it("ends a task occurrence kept within its period at the end of its days or weeks, if before the next one", () => {
+    const keptWithin = (title: string, recurrence: Recurrence, start: string) => ({
+      ...flexible(title, 60, utc(start, start)),
+      recurrence,
+      withinPeriod: true,
+    });
+    const window = ({ id, ...task }: ReturnType<typeof keptWithin>, start: string, end: string) => {
+      const { start: earliestStart, end: deadline } = utc(start, end);
+      return { ...task, earliestStart, deadline, id: `${id}@${start.slice(0, 10)}` };
+    };
+    const daily = (interval: number): Recurrence => ({ frequency: "daily", interval, until: null });
+
+    // Daily from Thu Oct 1, 11:30 EDT: by midnight, or the midnight two days on when every other day.
+    const lunch = keptWithin("Lunch", daily(1), "2026-10-01T15:30");
+    expect(expandOccurrences(lunch, utc("2026-10-01T04:00", "2026-10-02T04:00"), tz)).toEqual([
+      window(lunch, "2026-10-01T15:30", "2026-10-02T04:00"),
+    ]);
+    const lunchEveryOtherDay = keptWithin("Lunch", daily(2), "2026-10-01T15:30");
+    expect(expandOccurrences(lunchEveryOtherDay, utc("2026-10-01T04:00", "2026-10-02T04:00"), tz)).toEqual([
+      window(lunchEveryOtherDay, "2026-10-01T15:30", "2026-10-03T04:00"),
+    ]);
+
+    // Every other Wednesday from Oct 7, 10:00 EDT: its two weeks, counted from Mon Oct 5, end on a Monday midnight,
+    // in EST after the clocks go back on Sun Nov 1.
+    const laundry = keptWithin(
+      "Laundry",
+      { frequency: "weekly", interval: 2, weekdays: [3], until: null },
+      "2026-10-07T14:00",
+    );
+    expect(expandOccurrences(laundry, utc("2026-10-05T04:00", "2026-11-02T05:00"), tz)).toEqual([
+      window(laundry, "2026-10-07T14:00", "2026-10-19T04:00"),
+      window(laundry, "2026-10-21T14:00", "2026-11-02T05:00"),
+    ]);
+
+    // Mondays and Fridays: Monday's ends when Friday's starts, Friday's at Monday midnight, not Monday 10:00.
+    const gym = keptWithin(
+      "Gym",
+      { frequency: "weekly", interval: 1, weekdays: [1, 5], until: null },
+      "2026-10-05T14:00",
+    );
+    expect(expandOccurrences(gym, utc("2026-10-05T04:00", "2026-10-12T04:00"), tz)).toEqual([
+      window(gym, "2026-10-05T14:00", "2026-10-09T14:00"),
+      window(gym, "2026-10-09T14:00", "2026-10-12T04:00"),
+    ]);
+  });
+
   it("returns a one-off item unchanged, whatever the range", () => {
     const essay = flexible("Essay", 60, utc("2026-10-05T14:00", "2026-10-09T14:00"));
 

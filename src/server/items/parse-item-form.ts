@@ -1,6 +1,6 @@
 import { z } from "zod";
 import type { FormErrors } from "@/lib/form-state";
-import { REPEAT_OPTIONS } from "@/lib/item-form";
+import { CATCH_UP_OPTIONS, REPEAT_OPTIONS } from "@/lib/item-form";
 import { type NewItem, PRIORITIES, SPREAD_STRATEGIES } from "@/lib/items";
 import { SLOT_MIN } from "@/lib/placements";
 import { type Recurrence, WEEKDAYS } from "@/lib/recurrence";
@@ -73,6 +73,7 @@ const flexibleForm = z
     minChunkMin: z.preprocess(toNumber, taskMinutes.optional()),
     maxChunkMin: z.preprocess(toNumber, taskMinutes.optional()),
     spread: z.preprocess(emptyToUndefined, z.enum(SPREAD_STRATEGIES).default("asap")),
+    catchUp: z.preprocess(emptyToUndefined, z.enum(CATCH_UP_OPTIONS).default("later")),
   })
   .refine(weekdaysChosen.check, weekdaysChosen.params)
   .refine((form) => form.repeat !== "none" || form.deadline !== undefined, {
@@ -106,7 +107,8 @@ export type ParsedItemForm = { ok: true; item: NewItem } | { ok: false; errors: 
  * Validates submitted form fields and converts their local times to exact times in `timeZone`. A fixed item ending at
  * an earlier time than it starts ends the next day.
  * A one-off flexible task without an earliest start starts at `now`, and its deadline must be after `now`.
- * A recurring item must occur at least once; a recurring task is due when its first occurrence's window ends.
+ * A recurring item must occur at least once; a recurring task is due when its first occurrence's window ends. Only a
+ * recurring task can be kept within its period.
  */
 export function parseItemForm(fields: Record<string, unknown>, timeZone: TimeZone, now: Date): ParsedItemForm {
   const parsed = itemFormSchema.safeParse(fields);
@@ -152,6 +154,7 @@ export function parseItemForm(fields: Record<string, unknown>, timeZone: TimeZon
         ? { minChunkMin: form.minChunkMin, maxChunkMin: form.maxChunkMin }
         : null,
     spread: form.spread,
+    withinPeriod: recurrence !== null && form.catchUp === "in-period",
   };
   const earliestStart = form.earliestStart ? at(form.earliestStart) : now;
 

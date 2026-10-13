@@ -30,6 +30,7 @@ const essay: NewTask = {
   deadline: new Date("2026-10-09T21:00:00Z"),
   split: { minChunkMin: 30, maxChunkMin: 90 },
   spread: "just-in-time",
+  withinPeriod: false,
 };
 
 /** `item` as loaded: with its id and occurrence states, and a task not done. */
@@ -92,15 +93,20 @@ describe("items repository", () => {
     });
   });
 
-  it("rejects task durations and chunk sizes off the 5-minute grid", async ({ tx }) => {
-    const offGrid: NewItem[] = [
+  it("rejects task durations and chunk sizes off the 5-minute grid, and a one-off task kept within a period", async ({
+    tx,
+  }) => {
+    const invalid: NewItem[] = [
       { ...essay, durationMin: 62 },
       { ...essay, split: { minChunkMin: 32, maxChunkMin: 90 } },
       { ...essay, split: { minChunkMin: 30, maxChunkMin: 92 } },
+      { ...essay, withinPeriod: true },
     ];
-    for (const item of offGrid) {
+    for (const item of invalid) {
       await expect(savepoint(tx, (inner) => insertItem(inner, item))).rejects.toThrow();
     }
     await expect(insertItem(tx, essay)).resolves.toBeTypeOf("string");
+    const weekly = { ...essay, recurrence: lecture.recurrence, withinPeriod: true };
+    expect(await loadItem(tx, await insertItem(tx, weekly))).toMatchObject({ withinPeriod: true });
   });
 });

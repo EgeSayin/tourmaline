@@ -57,6 +57,7 @@ function flexible(
     deadline,
     split: null,
     spread: "asap",
+    withinPeriod: false,
   };
 }
 
@@ -66,9 +67,10 @@ function recurringTask(
   earliestStart: Date,
   recurrence: Recurrence,
   priority: Priority = "normal",
+  withinPeriod = false,
 ): NewTask {
   const { deadline: _, ...task } = flexible(title, durationMin, [earliestStart, earliestStart], priority);
-  return withFirstDeadline<NewTask>({ ...task, recurrence }, settings.timeZone)!;
+  return withFirstDeadline<NewTask>({ ...task, recurrence, withinPeriod }, settings.timeZone)!;
 }
 
 /** Keyed by the `categoryId` the sample items use until the seed saves them. */
@@ -141,7 +143,8 @@ export function sampleWeek(now: Date) {
   ];
 
   const tasks: NewTask[] = [
-    recurringTask("Lunch", 45, local(from(daily), "11:30"), daily, "mandatory"),
+    // Kept within its day: a missed lunch isn't eaten the next morning.
+    recurringTask("Lunch", 45, local(from(daily), "11:30"), daily, "mandatory", true),
     { ...recurringTask("Gym", 60, local(from(gym), "17:00"), gym, "high"), categoryId: "health" },
     recurringTask("Language practice", 20, local(from(daily), "10:00"), daily),
     {

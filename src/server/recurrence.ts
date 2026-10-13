@@ -2,9 +2,9 @@ import { addMinutes, minutesBetween } from "@/lib/time/duration";
 import { isFixed, isTask, type Item, itemSpan, type NewItem, type NewTask, withSpan } from "@/lib/items";
 import { occurrenceId, type Recurrence } from "@/lib/recurrence";
 import type { TimeZone } from "@/lib/time/time-zone";
-import type { Interval } from "@/lib/time/interval";
+import { earlier, type Interval } from "@/lib/time/interval";
 import { MINUTES_PER_DAY } from "@/lib/time/time-of-day";
-import { localDate, toDate, zoned } from "@/server/time/temporal";
+import { localDate, startOfDay, toDate, zoned } from "@/server/time/temporal";
 
 /**
  * Local dates in `[from, to)` on which a series starting on `first` occurs, in order. Nothing occurs before
@@ -22,8 +22,8 @@ export function occurrenceDates(
   const inRange = (date: Temporal.PlainDate) =>
     Temporal.PlainDate.compare(date, start) >= 0 && Temporal.PlainDate.compare(date, end) < 0;
 
-  const anchor = rule.frequency === "daily" ? first : first.subtract({ days: first.dayOfWeek - 1 });
-  const unit = rule.frequency === "daily" ? rule.interval : rule.interval * 7;
+  const anchor = periodAnchor(rule, first);
+  const unit = daysPerPeriod(rule);
   const offsets = rule.frequency === "daily" ? [0] : rule.weekdays.map((day) => day - 1);
 
   const dates: Temporal.PlainDate[] = [];
@@ -45,8 +45,8 @@ export function occurrenceDates(
  * The occurrences of `item` that overlap `range`, in order, each with its occurrence id and times; a one-off item
  * as it is. Occurrences keep the first one's local start time; fixed ones also keep its length, so a clock change
  * moves their end instead of inverting them. A recurring task's window runs from its earliest
- * start to the same time on the date the rule next occurs, even past `until` or a skipped date, and it's done if
- * its occurrence state says so.
+ * start to the same time on the date the rule next occurs, even past `until` or a skipped date, or only to the end of
+ * its period if that's earlier and it's `withinPeriod`; it's done if its occurrence state says so.
  */
 export function expandOccurrences<T extends Item>(item: T, range: Interval, timeZone: TimeZone): T[] {
   if (!item.recurrence) return [item];
@@ -68,13 +68,18 @@ export function expandOccurrences<T extends Item>(item: T, range: Interval, time
 
   // The last date only bounds the window before it: dates run a full period past `range`, so it starts after it.
   const { until } = item.recurrence;
+  const withinPeriod = isTask(item) && item.withinPeriod;
   const occurrences: T[] = [];
   for (const [i, date] of dates.slice(0, -1).entries()) {
     const day = date.toString();
     if ((until && day > until) || item.occurrences[day] === "skipped") continue;
 
     const start = startOn(date);
-    const end = isFixed(item) ? addMinutes(start, lengthMin) : startOn(dates[i + 1]);
+    const end = isFixed(item)
+      ? addMinutes(start, lengthMin)
+      : withinPeriod
+        ? earlier(startOn(dates[i + 1]), startOfDay(periodEnd(item.recurrence, first, date), timeZone))
+        : startOn(dates[i + 1]);
     if (start >= range.end || end <= range.start) continue;
 
     const occurrence = { ...withSpan(item, { start, end }), id: occurrenceId(item.id, day) };
@@ -124,3 +129,14 @@ export function upcomingOccurrences<T extends Item>(item: T, from: Date, count: 
 }
 
 const daysPerPeriod = (rule: Recurrence) => rule.interval * (rule.frequency === "daily" ? 1 : 7);
+
+/** Where periods start counting from: the first date for a daily rule, its week's Monday for a weekly one. */
+const periodAnchor = (rule: Recurrence, first: Temporal.PlainDate) =>
+  rule.frequency === "daily" ? first : first.subtract({ days: first.dayOfWeek - 1 });
+
+/** The day after the period, `daysPerPeriod` long, that `date` falls in, for a series starting on `first`. */
+function periodEnd(rule: Recurrence, first: Temporal.PlainDate, date: Temporal.PlainDate): Temporal.PlainDate {
+  const anchor = periodAnchor(rule, first);
+  const unit = daysPerPeriod(rule);
+  return anchor.add({ days: (Math.floor(anchor.until(date).days / unit) + 1) * unit });
+}

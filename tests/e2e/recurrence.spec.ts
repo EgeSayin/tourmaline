@@ -89,6 +89,7 @@ test.describe("recurring items", () => {
     await form.getByLabel("Duration", { exact: true }).fill(String(15 * 60)); // longer than any free stretch in a day
     await form.getByLabel("How often").selectOption("daily");
     await expect(form.getByLabel("Due")).toHaveCount(0);
+    await form.getByRole("radio", { name: "Same day only" }).click();
     // From yesterday, so one occurrence always covers now.
     await form.getByLabel("Not before", { exact: true }).fill(localDateTime(-1, "10:00"));
     await form.getByRole("button", { name: "Add item" }).click();
@@ -98,14 +99,16 @@ test.describe("recurring items", () => {
     const entries = queue.getByRole("link", { name: new RegExp(`^${RegExp.escape(title)} · \\w{3}, \\w{3} \\d+`) });
     await expect(entries.first()).toContainText("15h left");
 
-    // Deleting ends the series yesterday: today's occurrence goes, while yesterday's may still be running.
+    // Kept within its day: yesterday's is over, and deleting ends the series yesterday, so today's goes.
     const todays = queue.getByRole("link", { name: `${title} · ${dateLabel(0)}` });
     await expect(todays).toBeVisible();
+    await expect(queue.getByRole("link", { name: `${title} · ${dateLabel(-1)}` })).toHaveCount(0);
 
     await entries.first().click();
     const panel = itemEditor(page);
     await expect(panel.getByLabel("How often")).toHaveValue("daily");
     await expect(panel.getByLabel("Due")).toHaveCount(0);
+    await expect(panel.getByRole("radio", { name: "Same day only" })).toHaveAttribute("aria-checked", "true");
 
     // Its editor lists today's occurrence, which can be marked done on its own and reopened.
     const todaysOccurrence = panel

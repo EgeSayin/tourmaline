@@ -66,7 +66,7 @@ export function ItemForm({
             options={PRIORITY_OPTIONS}
             defaultValue={timing === "fixed" ? "mandatory" : "normal"}
           />
-          {timing === "fixed" ? <FixedItemFields /> : <TaskFields repeating={repeat !== "none"} />}
+          {timing === "fixed" ? <FixedItemFields /> : <TaskFields repeat={repeat} />}
           <RepeatFields repeat={repeat} onRepeatChange={setRepeat} />
         </FieldGroup>
       </FormStateProvider>

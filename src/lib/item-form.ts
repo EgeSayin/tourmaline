@@ -6,6 +6,11 @@ export const REPEAT_OPTIONS = ["none", "daily", "weekly"] as const;
 
 export type Repeat = (typeof REPEAT_OPTIONS)[number];
 
+/** Until when a repeating task's occurrence may be planned: up to the next one, or only within its own period. */
+export const CATCH_UP_OPTIONS = ["later", "in-period"] as const;
+
+export type CatchUp = (typeof CATCH_UP_OPTIONS)[number];
+
 export function itemToFormValues(item: Item, timeZone: TimeZone): Record<string, string> {
   const local = (date: Date) => toDateTimeInputValue(date, timeZone);
   const { recurrence } = item;
@@ -39,5 +44,6 @@ export function itemToFormValues(item: Item, timeZone: TimeZone): Record<string,
     minChunkMin: item.split ? String(item.split.minChunkMin) : "",
     maxChunkMin: item.split ? String(item.split.maxChunkMin) : "",
     spread: item.spread,
+    catchUp: item.withinPeriod ? "in-period" : "later",
   };
 }

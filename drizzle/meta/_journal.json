@@ -8,6 +8,13 @@
       "when": 1791851212317,
       "tag": "0000_baseline",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1791916181596,
+      "tag": "0001_task_within_period",
+      "breakpoints": true
     }
   ]
 }

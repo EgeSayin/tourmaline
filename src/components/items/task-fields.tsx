@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { FormChoice, FormDurationInput, FormInput, FormSection, useFormValue } from "@/components/forms/form-fields";
+import { CATCH_UP_OPTIONS, type CatchUp, type Repeat } from "@/lib/item-form";
 import { SPREAD_STRATEGIES, type SpreadStrategy } from "@/lib/items";
 
 const SPREAD_LABELS = {
@@ -12,8 +13,13 @@ const SPREAD_LABELS = {
 
 const DURATION_PRESETS = [30, 60, 90, 120];
 
+const catchUpLabels = (period: string) =>
+  ({ later: "Plan it later", "in-period": `Same ${period} only` }) satisfies Record<CatchUp, string>;
+
 /** A repeating task isn't asked for a due date: each occurrence is due when the next one starts. */
-export function TaskFields({ repeating }: { repeating: boolean }) {
+export function TaskFields({ repeat }: { repeat: Repeat }) {
+  const repeating = repeat !== "none";
+  const period = repeat === "daily" ? "day" : "week";
   const chunkSizes = [useFormValue("minChunkMin"), useFormValue("maxChunkMin")];
   const [split, setSplit] = useState(chunkSizes.some(Boolean));
 
@@ -54,6 +60,16 @@ export function TaskFields({ repeating }: { repeating: boolean }) {
           options={SPREAD_STRATEGIES.map((value) => ({ value, label: SPREAD_LABELS[value] }))}
           defaultValue="asap"
         />
+        {repeating && (
+          <FormChoice
+            key={period}
+            name="catchUp"
+            label="If it doesn't happen"
+            description={`Plan it later: any time before the next one. Same ${period} only: within its own ${period}, or its ${period}s when it repeats every few.`}
+            options={CATCH_UP_OPTIONS.map((value) => ({ value, label: catchUpLabels(period)[value] }))}
+            defaultValue="later"
+          />
+        )}
       </FormSection>
     </>
   );

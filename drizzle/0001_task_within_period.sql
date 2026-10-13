@@ -1,0 +1,2 @@
+ALTER TABLE "tasks" ADD COLUMN "within_period" boolean DEFAULT false NOT NULL;--> statement-breakpoint
+ALTER TABLE "tasks" ADD CONSTRAINT "tasks_within_period" CHECK (not "tasks"."within_period" or "tasks"."recurrence" is not null);
