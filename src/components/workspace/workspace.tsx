@@ -146,7 +146,7 @@ function Count({ n, className = "" }: { n: number; className?: string }) {
   return (
     n > 0 && (
       <span
-        className={`min-w-4 rounded-full bg-amber-500 px-1 text-center text-[10px] leading-4 font-semibold text-white tabular-nums ${className}`}
+        className={`min-w-4 rounded-full bg-state-review px-1 text-center text-[10px] leading-4 font-semibold text-white tabular-nums ${className}`}
       >
         {n}
       </span>

@@ -28,6 +28,18 @@
   --color-card: var(--card);
   --color-gem-rim: var(--gem-rim);
   --color-gem-core: var(--gem-core);
+  --color-state-fixed: var(--state-fixed);
+  --color-state-scheduled: var(--state-scheduled);
+  --color-state-review: var(--state-review);
+  --color-state-review-text: var(--state-review-text);
+  --color-state-review-soft: var(--state-review-soft);
+  --color-state-review-ink: var(--state-review-ink);
+  --color-state-done: var(--state-done);
+  --color-state-done-soft: var(--state-done-soft);
+  --color-state-done-ink: var(--state-done-ink);
+  --color-state-missed: var(--state-missed);
+  --color-conflict: var(--conflict);
+  --color-now: var(--now);
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
@@ -59,6 +71,19 @@
   --radius: 0.625rem;
   --gem-rim: oklch(0.58 0.12 158);
   --gem-core: oklch(0.72 0.15 2);
+  /* What blocks and lists mark: a fixed item, a block by its state, a conflict, the current time. */
+  --state-fixed: var(--color-sky-500);
+  --state-scheduled: var(--color-violet-500);
+  --state-review: var(--color-amber-500);
+  --state-review-text: var(--color-amber-600);
+  --state-review-soft: var(--color-amber-100);
+  --state-review-ink: var(--color-amber-900);
+  --state-done: var(--color-emerald-500);
+  --state-done-soft: var(--color-emerald-100);
+  --state-done-ink: var(--color-emerald-900);
+  --state-missed: var(--color-rose-500);
+  --conflict: var(--color-red-500);
+  --now: var(--color-red-500);
 }
 
 .dark {
@@ -82,6 +107,18 @@
   --ring: oklch(0.556 0 0);
   --gem-rim: oklch(0.66 0.12 158);
   --gem-core: oklch(0.76 0.14 2);
+  --state-fixed: var(--color-sky-400);
+  --state-scheduled: var(--color-violet-400);
+  --state-review: var(--color-amber-400);
+  --state-review-text: var(--color-amber-400);
+  --state-review-soft: var(--color-amber-950);
+  --state-review-ink: var(--color-amber-100);
+  --state-done: var(--color-emerald-400);
+  --state-done-soft: var(--color-emerald-950);
+  --state-done-ink: var(--color-emerald-100);
+  --state-missed: var(--color-rose-400);
+  --conflict: var(--color-red-400);
+  --now: var(--color-red-400);
 }
 
 @layer base {

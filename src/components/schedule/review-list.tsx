@@ -23,7 +23,7 @@ export function ReviewList({ entries, timeZone }: { entries: ReviewEntry[]; time
         return (
           <li
             key={key}
-            className="flex flex-col gap-2 rounded-lg border border-l-4 border-l-amber-500 bg-card px-3 py-2 shadow-xs"
+            className="flex flex-col gap-2 rounded-lg border border-l-4 border-l-state-review bg-card px-3 py-2 shadow-xs"
           >
             <button
               type="button"

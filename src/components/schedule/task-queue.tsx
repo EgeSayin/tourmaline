@@ -16,7 +16,7 @@ export function TaskQueue({ entries, timeZone }: { entries: QueueEntry[]; timeZo
         <li key={key}>
           <Link
             href={`/tasks?id=${target.item.id}`}
-            className="flex w-full flex-col gap-0.5 rounded-lg border border-l-4 border-l-amber-500 bg-card px-3 py-2 text-left text-sm shadow-xs hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+            className="flex w-full flex-col gap-0.5 rounded-lg border border-l-4 border-l-state-review bg-card px-3 py-2 text-left text-sm shadow-xs hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
           >
             <span>
               <span className="font-medium">{title}</span>

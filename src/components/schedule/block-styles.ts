@@ -30,23 +30,23 @@ export const BUFFER_STYLE = {
   } satisfies React.CSSProperties,
 };
 
-export const CONFLICT_STYLE = { label: "Conflict", className: "ring-2 ring-red-500 dark:ring-red-400" };
+export const CONFLICT_STYLE = { label: "Conflict", className: "ring-2 ring-conflict" };
 
 export const BLOCK_STYLES: Record<BlockStyle, { label: string; className: string }> = {
-  fixed: { label: "Fixed", className: "border-2 border-sky-500 dark:border-sky-400" },
+  fixed: { label: "Fixed", className: "border-2 border-state-fixed" },
   "fixed-optional": {
     label: "Fixed, optional",
-    className: "border-2 border-dashed border-sky-500 dark:border-sky-400",
+    className: "border-2 border-dashed border-state-fixed",
   },
   displaced: {
     label: "Displaced",
-    className: "border-2 border-dashed border-sky-500 opacity-50 dark:border-sky-400",
+    className: "border-2 border-dashed border-state-fixed opacity-50",
   },
-  scheduled: { label: "Scheduled", className: "border-2 border-violet-500 dark:border-violet-400" },
-  "to-review": { label: "To review", className: "border-2 border-amber-500 dark:border-amber-400" },
-  done: { label: "Done", className: "border-2 border-emerald-500 dark:border-emerald-400" },
+  scheduled: { label: "Scheduled", className: "border-2 border-state-scheduled" },
+  "to-review": { label: "To review", className: "border-2 border-state-review" },
+  done: { label: "Done", className: "border-2 border-state-done" },
   missed: {
     label: "Missed",
-    className: "border-2 border-dashed border-rose-500 line-through dark:border-rose-400",
+    className: "border-2 border-dashed border-state-missed line-through",
   },
 };

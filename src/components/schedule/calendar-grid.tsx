@@ -95,7 +95,7 @@ function LoadLine({ load }: { load: DayLoad | undefined }) {
   return (
     <div
       data-over={over || undefined}
-      className="mt-1 text-[11px] text-muted-foreground tabular-nums data-over:font-medium data-over:text-amber-600 dark:data-over:text-amber-400"
+      className="mt-1 text-[11px] text-muted-foreground tabular-nums data-over:font-medium data-over:text-state-review-text"
     >
       {formatDuration(load.usedMin)} / {formatDuration(load.capMin)}
       {over && <span className="sr-only">, over the cap</span>}

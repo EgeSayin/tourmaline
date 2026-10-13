@@ -26,10 +26,10 @@ export function NowLine({
     <div
       role="separator"
       aria-label={`Now, ${toTimeInputValue(local.minuteOfDay)}`}
-      className="pointer-events-none absolute inset-x-0 z-10 border-t-2 border-red-500 dark:border-red-400"
+      className="pointer-events-none absolute inset-x-0 z-10 border-t-2 border-now"
       style={{ top: top - 1 }}
     >
-      <span className="absolute -top-[5px] -left-1 size-2 rounded-full bg-red-500 dark:bg-red-400" />
+      <span className="absolute -top-[5px] -left-1 size-2 rounded-full bg-now" />
     </div>
   );
 }

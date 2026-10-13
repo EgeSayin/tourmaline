@@ -28,8 +28,8 @@ const STATUS_LABELS = {
 
 const STATUS_STYLES = {
   scheduled: "text-muted-foreground",
-  queued: "bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-100",
-  done: "bg-emerald-100 text-emerald-900 dark:bg-emerald-950 dark:text-emerald-100",
+  queued: "bg-state-review-soft text-state-review-ink",
+  done: "bg-state-done-soft text-state-done-ink",
   past: "text-muted-foreground",
 } satisfies Record<ItemStatus, string>;
 
