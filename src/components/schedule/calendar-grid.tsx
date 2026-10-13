@@ -1,6 +1,6 @@
 "use client";
 
-import { useBlockPanel } from "./block-panel-state";
+import { useBlockPanel, useShownBlocks } from "./block-panel-state";
 import type { CalendarBlock } from "@/lib/calendar-blocks";
 import type { Downtime } from "@/lib/downtime";
 import { formatDuration, formatLocalDate, formatLocalWeekday, localWeekdayIndex } from "@/lib/time/format";
@@ -29,6 +29,7 @@ export function CalendarGrid({
   timeZone: TimeZone;
 }) {
   const { open } = useBlockPanel();
+  useShownBlocks(blocks);
   const scale = timeScaleFor(blocks, downtime);
   const dates = [...new Set([...weekDates, ...dayDates])].sort();
   // Hidden columns take no grid track, so each breakpoint's column count matches its visible dates.

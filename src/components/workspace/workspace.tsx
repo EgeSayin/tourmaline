@@ -31,7 +31,7 @@ export function WorkspaceProvider({ shell, children }: { shell: Shell; children:
   const [phoneView, setPhoneView] = useState<"main" | "lists">("main");
   const [list, setList] = useState<List>(shell.review.length > 0 ? "review" : "queue");
   return (
-    <BlockPanelProvider timeZone={shell.timeZone}>
+    <BlockPanelProvider timeZone={shell.timeZone} review={shell.review}>
       <ShellContext value={{ shell, phoneView, setPhoneView, list, setList }}>
         <main>{children}</main>
       </ShellContext>

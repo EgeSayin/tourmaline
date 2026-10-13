@@ -18,7 +18,7 @@ export function ReviewList({ entries, timeZone }: { entries: ReviewEntry[]; time
     </p>
   ) : (
     <ul className="flex flex-col gap-2">
-      {entries.map(({ key, title, start, end, ref, target }) => {
+      {entries.map(({ key, title, start, end, ref }) => {
         const placement = { ref, state: "to-review" as const, pinned: false };
         return (
           <li
@@ -28,7 +28,7 @@ export function ReviewList({ entries, timeZone }: { entries: ReviewEntry[]; time
             <button
               type="button"
               className="flex flex-col gap-0.5 text-left text-sm hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
-              onClick={() => open({ title, start, end, target, placement })}
+              onClick={() => open({ key })}
             >
               <span className="font-medium">{title}</span>
               <span className="text-xs text-muted-foreground tabular-nums">
