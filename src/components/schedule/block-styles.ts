@@ -1,24 +1,12 @@
 import type { BlockStyle } from "@/lib/calendar-blocks";
+import { CATEGORY_COLOR_CLASSES } from "@/components/categories/category-colors";
 import type { CategoryColor } from "@/lib/categories";
 
 export const BLOCK_FILL = "bg-muted text-foreground";
 
 /** A block's fill comes from its category; the outline shows its kind and state. */
-const CATEGORY_FILLS: Record<CategoryColor, string> = {
-  slate: "bg-slate-200 text-slate-950 dark:bg-slate-700/70 dark:text-slate-50",
-  red: "bg-red-100 text-red-950 dark:bg-red-900/50 dark:text-red-50",
-  orange: "bg-orange-100 text-orange-950 dark:bg-orange-900/50 dark:text-orange-50",
-  yellow: "bg-yellow-100 text-yellow-950 dark:bg-yellow-900/50 dark:text-yellow-50",
-  green: "bg-green-100 text-green-950 dark:bg-green-900/50 dark:text-green-50",
-  teal: "bg-teal-100 text-teal-950 dark:bg-teal-900/50 dark:text-teal-50",
-  blue: "bg-blue-100 text-blue-950 dark:bg-blue-900/50 dark:text-blue-50",
-  indigo: "bg-indigo-100 text-indigo-950 dark:bg-indigo-900/50 dark:text-indigo-50",
-  purple: "bg-purple-100 text-purple-950 dark:bg-purple-900/50 dark:text-purple-50",
-  pink: "bg-pink-100 text-pink-950 dark:bg-pink-900/50 dark:text-pink-50",
-};
-
 export function blockFill(color: CategoryColor | null): string {
-  return color ? CATEGORY_FILLS[color] : BLOCK_FILL;
+  return color ? CATEGORY_COLOR_CLASSES[color].fill : BLOCK_FILL;
 }
 
 /** A fixed item's buffer: its fill striped with the page background, faded, without an outline. */
