@@ -14,7 +14,8 @@ async function prepareTestDatabase(adminUrl: string, testUrl: string) {
   try {
     await admin.unsafe(`create database "${name}"`);
   } catch (error) {
-    if ((error as { code?: string }).code !== "42P04") throw error; // duplicate_database
+    // duplicate_database, or unique_violation when another worker creates it at the same moment
+    if (!["42P04", "23505"].includes((error as { code?: string }).code ?? "")) throw error;
   } finally {
     await admin.end();
   }
