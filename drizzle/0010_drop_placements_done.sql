@@ -1,1 +1,0 @@
-ALTER TABLE "placements" DROP COLUMN "done";

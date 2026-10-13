@@ -1,4 +1,0 @@
-ALTER TABLE "flexible_item_details" DROP CONSTRAINT "flexible_item_details_duration";--> statement-breakpoint
-ALTER TABLE "flexible_item_details" DROP CONSTRAINT "flexible_item_details_split";--> statement-breakpoint
-ALTER TABLE "flexible_item_details" ADD CONSTRAINT "flexible_item_details_duration" CHECK ("flexible_item_details"."duration_min" > 0 and "flexible_item_details"."duration_min" % 5 = 0);--> statement-breakpoint
-ALTER TABLE "flexible_item_details" ADD CONSTRAINT "flexible_item_details_split" CHECK (("flexible_item_details"."split_min_chunk_min" is null) = ("flexible_item_details"."split_max_chunk_min" is null) and ("flexible_item_details"."split_min_chunk_min" is null or ("flexible_item_details"."split_min_chunk_min" between 1 and "flexible_item_details"."split_max_chunk_min" and "flexible_item_details"."split_min_chunk_min" % 5 = 0 and "flexible_item_details"."split_max_chunk_min" % 5 = 0)));

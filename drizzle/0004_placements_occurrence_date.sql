@@ -1,1 +1,0 @@
-ALTER TABLE "placements" ADD COLUMN "occurrence_date" date;

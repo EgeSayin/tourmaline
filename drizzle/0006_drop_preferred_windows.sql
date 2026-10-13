@@ -1,1 +1,0 @@
-ALTER TABLE "flexible_item_details" DROP COLUMN "preferred_windows";

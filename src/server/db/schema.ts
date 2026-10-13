@@ -204,7 +204,7 @@ export const placements = pgTable(
   (t) => [
     ownRows(t.workspaceId),
     check("placements_times", sql`${t.startAt} < ${t.endAt}`),
-    // DEFERRABLE (migration 0027), so one statement can shift every start.
+    // DEFERRABLE in the migration, which Drizzle can't declare, so one statement can shift every start.
     unique("placements_task_start").on(t.itemId, t.occurrenceDate, t.startAt).nullsNotDistinct(),
     index("placements_workspace_start_at").on(t.workspaceId, t.startAt),
   ],

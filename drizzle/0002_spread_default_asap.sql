@@ -1,1 +1,0 @@
-ALTER TABLE "flexible_item_details" ALTER COLUMN "spread" SET DEFAULT 'asap';
