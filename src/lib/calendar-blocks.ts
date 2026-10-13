@@ -1,5 +1,5 @@
 import type { Category, CategoryColor } from "./categories";
-import type { FixedItem, Item } from "./items";
+import { type FixedItem, type Item, PRIORITIES } from "./items";
 import { type Placement, type PlacementRef, type PlacementState, placementState } from "./placements";
 import { addMinutes } from "./time/duration";
 import { overlaps } from "./time/interval";
@@ -14,7 +14,7 @@ export interface EditTarget {
   occurrenceDate: string | null;
 }
 
-export type BlockStyle = "fixed" | "fixed-optional" | "scheduled" | "to-review" | "done" | "missed";
+export type BlockStyle = "fixed" | "fixed-optional" | "displaced" | "scheduled" | "to-review" | "done" | "missed";
 
 export interface BlockPlacement {
   ref: PlacementRef;
@@ -46,7 +46,7 @@ export interface CalendarBlock {
   placement: BlockPlacement | null;
   /**
    * A fixed item overlapping another one or a block that stays where it is (pinned, in progress or done), and that
-   * block.
+   * block; not an optional fixed item a more important task's block displaces (`displaced` style), nor that block.
    */
   conflict: boolean;
   /** A fixed item's buffers before and after it, on the same date, in local minutes. */
@@ -108,23 +108,40 @@ export function toCalendarBlocks(
       endMinute,
       target,
       buffers,
+      busy: { start: addMinutes(block.start, -beforeMin), end: addMinutes(block.end, afterMin) },
     };
   });
+  type Positioned = (typeof positioned)[number];
   const fixed = positioned.filter((block) => block.placement === null);
-  const staying = positioned.filter(
-    ({ placement }) =>
-      placement && (placement.pinned || placement.state === "in-progress" || placement.state === "done"),
+  const tasks = positioned.filter((block) => block.placement !== null);
+  const staying = tasks.filter(
+    ({ placement }) => placement!.pinned || placement!.state === "in-progress" || placement!.state === "done",
   );
-  const clashes = (block: (typeof positioned)[number], others: typeof positioned) =>
-    others.some((other) => other !== block && overlaps(block, other));
+  const rank = (block: Positioned) => PRIORITIES.indexOf(block.target.item.priority);
+  // The scheduler lets a more important task take an optional fixed item's time, buffers included, when it fits
+  // nowhere else.
+  const displaces = (task: Positioned, item: Positioned) =>
+    item.target.item.priority !== "mandatory" &&
+    task.placement!.state !== "missed" &&
+    rank(task) < rank(item) &&
+    overlaps(task, item.busy);
+  const clash = (block: Positioned, other: Positioned) => other !== block && overlaps(block, other);
+
   return withLanes(
-    positioned.map((block) => ({
-      ...block,
-      conflict:
-        block.placement === null
-          ? clashes(block, [...fixed, ...staying])
-          : staying.includes(block) && clashes(block, fixed),
-    })),
+    positioned.map((block) => {
+      const { busy: _, ...shown } = block;
+      if (block.placement !== null) {
+        return {
+          ...shown,
+          conflict: staying.includes(block) && fixed.some((f) => clash(block, f) && !displaces(block, f)),
+        };
+      }
+      return {
+        ...shown,
+        style: tasks.some((task) => displaces(task, block)) ? "displaced" : shown.style,
+        conflict: fixed.some((f) => clash(block, f)) || staying.some((t) => clash(block, t) && !displaces(t, block)),
+      };
+    }),
   );
 }
 

@@ -105,7 +105,8 @@ export const SAMPLE_DAYS_PAST = 2;
  * A student's seven days of fixed items and tasks, starting `SAMPLE_DAYS_PAST` days before `now`'s, and the categories
  * they belong to. Lectures, chess club, lunch, gym and language practice repeat from the first of those days, or from
  * the Monday of today's week if that's earlier, and the open-ended projects run to the later of the last day and that
- * week's Sunday, so a week view of today has no empty days. Today, a guest talk overlaps chess club.
+ * week's Sunday, so a week view of today has no empty days. Today, a guest talk overlaps chess club; on the sixth
+ * day, an application fits only over dinner with friends, which gives way.
  */
 export function sampleWeek(now: Date) {
   const today = localDate(now, settings.timeZone);
@@ -164,6 +165,8 @@ export function sampleWeek(now: Date) {
     },
     flexible("Side project", 4 * 60, [local(MON, "00:00"), local(lastDay, "23:00")], "low"),
     flexible("Research paper", 10 * 60, [local(MON, "00:00"), local(TUE, "12:00")]),
+    // Opens Saturday evening and fits only over dinner, which is optional, so dinner gives way.
+    flexible("Scholarship application", 2 * 60, [local(SAT, "18:00"), local(SAT, "21:00")], "high"),
   ];
 
   return { categories, fixedItems, tasks, settings, planFrom: startOfDay(repeatFrom, settings.timeZone) };

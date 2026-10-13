@@ -4,7 +4,8 @@ import { createContext, use, useState } from "react";
 import type { CalendarBlock } from "@/lib/calendar-blocks";
 import type { TimeZone } from "@/lib/time/time-zone";
 
-export type OpenedBlock = Pick<CalendarBlock, "title" | "start" | "end" | "target" | "placement">;
+export type OpenedBlock = Pick<CalendarBlock, "title" | "start" | "end" | "target" | "placement"> &
+  Partial<Pick<CalendarBlock, "style">>;
 
 interface PanelState {
   block: OpenedBlock | null;

@@ -38,6 +38,10 @@ export const BLOCK_STYLES: Record<BlockStyle, { label: string; className: string
     label: "Fixed, optional",
     className: "border-2 border-dashed border-sky-500 dark:border-sky-400",
   },
+  displaced: {
+    label: "Displaced",
+    className: "border-2 border-dashed border-sky-500 opacity-50 dark:border-sky-400",
+  },
   scheduled: { label: "Scheduled", className: "border-2 border-violet-500 dark:border-violet-400" },
   "to-review": { label: "To review", className: "border-2 border-amber-500 dark:border-amber-400" },
   done: { label: "Done", className: "border-2 border-emerald-500 dark:border-emerald-400" },

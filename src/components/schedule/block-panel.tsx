@@ -30,6 +30,9 @@ function PanelContent({ block }: { block: OpenedBlock }) {
         </Button>
       </div>
       <BlockSummary block={block} timeZone={timeZone} />
+      {block.style === "displaced" && (
+        <p className="text-sm text-muted-foreground">A higher-priority task needs this time.</p>
+      )}
       {placement && <PlacementActions placement={placement} onDone={close} />}
       {occurrenceDate && (
         <div className="flex flex-wrap gap-2">

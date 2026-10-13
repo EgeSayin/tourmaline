@@ -235,6 +235,38 @@ describe("replan", () => {
     expect(result.unplaced).toEqual([]);
   });
 
+  it("places a task that fits nowhere else over an optional fixed item of lower priority, and only then", () => {
+    const settings: SchedulerSettings = { timeZone: "UTC", downtime: Array(7).fill([]), focusCaps: NO_FOCUS_CAPS };
+    const day = (from: string, to: string) => utc(`2026-10-05T${from}`, `2026-10-05T${to}`);
+    // Free only 12:00–13:00.
+    const fixedItems = [
+      { ...fixed("Club", day("10:00", "11:00")), priority: "normal" as const },
+      fixed("Exam", day("11:00", "12:00")),
+    ];
+    const tasks = [
+      flexible("Report", 60, day("10:00", "12:00"), "high"), // fits only over the club
+      flexible("Notes", 30, day("10:00", "13:00"), "high"), // fits after the exam
+      flexible("Chat", 30, day("10:00", "11:00")), // no more important than the club
+      flexible("Revision", 60, day("11:00", "12:00"), "mandatory"), // the exam is mandatory
+    ];
+    const planned = (taskId: string, times: { start: Date; end: Date }): Placement => ({
+      taskId,
+      ...times,
+      pinned: false,
+      status: "planned",
+    });
+
+    const input = { horizon: day("10:00", "13:00"), fixedItems, tasks, settings };
+    const result = replan({ ...input, existing: [] });
+
+    expect(result.placements).toEqual([
+      planned("Report", day("10:00", "11:00")),
+      planned("Notes", day("12:00", "12:30")),
+    ]);
+    expect(result.unplaced.map((task) => task.id)).toEqual(["Chat", "Revision"]);
+    expect(replan({ ...input, existing: result.placements })).toEqual(result); // decided the same way again
+  });
+
   it("keeps a break between a split task's new chunks and its earlier ones", () => {
     const settings: SchedulerSettings = {
       timeZone: "UTC",

@@ -111,7 +111,7 @@ describe("toCalendarBlocks", () => {
 });
 
 describe("conflicts", () => {
-  it("marks fixed items that overlap each other, or a block that stays put, whatever their priority, and nothing else", () => {
+  it("marks fixed items that overlap each other, or a block that stays put, but not an optional one a more important block displaces", () => {
     const lecture = fixed("Lecture", utc("2026-10-05T14:00", "2026-10-05T15:00"));
     const club = { ...fixed("Club", utc("2026-10-05T14:30", "2026-10-05T16:00")), priority: "low" as const };
     const dinner = fixed("Dinner", utc("2026-10-05T16:00", "2026-10-05T17:00")); // starts as the club ends
@@ -131,22 +131,36 @@ describe("conflicts", () => {
     });
     const pinned = block("2026-10-06T14:30", "2026-10-06T15:00", true); // overlaps the next day's lecture
     const movable = block("2026-10-06T14:00", "2026-10-06T14:30", false); // so does this one, but it can move
-    const items = new Map<string, Item>([lecture, club, dinner, nextDay, reading].map((item) => [item.id, item]));
+    // An optional class gives way to a more important task's block, buffer included: displaced, not a conflict.
+    const yoga = { ...fixed("Yoga", utc("2026-10-06T16:30", "2026-10-06T17:30"), 30), priority: "low" as const };
+    const overYoga = block("2026-10-06T16:00", "2026-10-06T16:30", true);
+    const items = new Map<string, Item>([lecture, club, dinner, nextDay, yoga, reading].map((item) => [item.id, item]));
     const targetFor = (id: string): EditTarget | undefined => {
       const item = items.get(id);
       return item && { item, occurrenceDate: null };
     };
 
     const now = new Date("2026-10-01T00:00Z");
-    const blocks = toCalendarBlocks([lecture, club, dinner, nextDay], [done, pinned, movable], tz, targetFor, [], now);
-    expect(blocks.map(({ title, start, conflict }) => `${title} ${start.toISOString()}: ${conflict}`)).toEqual([
-      "Lecture 2026-10-05T14:00:00.000Z: true",
-      "Club 2026-10-05T14:30:00.000Z: true",
-      "Dinner 2026-10-05T16:00:00.000Z: true",
-      "Lecture again 2026-10-06T14:00:00.000Z: true",
-      "Reading 2026-10-05T16:00:00.000Z: true",
-      "Reading 2026-10-06T14:30:00.000Z: true",
-      "Reading 2026-10-06T14:00:00.000Z: false",
+    const blocks = toCalendarBlocks(
+      [lecture, club, dinner, nextDay, yoga],
+      [done, pinned, movable, overYoga],
+      tz,
+      targetFor,
+      [],
+      now,
+    );
+    expect(
+      blocks.map(({ title, start, style, conflict }) => `${title} ${start.toISOString()} ${style}: ${conflict}`),
+    ).toEqual([
+      "Lecture 2026-10-05T14:00:00.000Z fixed: true",
+      "Club 2026-10-05T14:30:00.000Z fixed-optional: true",
+      "Dinner 2026-10-05T16:00:00.000Z fixed: true",
+      "Lecture again 2026-10-06T14:00:00.000Z fixed: true",
+      "Yoga 2026-10-06T16:30:00.000Z displaced: false",
+      "Reading 2026-10-05T16:00:00.000Z done: true",
+      "Reading 2026-10-06T14:30:00.000Z scheduled: true",
+      "Reading 2026-10-06T14:00:00.000Z scheduled: false",
+      "Reading 2026-10-06T16:00:00.000Z scheduled: false",
     ]);
   });
 });

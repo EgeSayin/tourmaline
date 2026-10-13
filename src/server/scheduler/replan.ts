@@ -46,6 +46,9 @@ export interface ReplanResult {
  * places by urgency. This repeats from the winner until it gains nothing, so planning the result again changes
  * nothing, and tasks never leave a more important task unplaced through their pending placements.
  *
+ * A task still left out then goes in time optional fixed items of lower priority hold, where it fits that way (see
+ * `placeOverOptional`); nothing about it is stored, so each plan decides it again.
+ *
  * New blocks keep each local day's fixed items and blocks under its focus cap where they can (see `placeTasks`);
  * `fixedItems` and `existing` should cover all of today for today's to count.
  */
@@ -54,8 +57,9 @@ export function replan({ horizon, fixedItems, tasks, existing, settings }: Repla
   const kept = existing.filter((placement) => placement.status !== "missed" && !isPending(placement, now));
   const movable = existing.filter((placement) => isPending(placement, now));
 
-  const freeFromNow = now < horizon.end ? freeTimeMap(horizon, fixedItems, settings) : mergeIntervals([]);
-  const free = subtractIntervals(freeFromNow, kept);
+  const freeTimeOf = (holding: FixedItem[]) =>
+    now < horizon.end ? freeTimeMap(horizon, holding, settings) : mergeIntervals([]);
+  const free = subtractIntervals(freeTimeOf(fixedItems), kept);
   const startingNow = tasks.map((task) => ({
     ...task,
     earliestStart: later(task.earliestStart, now),
@@ -81,7 +85,37 @@ export function replan({ horizon, fixedItems, tasks, existing, settings }: Repla
     }
     improved = best !== base && best.unplaced.length > 0;
   }
-  return best;
+  return best.unplaced.length > 0 ? placeOverOptional(best, fixedItems, freeTimeOf, daysAround) : best;
+}
+
+/**
+ * `plan` with each task it leaves out, most important first, placed in time optional fixed items of lower priority
+ * hold too, where it fits that way: such an item gives way only to a more important task that fits nowhere else.
+ */
+function placeOverOptional(
+  plan: ReplanResult,
+  fixedItems: FixedItem[],
+  freeTimeOf: (holding: FixedItem[]) => IntervalSet,
+  daysAround: (placements: Placement[]) => FocusDay[],
+): ReplanResult {
+  let { placements } = plan;
+  const unplaced: Task[] = [];
+  for (const task of byEarliestDeadline(plan.unplaced, mergeIntervals([]))) {
+    const level = PRIORITIES.indexOf(task.priority);
+    const holding = fixedItems.filter(
+      (item) => item.priority === "mandatory" || PRIORITIES.indexOf(item.priority) <= level,
+    );
+    const open = subtractIntervals(freeTimeOf(holding), placements);
+    const added =
+      holding.length < fixedItems.length ? placeTasks([task], open, placements, daysAround(placements)) : null;
+    if (added && added.unplaced.length === 0) {
+      placements = [...placements, ...added.placements].sort((a, b) => a.start.getTime() - b.start.getTime());
+    } else {
+      unplaced.push(task);
+    }
+  }
+  const order = new Map(plan.unplaced.map((task, i) => [task.id, i]));
+  return { placements, unplaced: unplaced.sort((a, b) => order.get(a.id)! - order.get(b.id)!) };
 }
 
 /**

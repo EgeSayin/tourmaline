@@ -29,6 +29,7 @@ export function ScheduleBlock({
   const notes = [
     placement && placement.state !== "planned" && PLACEMENT_STATE_LABELS[placement.state].toLowerCase(),
     placement?.pinned && "pinned",
+    block.style === "displaced" && "displaced",
     block.conflict && "conflict",
   ].filter(Boolean);
   const label = `${block.title} ${formatTimeRange(block.start, block.end, timeZone)}${notes.length > 0 ? ` (${notes.join(", ")})` : ""}`;
