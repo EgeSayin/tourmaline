@@ -8,6 +8,8 @@ import {
   integer,
   jsonb,
   pgEnum,
+  pgPolicy,
+  pgRole,
   pgTable,
   text,
   timestamp,
@@ -41,14 +43,30 @@ const auditColumns = {
     .$onUpdate(() => new Date()),
 };
 
+/**
+ * The role a workspace transaction takes (see `inWorkspace`), so the database itself keeps it to the rows of the
+ * workspace it set; the migration that introduced it creates it. Owner connections aren't held to the policies.
+ */
+export const workspaceUser = pgRole("workspace_user").existing();
+
+/** Lets `workspaceUser` see and change only rows whose `column` is the workspace its transaction set. */
+function ownRows(column: PgColumn) {
+  const own = sql`${column} = current_setting('app.workspace_id')::uuid`;
+  return pgPolicy("own_rows", { to: workspaceUser, using: own, withCheck: own });
+}
+
 /** Whose data a row is: a guest's in demo mode, otherwise the one personal workspace a migration creates. */
-export const workspaces = pgTable("workspaces", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  createdAt: timestamptz("created_at").notNull().defaultNow(),
-  lastUsedAt: timestamptz("last_used_at").notNull().defaultNow(),
-  /** When it was last planned; its placements and items then make the plan. `null` until it first is. */
-  plannedAt: timestamptz("planned_at"),
-});
+export const workspaces = pgTable(
+  "workspaces",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    createdAt: timestamptz("created_at").notNull().defaultNow(),
+    lastUsedAt: timestamptz("last_used_at").notNull().defaultNow(),
+    /** When it was last planned; its placements and items then make the plan. `null` until it first is. */
+    plannedAt: timestamptz("planned_at"),
+  },
+  (t) => [ownRows(t.id)],
+);
 
 /** A guest's session: only a hash of the token its cookie holds, so a leaked table opens no workspace. */
 export const sessions = pgTable("sessions", {
@@ -75,6 +93,7 @@ export const settings = pgTable(
     ...auditColumns,
   },
   (t) => [
+    ownRows(t.workspaceId),
     check("settings_focus_caps_week", sql`jsonb_array_length(${t.focusCapsMin}) = 7`),
     check("settings_downtime_week", sql`jsonb_array_length(${t.downtime}) = 7`),
   ],
@@ -90,6 +109,7 @@ export const categories = pgTable(
     ...auditColumns,
   },
   (t) => [
+    ownRows(t.workspaceId),
     unique("categories_workspace_name").on(t.workspaceId, t.name),
     // For items' foreign key, which keeps their category in their workspace.
     unique("categories_workspace_id").on(t.workspaceId, t.id),
@@ -114,6 +134,7 @@ const itemColumns = () => ({
  * foreign key set only `category_id` null, which Drizzle can't express.
  */
 const itemConstraints = (table: string, t: { workspaceId: PgColumn; recurrence: PgColumn; categoryId: PgColumn }) => [
+  ownRows(t.workspaceId),
   index(`${table}_workspace`).on(t.workspaceId),
   check(`${table}_interval`, sql`(${t.recurrence}->>'interval')::integer >= 1`),
   foreignKey({
@@ -181,6 +202,7 @@ export const placements = pgTable(
     status: placementStatusEnum("status").notNull().default("planned"),
   },
   (t) => [
+    ownRows(t.workspaceId),
     check("placements_times", sql`${t.startAt} < ${t.endAt}`),
     unique("placements_task_start").on(t.itemId, t.occurrenceDate, t.startAt).nullsNotDistinct(),
     index("placements_workspace_start_at").on(t.workspaceId, t.startAt),

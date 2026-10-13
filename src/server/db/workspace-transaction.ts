@@ -17,8 +17,18 @@ export type WorkspaceTx = Transaction & { readonly workspaceId: string };
 export function inWorkspace<T>(db: Database, workspaceId: string, work: (tx: WorkspaceTx) => Promise<T>): Promise<T> {
   return db.transaction(async (tx) => {
     await tx.execute(sql`select pg_advisory_xact_lock(${PLAN_LOCK_CLASS}, hashtext(${workspaceId}))`);
-    return work(Object.assign(tx, { workspaceId }));
+    return work(await enterWorkspace(tx, workspaceId));
   });
+}
+
+/**
+ * `tx` held by the database to `workspaceId`'s rows, until it ends: as `workspace_user`, whose row-level policies
+ * (`ownRows` in the schema) admit only that workspace's. `ownedBy` stays the first line.
+ */
+export async function enterWorkspace(tx: Transaction, workspaceId: string): Promise<WorkspaceTx> {
+  await tx.execute(sql`select set_config('app.workspace_id', ${workspaceId}, true)`);
+  await tx.execute(sql`set local role workspace_user`);
+  return Object.assign(tx, { workspaceId });
 }
 
 /**
@@ -30,7 +40,7 @@ export function readInWorkspace<T>(
   workspaceId: string,
   work: (tx: WorkspaceTx) => Promise<T>,
 ): Promise<T> {
-  return db.transaction((tx) => work(Object.assign(tx, { workspaceId })), {
+  return db.transaction(async (tx) => work(await enterWorkspace(tx, workspaceId)), {
     isolationLevel: "repeatable read",
     accessMode: "read only",
   });

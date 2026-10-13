@@ -183,6 +183,13 @@
       "when": 1791847881508,
       "tag": "0025_plan_on_read",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1791850974737,
+      "tag": "0026_row_level_security",
+      "breakpoints": true
     }
   ]
 }
