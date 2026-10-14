@@ -70,7 +70,7 @@ export function replan({ horizon, fixedItems, tasks, existing, settings }: Repla
     focusDays(horizon, [...fixedTimes, ...placements], settings.focusCaps, settings.timeZone);
   const fillAround = (saved: Placement[], strategy: PlanStrategy, capRaisesMin: readonly number[]) => {
     const plan = fillAroundKept(startingNow, kept, saved, free, daysAround, strategy, capRaisesMin);
-    return { ...plan, score: scorePlan(plan, daysAround(plan.placements), movable) };
+    return { ...plan, score: scorePlan({ ...plan, days: daysAround(plan.placements), saved: movable }) };
   };
 
   const tasksById = new Map(tasks.map((task) => [task.id, task]));

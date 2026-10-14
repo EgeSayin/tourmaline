@@ -57,10 +57,13 @@ export function placeTasks(
 
   for (let queue = strategy.order(tasks, remaining); queue.length > 0;) {
     const [task, ...rest] = queue;
-    const place = (open: IntervalSet) =>
-      task.spread === "even"
-        ? (findBlocks(task, "even", open, placed) ?? findBlocks(task, "asap", open, placed))
-        : findBlocks(task, task.spread, open, placed);
+    const place = (open: IntervalSet) => {
+      for (const spread of spreadsToTry(task)) {
+        const found = findBlocks(task, spread, open, placed);
+        if (found) return found;
+      }
+      return null;
+    };
     const placeUnder = (caps: FocusDay[]) => {
       for (let open = subtractIntervals(remaining, full(caps)); ;) {
         const found = place(open);
@@ -93,6 +96,14 @@ export function placeTasks(
     queue = strategy.reorder ? strategy.order(rest, remaining) : rest;
   }
   return { placements, unplaced };
+}
+
+/**
+ * The spreads `task`'s search tries, in turn, as it gives up its preferences: `even` falls back to `asap`, the only
+ * spread that can fail where another fits.
+ */
+function spreadsToTry(task: Task): SpreadStrategy[] {
+  return task.spread === "even" ? ["even", "asap"] : [task.spread];
 }
 
 function findBlocks(
