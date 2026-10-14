@@ -81,7 +81,7 @@ export function replan({ horizon, fixedItems, tasks, existing, settings }: Repla
     for (const capRaisesMin of [UNDER_CAPS, FOCUS_CAP_RAISES_MIN]) {
       for (const keeping of keptVariants(base, now, priorityOf)) {
         for (const strategy of candidateStrategies(base)) {
-          if (best.unplaced.length === 0) break;
+          if (best.score.every((missed) => missed === 0)) break;
           const plan = fillAround(keeping, strategy, capRaisesMin);
           if (better(plan.score, best.score)) best = plan;
         }

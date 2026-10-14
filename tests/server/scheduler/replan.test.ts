@@ -228,6 +228,14 @@ describe("replan", () => {
       ],
       unplaced: [],
     });
+    // With room for only half of it on Tuesday, moving it still goes over a cap by less.
+    expect(plan(30)).toEqual({
+      placements: [
+        planned("Exam prep", utc("2026-10-05T10:00", "2026-10-05T11:00")),
+        planned("Reading", utc("2026-10-06T10:00", "2026-10-06T11:00")),
+      ],
+      unplaced: [],
+    });
     // With no room on Tuesday either, moving it gains nothing, so the exam prep goes over Monday's cap.
     expect(plan(0)).toEqual({
       placements: [
