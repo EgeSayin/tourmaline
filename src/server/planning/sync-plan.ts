@@ -8,7 +8,6 @@ import type { WorkspaceTx } from "@/server/db/workspace-transaction";
 import { loadPlacementsFrom, replacePendingPlacements } from "@/server/db/placements-repository";
 import { expandOccurrences } from "@/server/recurrence";
 import { replan } from "@/server/scheduler/replan";
-import { localDate, startOfDay } from "@/server/time/temporal";
 
 export interface Plan {
   /** The planned tasks: one-off tasks, and the occurrences of recurring ones. */
@@ -21,12 +20,10 @@ export interface Plan {
 
 /** Plans from `now` (see `replan`) and saves the plan if it changed. */
 export async function syncPlan(tx: WorkspaceTx, items: Item[], settings: SchedulerSettings, now: Date): Promise<Plan> {
-  const { tasks, horizon, todayStart, existing } = await loadScope(tx, items, settings, now);
+  const { tasks, horizon, existing } = await loadScope(tx, items, settings, now);
   const { placements, unplaced } = replan({
     horizon,
-    fixedItems: items
-      .filter(isFixed)
-      .flatMap((item) => expandOccurrences(item, { start: todayStart, end: horizon.end }, settings.timeZone)),
+    fixedItems: items.filter(isFixed).flatMap((item) => expandOccurrences(item, horizon, settings.timeZone)),
     tasks,
     existing,
     settings,
@@ -80,12 +77,11 @@ async function loadScope(tx: WorkspaceTx, items: Item[], settings: SchedulerSett
     .filter((task) => !task.done);
   const horizon = planningHorizon(now, [...oneOffs, ...tasks]);
 
-  // Earlier placements matter as time already spent on a planned task, and today's toward today's focus cap. Not
-  // bounded by the horizon, so pending blocks past it, left from a longer plan, are compared and replaced too.
-  const todayStart = startOfDay(localDate(now, settings.timeZone), settings.timeZone);
-  const historyStart = tasks.reduce((start, task) => earlier(start, task.earliestStart), todayStart);
+  // Earlier placements matter as time already spent on a planned task. Not bounded by the horizon, so pending blocks
+  // past it, left from a longer plan, are compared and replaced too.
+  const historyStart = tasks.reduce((start, task) => earlier(start, task.earliestStart), now);
   const existing = await loadPlacementsFrom(tx, historyStart);
-  return { tasks, horizon, todayStart, existing };
+  return { tasks, horizon, existing };
 }
 
 function samePlacements(a: Placement[], b: Placement[]): boolean {

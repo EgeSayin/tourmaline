@@ -1,8 +1,8 @@
-import type { SpreadStrategy, Task } from "@/lib/items";
+import type { SpreadStrategy } from "@/lib/items";
 import type { Placement } from "@/lib/placements";
-import { CHUNK_BREAK_MIN, FOCUS_CAP_RAISES_MIN } from "@/lib/settings";
+import { CHUNK_BREAK_MIN } from "@/lib/settings";
 import { addMinutes } from "@/lib/time/duration";
-import { type Interval, type IntervalSet, subtractIntervals } from "@/lib/time/interval";
+import { type Interval, type IntervalSet, intersectIntervals, subtractIntervals } from "@/lib/time/interval";
 import {
   evenTargets,
   findEarliestChunks,
@@ -11,8 +11,7 @@ import {
   findLatestChunks,
   findLatestSlot,
 } from "./search";
-import { type FocusDay, fill, full, overCap, raiseCaps, trimToRoom } from "./focus-cap";
-import { openTo, taskWindow } from "./task-time";
+import { type PlanTask, taskWindow } from "./task-time";
 import { byUrgency, type TaskOrder } from "./urgency";
 
 /** How to place tasks: in which order, and whether to rank the rest again after each placement. */
@@ -28,7 +27,7 @@ export const BY_URGENCY: PlanStrategy = { order: byUrgency, reorder: false };
 export interface PlacementResult {
   /** In placement order. */
   placements: Placement[];
-  unplaced: Task[];
+  unplaced: PlanTask[];
 }
 
 /**
@@ -36,51 +35,21 @@ export interface PlacementResult {
  * the free time in its window (`even`, see `evenTargets`, falling back to `asap` when that finds no room) or at its
  * latest fit (`just-in-time`). A task goes in one block, or for a split task in chunks (see `findEarliestChunks`) at
  * least `CHUNK_BREAK_MIN` apart, also from its chunks in `placed`. It is placed whole or not at all.
- *
- * With focus `days`, which count what's already filled, a task first leaves out the days that are full, and cuts
- * each day its blocks would fill past its cap down to the room left (see `trimToRoom`), searching again until its
- * blocks fit under every cap. Only if that finds no room does it go over the caps, by as little as it can, at most by
- * the last of `capRaisesMin`.
  */
 export function placeTasks(
-  tasks: Task[],
+  tasks: PlanTask[],
   free: IntervalSet,
   placed: readonly Placement[] = [],
-  days: FocusDay[] = [],
   strategy: PlanStrategy = BY_URGENCY,
-  capRaisesMin: readonly number[] = FOCUS_CAP_RAISES_MIN,
 ): PlacementResult {
   let remaining = free;
-  let focus = days;
   const placements: Placement[] = [];
-  const unplaced: Task[] = [];
+  const unplaced: PlanTask[] = [];
 
   for (let queue = strategy.order(tasks, remaining); queue.length > 0;) {
     const [task, ...rest] = queue;
-    const place = (open: IntervalSet) => {
-      for (const spread of spreadsToTry(task)) {
-        const found = findBlocks(task, spread, open, placed);
-        if (found) return found;
-      }
-      return null;
-    };
-    const placeUnder = (caps: FocusDay[]) => {
-      for (let open = subtractIntervals(remaining, full(caps)); ;) {
-        const found = place(open);
-        if (!found) return null;
-        const over = overCap(caps, found);
-        if (over.length === 0) return found;
-        open = trimToRoom(open, over, found);
-      }
-    };
-
-    let blocks: Interval[] | null = null;
-    for (const extraMin of capRaisesMin) {
-      blocks = placeUnder(raiseCaps(focus, extraMin));
-      if (blocks) break;
-    }
+    const blocks = findTaskBlocks(task, remaining, placed);
     if (blocks) {
-      focus = fill(focus, blocks);
       placements.push(
         ...blocks.map((block) => ({
           taskId: task.id,
@@ -99,22 +68,31 @@ export function placeTasks(
 }
 
 /**
- * The spreads `task`'s search tries, in turn, as it gives up its preferences: `even` falls back to `asap`, the only
- * spread that can fail where another fits.
+ * `task`'s blocks in `free`, giving up its preferences in turn, least important first, until they fit: its spread
+ * (`even` falls back to `asap`, the only spread that can fail where another fits), then the time it keeps clear (see
+ * `PlanTask.allowed`).
  */
-function spreadsToTry(task: Task): SpreadStrategy[] {
-  return task.spread === "even" ? ["even", "asap"] : [task.spread];
+function findTaskBlocks(task: PlanTask, free: IntervalSet, placed: readonly Placement[]): Interval[] | null {
+  const spreads: SpreadStrategy[] = task.spread === "even" ? ["even", "asap"] : [task.spread];
+  for (const allowed of task.allowed) {
+    const open = intersectIntervals(free, allowed);
+    for (const spread of spreads) {
+      const found = findBlocks(task, spread, open, placed);
+      if (found) return found;
+    }
+  }
+  return null;
 }
 
+/** `task`'s blocks in `free`, which it may all use, as `spread` asks. */
 function findBlocks(
-  task: Task,
+  task: PlanTask,
   spread: SpreadStrategy,
-  freeTime: IntervalSet,
+  free: IntervalSet,
   placed: readonly Placement[],
 ): Interval[] | null {
   const { id, durationMin, split } = task;
   const window = taskWindow(task);
-  const free = openTo(task, freeTime);
   if (!split) {
     const slot =
       spread === "just-in-time"

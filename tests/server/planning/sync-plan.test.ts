@@ -3,7 +3,7 @@ import { describe, expect } from "vitest";
 import { isFixed, type Task } from "@/lib/items";
 import type { Placement, PlacementStatus } from "@/lib/placements";
 import type { Recurrence } from "@/lib/recurrence";
-import { NO_FOCUS_CAPS, RECURRENCE_LOOKAHEAD_DAYS, type SchedulerSettings } from "@/lib/settings";
+import { RECURRENCE_LOOKAHEAD_DAYS, type SchedulerSettings } from "@/lib/settings";
 import type { WorkspaceTx } from "@/server/db/workspace-transaction";
 import { deleteItem, insertItem, loadItem, loadItems, setItemDone, setOccurrences } from "@/server/db/items-repository";
 import { insertPlacements, loadPlacements } from "@/server/db/placements-repository";
@@ -17,7 +17,6 @@ import { fixed, flexible } from "../../support/items";
 const settings: SchedulerSettings = {
   timeZone: "America/New_York",
   downtime: nightly(23 * 60, 10 * 60),
-  focusCaps: NO_FOCUS_CAPS,
 };
 const wednesdayNoon = new Date("2026-10-07T16:00Z"); // Wed Oct 7, 12:00 EDT
 const week = utc("2026-10-05T04:00", "2026-10-12T04:00");
@@ -213,17 +212,5 @@ describe("syncPlan", () => {
     // Today's occurrence (from 10:00) through the one starting on the last day of the lookahead.
     expect(gyms).toHaveLength(RECURRENCE_LOOKAHEAD_DAYS + 1);
     expect(gyms.at(-1)!.earliestStart < new Date("2026-11-04T16:00Z")).toBe(true);
-  });
-
-  it("counts all of today, from before now too, toward today's focus cap", async ({ tx }) => {
-    // 4h on Wednesdays, two of them taken by this morning's lecture, which ended at noon.
-    const capped = { ...settings, focusCaps: [null, null, 240, null, null, null, null] };
-    const lecture = { ...fixed("Lecture", utc("2026-10-05T14:00", "2026-10-05T16:00")), recurrence: daily }; // 10:00–12:00
-    await insertItem(tx, lecture);
-    const essayId = await insertItem(tx, flexible("Essay", 180, utc("2026-10-07T16:00", "2026-10-09T21:00")));
-
-    const result = await plan(tx, wednesdayNoon, capped);
-
-    expect(result.placements).toEqual([auto(essayId, utc("2026-10-08T16:00", "2026-10-08T19:00"))]); // Thu 12:00
   });
 });

@@ -22,7 +22,7 @@ export default async function Settings() {
         <>
           <h1 className="text-lg font-semibold tracking-tight">Settings</h1>
           <TimeZoneForm key={settings.timeZone} timeZone={settings.timeZone} options={timeZones} />
-          <WeekSettingsForm downtime={settings.downtime} focusCaps={settings.focusCaps} />
+          <WeekSettingsForm downtime={settings.downtime} />
           {DEMO_MODE && <DemoReset idleDays={GUEST_IDLE_DAYS} />}
         </>
       }

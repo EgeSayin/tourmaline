@@ -6,12 +6,7 @@ import { withFirstDeadline } from "@/server/recurrence";
 import { daysFrom, weekOf } from "@/server/time/days";
 import { localDate, startOfDay, toDate } from "@/server/time/temporal";
 
-const [weekday, weekend] = [8 * 60, 4 * 60];
-const settings: SchedulerSettings = {
-  ...DEFAULT_SETTINGS,
-  timeZone: "America/New_York",
-  focusCaps: [weekday, weekday, weekday, weekday, weekday, weekend, weekend],
-};
+const settings: SchedulerSettings = { ...DEFAULT_SETTINGS, timeZone: "America/New_York" };
 
 function local(date: string, time: string): Date {
   return toDate(Temporal.PlainDateTime.from(`${date}T${time}`).toZonedDateTime(settings.timeZone));

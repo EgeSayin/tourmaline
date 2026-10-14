@@ -1,18 +1,18 @@
-import { type Task, PRIORITIES } from "@/lib/items";
+import { PRIORITIES } from "@/lib/items";
 import type { IntervalSet } from "@/lib/time/interval";
 import { slotMinutes } from "./search";
-import { openTo } from "./task-time";
+import { openTo, type PlanTask } from "./task-time";
 
 /** Ranks the tasks still to place against the free time left, first to place first. */
-export type TaskOrder = (tasks: Task[], free: IntervalSet) => Task[];
+export type TaskOrder = (tasks: PlanTask[], free: IntervalSet) => PlanTask[];
 
-type Comparator = (a: Task, b: Task) => number;
+type Comparator = (a: PlanTask, b: PlanTask) => number;
 
 /**
  * Share of the usable free time open to the task (see `openTo`) that it needs: stretches too
  * short on the grid for one of its blocks (or its smallest chunk) don't count. `Infinity` when none is usable.
  */
-export function pressure(task: Task, free: IntervalSet): number {
+export function pressure(task: PlanTask, free: IntervalSet): number {
   const blockMin = Math.min(task.split?.minChunkMin ?? task.durationMin, task.durationMin);
   const usableMin = openTo(task, free)
     .map(slotMinutes)
@@ -26,12 +26,12 @@ const byPriority: Comparator = (a, b) => compare(PRIORITIES.indexOf(a.priority),
 const byDeadline: Comparator = (a, b) => compare(a.deadline.getTime(), b.deadline.getTime());
 const byId: Comparator = (a, b) => a.id.localeCompare(b.id);
 
-function byPressure(tasks: Task[], free: IntervalSet): Comparator {
+function byPressure(tasks: PlanTask[], free: IntervalSet): Comparator {
   const pressures = new Map(tasks.map((task) => [task.id, pressure(task, free)]));
   return (a, b) => compare(pressures.get(b.id)!, pressures.get(a.id)!);
 }
 
-function sortBy(tasks: Task[], ...comparators: Comparator[]): Task[] {
+function sortBy(tasks: PlanTask[], ...comparators: Comparator[]): PlanTask[] {
   return [...tasks].sort((a, b) => comparators.reduce((order, comparator) => order || comparator(a, b), 0));
 }
 

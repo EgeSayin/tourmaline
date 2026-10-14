@@ -2,11 +2,12 @@ import { nightly } from "@/lib/downtime";
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import type { ChunkSizes, SpreadStrategy } from "@/lib/items";
-import { CHUNK_BREAK_MIN, NO_FOCUS_CAPS, type SchedulerSettings } from "@/lib/settings";
+import { CHUNK_BREAK_MIN, type SchedulerSettings } from "@/lib/settings";
 import { minutesBetween } from "@/lib/time/duration";
 import { mergeIntervals, subtractIntervals } from "@/lib/time/interval";
 import { freeTimeMap } from "@/server/scheduler/free-time";
 import { placeTasks } from "@/server/scheduler/placement";
+import { planTask } from "@/server/scheduler/task-time";
 import { findEarliestSlot } from "@/server/scheduler/search";
 import { intervalArb, iv, SPAN_MIN, utc } from "../../support/intervals";
 import { fixed, fixedItemArb, flexible, flexibleItemsArb } from "../../support/items";
@@ -17,7 +18,6 @@ describe("placeTasks", () => {
     const settings: SchedulerSettings = {
       timeZone: "America/New_York",
       downtime: nightly(23 * 60, 10 * 60),
-      focusCaps: NO_FOCUS_CAPS,
     };
     // Mon Oct 5 2026, 00:00–24:00 EDT (UTC-4). Free: 10:00–10:45, 12:30–18:00, 19:00–22:30.
     const range = utc("2026-10-05T04:00", "2026-10-06T04:00");
@@ -33,7 +33,10 @@ describe("placeTasks", () => {
       flexible("Lab report", 5 * 60, utc("2026-10-05T04:00", "2026-10-05T22:00")), // due 18:00
     ];
 
-    const result = placeTasks(tasks, freeTimeMap(range, fixedItems, settings));
+    const result = placeTasks(
+      tasks.map((task) => planTask(task)),
+      freeTimeMap(range, fixedItems, settings),
+    );
 
     expect(result.placements).toEqual([
       {
@@ -66,7 +69,10 @@ describe("placeTasks", () => {
     const call = flexible("Call", 30, iv("08:00", "09:00"));
     const report = flexible("Report", 60, iv("08:25", "10:00"));
 
-    const { placements, unplaced } = placeTasks([report, call], free);
+    const { placements, unplaced } = placeTasks(
+      [report, call].map((task) => planTask(task)),
+      free,
+    );
 
     expect(placements.map(({ taskId, start, end }) => ({ taskId, start, end }))).toEqual([
       { taskId: "Call", ...iv("08:30", "09:00") },
@@ -79,7 +85,6 @@ describe("placeTasks", () => {
     const settings: SchedulerSettings = {
       timeZone: "UTC",
       downtime: nightly(22 * 60, 10 * 60),
-      focusCaps: NO_FOCUS_CAPS,
     };
     const day = iv("00:00", "23:59");
     const free = freeTimeMap(day, [fixed("Seminar", iv("12:00", "13:00"))], settings);
@@ -89,7 +94,10 @@ describe("placeTasks", () => {
       { ...flexible("Revision", 120, iv("10:00", "13:00")), split: { minChunkMin: 60, maxChunkMin: 60 } },
     ];
 
-    const { placements, unplaced } = placeTasks(tasks, free);
+    const { placements, unplaced } = placeTasks(
+      tasks.map((task) => planTask(task)),
+      free,
+    );
 
     expect(placements.map(({ taskId, start, end }) => ({ taskId, start, end }))).toEqual([
       { taskId: "Thesis", ...iv("10:00", "11:00") },
@@ -103,7 +111,6 @@ describe("placeTasks", () => {
     const settings: SchedulerSettings = {
       timeZone: "UTC",
       downtime: nightly(22 * 60, 10 * 60),
-      focusCaps: NO_FOCUS_CAPS,
     };
     const threeDays = utc("2026-10-05T00:00", "2026-10-08T00:00"); // free 10:00–22:00 each day
     const task = (id: string, durationMin: number, spread: SpreadStrategy, split: ChunkSizes | null = null) => ({
@@ -118,7 +125,10 @@ describe("placeTasks", () => {
       task("Thesis", 180, "even", { minChunkMin: 60, maxChunkMin: 60 }), // the most pressure, so placed first
     ];
 
-    const { placements } = placeTasks(tasks, freeTimeMap(threeDays, [], settings));
+    const { placements } = placeTasks(
+      tasks.map((task) => planTask(task)),
+      freeTimeMap(threeDays, [], settings),
+    );
 
     expect(placements.map(({ taskId, start, end }) => ({ taskId, start, end }))).toEqual([
       // Centred in each day's free time.
@@ -133,9 +143,9 @@ describe("placeTasks", () => {
 
     // Its centre is 10:15, and nothing fits from there on, so it goes in the earliest fit.
     const tight = mergeIntervals([iv("10:00", "11:00"), iv("11:30", "12:00")]);
-    expect(placeTasks([{ ...flexible("Call", 60, iv("00:00", "23:59")), spread: "even" }], tight).placements).toEqual([
-      { taskId: "Call", ...iv("10:00", "11:00"), pinned: false, status: "planned" },
-    ]);
+    expect(
+      placeTasks([planTask({ ...flexible("Call", 60, iv("00:00", "23:59")), spread: "even" })], tight).placements,
+    ).toEqual([{ taskId: "Call", ...iv("10:00", "11:00"), pinned: false, status: "planned" }]);
   });
 
   it("places all of each task in free time inside its window, chunks apart, never overlapping, leaving out only blocks that can't fit", () => {
@@ -149,7 +159,10 @@ describe("placeTasks", () => {
         flexibleItemsArb,
         (range, settings, fixedItems, tasks) => {
           const free = freeTimeMap(range, fixedItems, settings);
-          const { placements, unplaced } = placeTasks(tasks, free);
+          const { placements, unplaced } = placeTasks(
+            tasks.map((task) => planTask(task)),
+            free,
+          );
           const tasksById = new Map(tasks.map((task) => [task.id, task]));
 
           const placedIds = new Set(placements.map((p) => p.taskId));

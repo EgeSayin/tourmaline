@@ -9,7 +9,6 @@ import type { WorkspaceTx } from "@/server/db/workspace-transaction";
 import { loadItems } from "@/server/db/items-repository";
 import { loadPlacements } from "@/server/db/placements-repository";
 import { loadSettings } from "@/server/db/settings-repository";
-import { focusDays } from "@/server/scheduler/focus-cap";
 import { expandOccurrences } from "@/server/recurrence";
 import { editTargets } from "@/server/edit-targets";
 import {
@@ -23,12 +22,6 @@ import {
 } from "@/server/time/days";
 import { localDate } from "@/server/time/temporal";
 
-/** How much of a day its fixed items and blocks fill, missed ones aside, against its focus cap. */
-export interface DayLoad {
-  usedMin: number;
-  capMin: number | null;
-}
-
 export interface Week {
   timeZone: TimeZone;
   /** Local dates of the week containing the shown date, Monday first. */
@@ -38,7 +31,6 @@ export interface Week {
   today: string;
   navigation: { week: WeekNavigation; days: DayNavigation };
   blocks: CalendarBlock[];
-  loads: Record<string, DayLoad>;
   downtime: Downtime;
   categories: CategoryEntry[];
 }
@@ -54,7 +46,6 @@ export async function loadWeek(tx: WorkspaceTx, now: Date, shownDate?: Temporal.
   const shown = { start: week.range.start, end: later(days.range.end, week.range.end) };
   const fixedItems = items.filter(isFixed).flatMap((item) => expandOccurrences(item, shown, timeZone));
   const placements = await loadPlacements(tx, shown);
-  const busy = [...fixedItems, ...placements.filter((placement) => placement.status !== "missed")];
 
   return {
     timeZone,
@@ -66,12 +57,6 @@ export async function loadWeek(tx: WorkspaceTx, now: Date, shownDate?: Temporal.
       days: dayNavigation(days.dates[0], PHONE_DAY_COUNT),
     },
     blocks: toCalendarBlocks(fixedItems, placements, timeZone, editTargets(items, now, timeZone), categories, now),
-    loads: Object.fromEntries(
-      focusDays(shown, busy, settings.focusCaps, timeZone).map(({ date, usedMin, capMin }) => [
-        date,
-        { usedMin, capMin },
-      ]),
-    ),
     downtime: settings.downtime,
     categories: listCategories(categories, items),
   };

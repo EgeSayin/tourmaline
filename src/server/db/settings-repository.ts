@@ -8,22 +8,16 @@ import { fixedItems, placements, settings, tasks } from "./schema";
 export async function loadSettings(tx: WorkspaceTx): Promise<SchedulerSettings> {
   const row = (await tx.query.settings.findFirst({ where: ownedBy(tx, settings) }))!;
   if (!isTimeZone(row.timeZone)) throw new Error(`Unsupported time zone in settings: "${row.timeZone}"`);
-  return { timeZone: row.timeZone, downtime: row.downtime, focusCaps: row.focusCapsMin };
+  return { timeZone: row.timeZone, downtime: row.downtime };
 }
 
 /** Replaces the settings as they are, without moving items to a new time zone (see `moveToTimeZone`). */
-export async function saveSettings(
-  tx: WorkspaceTx,
-  { timeZone, downtime, focusCaps }: SchedulerSettings,
-): Promise<void> {
-  await tx.update(settings).set({ timeZone, downtime, focusCapsMin: focusCaps }).where(ownedBy(tx, settings));
+export async function saveSettings(tx: WorkspaceTx, { timeZone, downtime }: SchedulerSettings): Promise<void> {
+  await tx.update(settings).set({ timeZone, downtime }).where(ownedBy(tx, settings));
 }
 
-export async function saveWeekSettings(
-  tx: WorkspaceTx,
-  { downtime, focusCaps }: Pick<SchedulerSettings, "downtime" | "focusCaps">,
-): Promise<void> {
-  await tx.update(settings).set({ downtime, focusCapsMin: focusCaps }).where(ownedBy(tx, settings));
+export async function saveDowntime(tx: WorkspaceTx, downtime: SchedulerSettings["downtime"]): Promise<void> {
+  await tx.update(settings).set({ downtime }).where(ownedBy(tx, settings));
 }
 
 /** Switches to `timeZone`, keeping every item's and block's local date and time: a 09:00 class stays at 09:00. */

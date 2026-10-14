@@ -1,8 +1,6 @@
 import fc from "fast-check";
 import { DAY_STEPS, fromSteps } from "@/lib/time/day-steps";
-import { NO_FOCUS_CAPS, type SchedulerSettings } from "@/lib/settings";
-
-const MINUTES_PER_DAY = 24 * 60;
+import type { SchedulerSettings } from "@/lib/settings";
 
 const downtimeArb = fc.array(fc.array(fc.boolean(), { minLength: DAY_STEPS, maxLength: DAY_STEPS }).map(fromSteps), {
   minLength: 7,
@@ -13,8 +11,4 @@ const downtimeArb = fc.array(fc.array(fc.boolean(), { minLength: DAY_STEPS, maxL
 export const utcSettingsArb: fc.Arbitrary<SchedulerSettings> = fc.record({
   timeZone: fc.constant("UTC"),
   downtime: downtimeArb,
-  focusCaps: fc.oneof(
-    fc.constant(NO_FOCUS_CAPS),
-    fc.array(fc.option(fc.integer({ min: 0, max: MINUTES_PER_DAY }), { nil: null }), { minLength: 7, maxLength: 7 }),
-  ),
 });

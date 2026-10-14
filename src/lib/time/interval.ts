@@ -7,8 +7,8 @@ export interface Interval {
 declare const normalized: unique symbol;
 
 /**
- * Intervals sorted by start, none empty, with gaps between them. Only `mergeIntervals`, `subtractIntervals` and
- * `clipIntervals` produce one, so code that scans free time in order can require it.
+ * Intervals sorted by start, none empty, with gaps between them. Only `mergeIntervals`, `subtractIntervals`,
+ * `intersectIntervals` and `clipIntervals` produce one, so code that scans free time in order can require it.
  */
 export type IntervalSet = readonly Interval[] & { readonly [normalized]: true };
 
@@ -46,6 +46,11 @@ export function subtractIntervals(free: readonly Interval[], busy: readonly Inte
     if (cursor < slot.end) result.push({ start: cursor, end: slot.end });
   }
   return result as unknown as IntervalSet;
+}
+
+/** The time both `a` and `b` cover. */
+export function intersectIntervals(a: readonly Interval[], b: readonly Interval[]): IntervalSet {
+  return subtractIntervals(a, subtractIntervals(a, b));
 }
 
 export function earlier(date: Date, other: Date): Date {

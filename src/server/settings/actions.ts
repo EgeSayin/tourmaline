@@ -3,8 +3,7 @@
 import { changeWorkspace } from "@/server/workspaces/current-workspace";
 import { type FormState, formFields } from "@/lib/form-state";
 import { isTimeZone } from "@/lib/time/time-zone";
-import { replacePendingPlacements } from "@/server/db/placements-repository";
-import { loadSettings, moveToTimeZone, saveWeekSettings } from "@/server/db/settings-repository";
+import { loadSettings, moveToTimeZone, saveDowntime } from "@/server/db/settings-repository";
 import { parseWeekSettings } from "./parse-week-settings";
 
 export async function saveWeekSettingsAction(_previous: FormState, formData: FormData): Promise<FormState> {
@@ -12,12 +11,7 @@ export async function saveWeekSettingsAction(_previous: FormState, formData: For
   const parsed = parseWeekSettings(fields);
   if (!parsed.ok) return { status: "invalid", errors: parsed.errors, fields };
 
-  await changeWorkspace(async (tx, now) => {
-    const { focusCaps } = await loadSettings(tx);
-    await saveWeekSettings(tx, parsed.settings);
-    // Kept blocks stay where they are while they fit, so only dropping them spreads the plan under new caps.
-    if (parsed.settings.focusCaps.some((cap, i) => cap !== focusCaps[i])) await replacePendingPlacements(tx, now, []);
-  });
+  await changeWorkspace((tx) => saveDowntime(tx, parsed.downtime));
   return { status: "saved" };
 }
 

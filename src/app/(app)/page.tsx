@@ -33,7 +33,6 @@ export default async function Home({ searchParams }: PageProps<"/">) {
             weekDates={week.weekDates}
             dayDates={week.dayDates}
             blocks={week.blocks}
-            loads={week.loads}
             downtime={week.downtime}
             timeZone={week.timeZone}
           />

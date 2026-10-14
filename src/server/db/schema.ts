@@ -22,7 +22,7 @@ import type { Downtime } from "@/lib/downtime";
 import { PRIORITIES, SPREAD_STRATEGIES } from "@/lib/items";
 import { PLACEMENT_STATUSES, SLOT_MIN } from "@/lib/placements";
 import type { Occurrences, Recurrence } from "@/lib/recurrence";
-import { DEFAULT_SETTINGS, type FocusCaps } from "@/lib/settings";
+import { DEFAULT_SETTINGS } from "@/lib/settings";
 import type { TimeZone } from "@/lib/time/time-zone";
 
 export const priorityEnum = pgEnum("priority", PRIORITIES);
@@ -89,14 +89,9 @@ export const settings = pgTable(
     workspaceId: workspaceId().primaryKey(),
     timeZone: text("time_zone").$type<TimeZone>().notNull().default(DEFAULT_SETTINGS.timeZone),
     downtime: jsonb("downtime").$type<Downtime>().notNull().default(DEFAULT_SETTINGS.downtime),
-    focusCapsMin: jsonb("focus_caps_min").$type<FocusCaps>().notNull().default(DEFAULT_SETTINGS.focusCaps),
     ...auditColumns,
   },
-  (t) => [
-    ownRows(t.workspaceId),
-    check("settings_focus_caps_week", sql`jsonb_array_length(${t.focusCapsMin}) = 7`),
-    check("settings_downtime_week", sql`jsonb_array_length(${t.downtime}) = 7`),
-  ],
+  (t) => [ownRows(t.workspaceId), check("settings_downtime_week", sql`jsonb_array_length(${t.downtime}) = 7`)],
 );
 
 export const categories = pgTable(

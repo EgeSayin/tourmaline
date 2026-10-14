@@ -170,25 +170,4 @@ describe("the calendar and its lists", () => {
       id: oldClubId,
     });
   });
-
-  it("reports each shown day's fixed items and blocks against its focus cap, counting overlaps once and missed blocks not at all", async ({
-    tx,
-  }) => {
-    await saveSettings(tx);
-    await tx.update(settings).set({ focusCapsMin: [null, null, 180, null, null, null, null] });
-    await insertItem(tx, fixed("Lecture", utc("2026-10-07T17:00", "2026-10-07T18:00"))); // Wed 13:00–14:00
-    await insertItem(tx, fixed("Office hours", utc("2026-10-07T17:30", "2026-10-07T18:30"))); // Wed 13:30–14:30
-    const readingId = await insertItem(tx, flexible("Reading", 60, utc("2026-10-05T04:00", "2026-10-09T21:00")));
-    const notesId = await insertItem(tx, flexible("Notes", 60, utc("2026-10-05T04:00", "2026-10-06T21:00"))); // due Tue
-    await insertPlacements(tx, [
-      { ...auto(readingId, utc("2026-10-07T14:00", "2026-10-07T15:00")), status: "done" }, // Wed 10:00–11:00
-      { ...auto(notesId, utc("2026-10-06T14:00", "2026-10-06T15:00")), status: "missed" }, // Tue
-    ]);
-
-    const calendar = await readPages(tx, wednesdayNoon);
-
-    expect(Object.keys(calendar!.loads)).toEqual(calendar!.weekDates);
-    expect(calendar?.loads["2026-10-07"]).toEqual({ usedMin: 150, capMin: 180 });
-    expect(calendar?.loads["2026-10-06"]).toEqual({ usedMin: 0, capMin: null });
-  });
 });

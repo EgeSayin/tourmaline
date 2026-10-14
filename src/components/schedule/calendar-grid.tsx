@@ -4,9 +4,8 @@ import { useCurrentMinute } from "@/hooks/use-current-minute";
 import { useBlockPanel, useShownBlocks } from "./block-panel-state";
 import { type CalendarBlock, withLanes } from "@/lib/calendar-blocks";
 import type { Downtime } from "@/lib/downtime";
-import { formatDuration, formatLocalDate, formatLocalWeekday, localWeekdayIndex } from "@/lib/time/format";
+import { formatLocalDate, formatLocalWeekday, localWeekdayIndex } from "@/lib/time/format";
 import type { TimeZone } from "@/lib/time/time-zone";
-import type { DayLoad } from "@/server/calendar";
 import { DayColumn } from "./day-column";
 import { HourAxis } from "./hour-axis";
 import { timeScaleFor } from "./time-scale";
@@ -17,7 +16,6 @@ export function CalendarGrid({
   weekDates,
   dayDates,
   blocks,
-  loads,
   downtime,
   timeZone,
 }: {
@@ -25,7 +23,6 @@ export function CalendarGrid({
   weekDates: string[];
   dayDates: string[];
   blocks: CalendarBlock[];
-  loads: Record<string, DayLoad>;
   downtime: Downtime;
   timeZone: TimeZone;
 }) {
@@ -65,7 +62,6 @@ export function CalendarGrid({
             >
               {Number(date.slice(8))}
             </div>
-            <LoadLine load={loads[date]} />
           </div>
         ))}
 
@@ -85,20 +81,6 @@ export function CalendarGrid({
           />
         ))}
       </div>
-    </div>
-  );
-}
-
-function LoadLine({ load }: { load: DayLoad | undefined }) {
-  if (!load || load.capMin === null) return null;
-  const over = load.usedMin > load.capMin;
-  return (
-    <div
-      data-over={over || undefined}
-      className="mt-1 text-[11px] text-muted-foreground tabular-nums data-over:font-medium data-over:text-state-review-text"
-    >
-      {formatDuration(load.usedMin)} / {formatDuration(load.capMin)}
-      {over && <span className="sr-only">, over the cap</span>}
     </div>
   );
 }

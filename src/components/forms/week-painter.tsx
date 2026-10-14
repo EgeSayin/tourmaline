@@ -55,18 +55,16 @@ const clamp = (value: number, max: number) => Math.min(Math.max(value, 0), max);
 /**
  * A week of days to paint ranges on with the pointer (press and drag) or the keyboard (arrows, Space, Shift+arrows),
  * submitted per weekday as `fieldName(weekday)` (see `fromSteps`). `painted` names what painted time is, e.g.
- * "downtime"; `top` adds a row above the days.
+ * "downtime".
  */
 export function WeekPainter({
   initial,
   fieldName,
   painted,
-  top,
 }: {
   initial: WeeklyRanges;
   fieldName: (weekday: Weekday) => string;
   painted: string;
-  top?: { label: string; cell: (weekday: Weekday) => React.ReactNode };
 }) {
   const [steps, setSteps] = useState(() => initial.map(toSteps));
   const [stroke, setStroke] = useState<Stroke | null>(null);
@@ -125,21 +123,6 @@ export function WeekPainter({
         className="grid overflow-hidden rounded-xl border bg-card [--axis:2.75rem] md:[--axis:3.5rem]"
         style={{ gridTemplateColumns: "var(--axis) repeat(7, minmax(0, 1fr))" }}
       >
-        {top && (
-          <>
-            <div
-              aria-hidden
-              className="flex items-end justify-end border-b pr-1 pb-2 text-right text-[11px] leading-tight text-muted-foreground md:pr-2 md:pb-3"
-            >
-              {top.label}
-            </div>
-            {WEEKDAYS.map((weekday) => (
-              <div key={weekday} className="border-b border-l p-1 text-center md:p-2">
-                {top.cell(weekday)}
-              </div>
-            ))}
-          </>
-        )}
         <HourAxis scale={SCALE} />
         {shown.map((day, index) => {
           const ranges = fromSteps(day);

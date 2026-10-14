@@ -2,9 +2,9 @@ import { nightly } from "@/lib/downtime";
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import { minutesBetween } from "@/lib/time/duration";
-import type { Task } from "@/lib/items";
+import { PRIORITIES, type Task } from "@/lib/items";
 import { isPending, PLACEMENT_STATUSES, type Placement } from "@/lib/placements";
-import { CHUNK_BREAK_MIN, type SchedulerSettings, NO_FOCUS_CAPS } from "@/lib/settings";
+import { CHUNK_BREAK_MIN, type SchedulerSettings } from "@/lib/settings";
 import { freeTimeMap } from "@/server/scheduler/free-time";
 import { subtractIntervals } from "@/lib/time/interval";
 import { replan } from "@/server/scheduler/replan";
@@ -54,7 +54,6 @@ describe("replan", () => {
     const settings: SchedulerSettings = {
       timeZone: "UTC",
       downtime: nightly(23 * 60, 10 * 60),
-      focusCaps: NO_FOCUS_CAPS,
     };
     const horizon = utc("2026-10-05T15:00", "2026-10-07T00:00"); // Mon 15:00 to the end of Tue
     const window = utc("2026-10-05T00:00", "2026-10-06T23:00");
@@ -111,7 +110,6 @@ describe("replan", () => {
     const settings: SchedulerSettings = {
       timeZone: "UTC",
       downtime: nightly(14 * 60, 10 * 60),
-      focusCaps: NO_FOCUS_CAPS,
     };
     const day = utc("2026-10-05T00:00", "2026-10-06T00:00");
     const reading = flexible("Reading", 60, day);
@@ -153,7 +151,6 @@ describe("replan", () => {
     const settings: SchedulerSettings = {
       timeZone: "UTC",
       downtime: nightly(14 * 60, 10 * 60),
-      focusCaps: NO_FOCUS_CAPS,
     };
     const day = utc("2026-10-05T00:00", "2026-10-06T00:00");
     const essay = flexible("Essay", 120, day);
@@ -196,58 +193,8 @@ describe("replan", () => {
     expect(again.unplaced.map((task) => task.title)).toEqual(["Marathon"]);
   });
 
-  it("moves less important blocks before going over a focus cap, and goes over it before leaving a task out", () => {
-    // Free 10:00–14:00 each day; Monday's cap is an hour, Tuesday's two.
-    const settings = (tuesdayCapMin: number): SchedulerSettings => ({
-      timeZone: "UTC",
-      downtime: nightly(14 * 60, 10 * 60),
-      focusCaps: [60, tuesdayCapMin, ...NO_FOCUS_CAPS.slice(2)],
-    });
-    const planned = (taskId: string, times: { start: Date; end: Date }): Placement => ({
-      taskId,
-      ...times,
-      pinned: false,
-      status: "planned",
-    });
-    const reading = flexible("Reading", 60, utc("2026-10-05T00:00", "2026-10-07T00:00"), "low");
-    const examPrep = flexible("Exam prep", 60, utc("2026-10-05T00:00", "2026-10-06T00:00"), "mandatory");
-    const plan = (tuesdayCapMin: number) =>
-      replan({
-        horizon: utc("2026-10-05T08:00", "2026-10-07T00:00"),
-        fixedItems: [],
-        tasks: [reading, examPrep],
-        existing: [planned("Reading", utc("2026-10-05T10:00", "2026-10-05T11:00"))],
-        settings: settings(tuesdayCapMin),
-      });
-
-    // Monday is full with the reading, which can move to Tuesday.
-    expect(plan(120)).toEqual({
-      placements: [
-        planned("Exam prep", utc("2026-10-05T10:00", "2026-10-05T11:00")),
-        planned("Reading", utc("2026-10-06T10:00", "2026-10-06T11:00")),
-      ],
-      unplaced: [],
-    });
-    // With room for only half of it on Tuesday, moving it still goes over a cap by less.
-    expect(plan(30)).toEqual({
-      placements: [
-        planned("Exam prep", utc("2026-10-05T10:00", "2026-10-05T11:00")),
-        planned("Reading", utc("2026-10-06T10:00", "2026-10-06T11:00")),
-      ],
-      unplaced: [],
-    });
-    // With no room on Tuesday either, moving it gains nothing, so the exam prep goes over Monday's cap.
-    expect(plan(0)).toEqual({
-      placements: [
-        planned("Reading", utc("2026-10-05T10:00", "2026-10-05T11:00")),
-        planned("Exam prep", utc("2026-10-05T11:00", "2026-10-05T12:00")),
-      ],
-      unplaced: [],
-    });
-  });
-
   it("places a task in the time another of its level took first, when another order fits both", () => {
-    const settings: SchedulerSettings = { timeZone: "UTC", downtime: Array(7).fill([]), focusCaps: NO_FOCUS_CAPS };
+    const settings: SchedulerSettings = { timeZone: "UTC", downtime: Array(7).fill([]) };
     // Free 08:30–09:30, 10:30–11:20 and 12:15–13:00.
     const fixedItems = [
       fixed("Breakfast", utc("2026-10-05T08:00", "2026-10-05T08:30")),
@@ -285,8 +232,46 @@ describe("replan", () => {
     expect(result.unplaced).toEqual([]);
   });
 
+  it("moves less important blocks before taking an optional fixed item's time, and takes it before leaving a task out", () => {
+    // Free 10:00–13:00 each day; Monday's club, 12:00–13:00, is optional.
+    const settings: SchedulerSettings = { timeZone: "UTC", downtime: nightly(13 * 60, 10 * 60) };
+    const club = { ...fixed("Club", utc("2026-10-05T12:00", "2026-10-05T13:00")), priority: "normal" as const };
+    const planned = (taskId: string, times: { start: Date; end: Date }): Placement => ({
+      taskId,
+      ...times,
+      pinned: false,
+      status: "planned",
+    });
+    const examPrep = flexible("Exam prep", 60, utc("2026-10-05T00:00", "2026-10-06T00:00"), "mandatory");
+    const plan = (readingDue: string) =>
+      replan({
+        horizon: utc("2026-10-05T08:00", "2026-10-07T00:00"),
+        fixedItems: [club],
+        tasks: [flexible("Reading", 120, utc("2026-10-05T00:00", readingDue), "low"), examPrep],
+        existing: [planned("Reading", utc("2026-10-05T10:00", "2026-10-05T12:00"))],
+        settings,
+      });
+
+    // The reading can move to Tuesday.
+    expect(plan("2026-10-07T00:00")).toEqual({
+      placements: [
+        planned("Exam prep", utc("2026-10-05T10:00", "2026-10-05T11:00")),
+        planned("Reading", utc("2026-10-06T10:00", "2026-10-06T12:00")),
+      ],
+      unplaced: [],
+    });
+    // Due Monday, it can't, so the exam prep takes the club's time.
+    expect(plan("2026-10-06T00:00")).toEqual({
+      placements: [
+        planned("Reading", utc("2026-10-05T10:00", "2026-10-05T12:00")),
+        planned("Exam prep", utc("2026-10-05T12:00", "2026-10-05T13:00")),
+      ],
+      unplaced: [],
+    });
+  });
+
   it("places a task that fits nowhere else over an optional fixed item of lower priority, and only then", () => {
-    const settings: SchedulerSettings = { timeZone: "UTC", downtime: Array(7).fill([]), focusCaps: NO_FOCUS_CAPS };
+    const settings: SchedulerSettings = { timeZone: "UTC", downtime: Array(7).fill([]) };
     const day = (from: string, to: string) => utc(`2026-10-05T${from}`, `2026-10-05T${to}`);
     // Free only 12:00–13:00.
     const fixedItems = [
@@ -294,9 +279,9 @@ describe("replan", () => {
       fixed("Exam", day("11:00", "12:00")),
     ];
     const tasks = [
-      flexible("Report", 60, day("10:00", "12:00"), "high"), // fits only over the club
+      flexible("Report", 30, day("10:00", "12:00"), "high"), // fits only over the club
       flexible("Notes", 30, day("10:00", "13:00"), "high"), // fits after the exam
-      flexible("Chat", 30, day("10:00", "11:00")), // no more important than the club
+      flexible("Chat", 30, day("10:00", "11:00")), // no more important than the club, so not in its other half hour
       flexible("Revision", 60, day("11:00", "12:00"), "mandatory"), // the exam is mandatory
     ];
     const planned = (taskId: string, times: { start: Date; end: Date }): Placement => ({
@@ -310,7 +295,7 @@ describe("replan", () => {
     const result = replan({ ...input, existing: [] });
 
     expect(result.placements).toEqual([
-      planned("Report", day("10:00", "11:00")),
+      planned("Report", day("10:00", "10:30")),
       planned("Notes", day("12:00", "12:30")),
     ]);
     expect(result.unplaced.map((task) => task.id)).toEqual(["Chat", "Revision"]);
@@ -321,7 +306,6 @@ describe("replan", () => {
     const settings: SchedulerSettings = {
       timeZone: "UTC",
       downtime: nightly(22 * 60, 10 * 60),
-      focusCaps: NO_FOCUS_CAPS,
     };
     const thesis = {
       ...flexible("Thesis", 90, utc("2026-10-05T10:00", "2026-10-05T22:00")),
@@ -418,8 +402,20 @@ describe("replan", () => {
   });
 
   it("changes nothing when an unchanged plan is planned again", () => {
+    // Some fixed items optional, so tasks more important than them may take their time.
+    const withOptionalArb = scenarioArb.chain((scenario) =>
+      fc
+        .array(fc.constantFrom(...PRIORITIES), {
+          minLength: scenario.fixedItems.length,
+          maxLength: scenario.fixedItems.length,
+        })
+        .map((priorities) => ({
+          ...scenario,
+          fixedItems: scenario.fixedItems.map((item, i) => ({ ...item, priority: priorities[i] })),
+        })),
+    );
     fc.assert(
-      fc.property(scenarioArb, ({ horizon, settings, fixedItems, tasks }) => {
+      fc.property(withOptionalArb, ({ horizon, settings, fixedItems, tasks }) => {
         const input = { horizon, fixedItems, tasks, settings };
         const first = replan({ ...input, existing: [] });
 
@@ -445,7 +441,6 @@ describe("replan", () => {
         [],
         [],
       ],
-      focusCaps: NO_FOCUS_CAPS,
     };
     const tasks: Task[] = [
       { ...flexible("Short blocks", 155, day("13:39", "19:30"), "high"), split: { minChunkMin: 5, maxChunkMin: 25 } },
