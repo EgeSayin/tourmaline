@@ -51,6 +51,11 @@ export function overCap(days: FocusDay[], blocks: Interval[]): FocusDay[] {
   });
 }
 
+/** The minutes `days` are filled past their caps, all together. */
+export function overCapMinutes(days: FocusDay[]): number {
+  return days.reduce((sum, day) => sum + (day.capMin === null ? 0 : Math.max(0, day.usedMin - day.capMin)), 0);
+}
+
 /** `days` with their caps raised by `extraMin`. */
 export function raiseCaps(days: FocusDay[], extraMin: number): FocusDay[] {
   return days.map((day) => (day.capMin === null ? day : { ...day, capMin: day.capMin + extraMin }));

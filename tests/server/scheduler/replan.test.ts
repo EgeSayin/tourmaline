@@ -196,6 +196,48 @@ describe("replan", () => {
     expect(again.unplaced.map((task) => task.title)).toEqual(["Marathon"]);
   });
 
+  it("moves less important blocks before going over a focus cap, and goes over it before leaving a task out", () => {
+    // Free 10:00–14:00 each day; Monday's cap is an hour, Tuesday's two.
+    const settings = (tuesdayCapMin: number): SchedulerSettings => ({
+      timeZone: "UTC",
+      downtime: nightly(14 * 60, 10 * 60),
+      focusCaps: [60, tuesdayCapMin, ...NO_FOCUS_CAPS.slice(2)],
+    });
+    const planned = (taskId: string, times: { start: Date; end: Date }): Placement => ({
+      taskId,
+      ...times,
+      pinned: false,
+      status: "planned",
+    });
+    const reading = flexible("Reading", 60, utc("2026-10-05T00:00", "2026-10-07T00:00"), "low");
+    const examPrep = flexible("Exam prep", 60, utc("2026-10-05T00:00", "2026-10-06T00:00"), "mandatory");
+    const plan = (tuesdayCapMin: number) =>
+      replan({
+        horizon: utc("2026-10-05T08:00", "2026-10-07T00:00"),
+        fixedItems: [],
+        tasks: [reading, examPrep],
+        existing: [planned("Reading", utc("2026-10-05T10:00", "2026-10-05T11:00"))],
+        settings: settings(tuesdayCapMin),
+      });
+
+    // Monday is full with the reading, which can move to Tuesday.
+    expect(plan(120)).toEqual({
+      placements: [
+        planned("Exam prep", utc("2026-10-05T10:00", "2026-10-05T11:00")),
+        planned("Reading", utc("2026-10-06T10:00", "2026-10-06T11:00")),
+      ],
+      unplaced: [],
+    });
+    // With no room on Tuesday either, moving it gains nothing, so the exam prep goes over Monday's cap.
+    expect(plan(0)).toEqual({
+      placements: [
+        planned("Reading", utc("2026-10-05T10:00", "2026-10-05T11:00")),
+        planned("Exam prep", utc("2026-10-05T11:00", "2026-10-05T12:00")),
+      ],
+      unplaced: [],
+    });
+  });
+
   it("places a task in the time another of its level took first, when another order fits both", () => {
     const settings: SchedulerSettings = { timeZone: "UTC", downtime: Array(7).fill([]), focusCaps: NO_FOCUS_CAPS };
     // Free 08:30–09:30, 10:30–11:20 and 12:15–13:00.

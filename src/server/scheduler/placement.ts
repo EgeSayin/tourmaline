@@ -39,8 +39,8 @@ export interface PlacementResult {
  *
  * With focus `days`, which count what's already filled, a task first leaves out the days that are full, and cuts
  * each day its blocks would fill past its cap down to the room left (see `trimToRoom`), searching again until its
- * blocks fit under every cap. Only if that finds no room does it go over the caps, by as little as it can (see
- * `FOCUS_CAP_RAISES_MIN`).
+ * blocks fit under every cap. Only if that finds no room does it go over the caps, by as little as it can, at most by
+ * the last of `capRaisesMin`.
  */
 export function placeTasks(
   tasks: Task[],
@@ -48,6 +48,7 @@ export function placeTasks(
   placed: readonly Placement[] = [],
   days: FocusDay[] = [],
   strategy: PlanStrategy = BY_URGENCY,
+  capRaisesMin: readonly number[] = FOCUS_CAP_RAISES_MIN,
 ): PlacementResult {
   let remaining = free;
   let focus = days;
@@ -71,7 +72,7 @@ export function placeTasks(
     };
 
     let blocks: Interval[] | null = null;
-    for (const extraMin of FOCUS_CAP_RAISES_MIN) {
+    for (const extraMin of capRaisesMin) {
       blocks = placeUnder(raiseCaps(focus, extraMin));
       if (blocks) break;
     }
