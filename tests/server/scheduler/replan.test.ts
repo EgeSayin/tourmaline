@@ -527,7 +527,9 @@ describe("replan", () => {
       .map(([durationMin, window]) => flexible("New task", durationMin, window));
 
     fc.assert(
-      fc.property(scenarioArb, newTaskArb, ({ horizon, settings, fixedItems, tasks }, newTask) => {
+      fc.property(scenarioArb, newTaskArb, ({ horizon, settings, fixedItems, tasks: generated }, newTask) => {
+        // Preferred hours outrank keeping blocks where they are, so a plan may rightly move blocks into them later.
+        const tasks = generated.map((task) => (task.timeOfDay?.must === false ? { ...task, timeOfDay: null } : task));
         const input = { horizon, fixedItems, settings };
         const before = replan({ ...input, tasks, existing: [] });
 
