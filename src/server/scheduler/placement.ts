@@ -69,11 +69,12 @@ export function placeTasks(
 
 /**
  * `task`'s blocks in `free`, giving up its preferences in turn, least important first, until they fit: its spread
- * (`even` falls back to `asap`, the only spread that can fail where another fits), then the time it keeps to (see
- * `PlanTask.searchOrder`).
+ * (the others are tried after it: `even` can find no room from its targets, and when a block's length is off the
+ * grid, as time left after an early check-off can be, a start on the grid fits where an end on it doesn't, or the
+ * other way round), then the time it keeps to (see `PlanTask.searchOrder`).
  */
 function findTaskBlocks(task: PlanTask, free: IntervalSet, placed: readonly Placement[]): Interval[] | null {
-  const spreads: SpreadStrategy[] = task.spread === "even" ? ["even", "asap"] : [task.spread];
+  const spreads = [...new Set<SpreadStrategy>([task.spread, "asap", "just-in-time"])];
   for (const time of task.searchOrder) {
     const open = intersectIntervals(free, time);
     for (const spread of spreads) {

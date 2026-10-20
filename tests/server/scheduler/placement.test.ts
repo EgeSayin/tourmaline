@@ -107,7 +107,7 @@ describe("placeTasks", () => {
     expect(unplaced.map((task) => task.id)).toEqual(["Revision"]);
   });
 
-  it("follows each task's spread, falling back to asap when it finds no room", () => {
+  it("follows each task's spread, falling back to the others when it finds no room", () => {
     const settings: SchedulerSettings = {
       timeZone: "UTC",
       downtime: nightly(22 * 60, 10 * 60),
@@ -139,6 +139,16 @@ describe("placeTasks", () => {
       { taskId: "Essay", ...utc("2026-10-06T16:30", "2026-10-06T17:30") },
       { taskId: "Practice", ...utc("2026-10-07T21:00", "2026-10-07T22:00") },
       { taskId: "Reading", ...utc("2026-10-05T10:00", "2026-10-05T11:00") },
+    ]);
+
+    // 12 minutes left, off the grid: ending on it, the latest block would start too early, and starting on it, the
+    // earliest would end too late, so each falls back to the other.
+    const odd = (spread: SpreadStrategy) => planTask({ ...flexible("Rest", 12, iv("00:00", "23:59")), spread });
+    expect(placeTasks([odd("just-in-time")], mergeIntervals([iv("01:09", "01:22")])).placements).toEqual([
+      { taskId: "Rest", ...iv("01:10", "01:22"), pinned: false, status: "planned" },
+    ]);
+    expect(placeTasks([odd("asap")], mergeIntervals([iv("01:08", "01:20")])).placements).toEqual([
+      { taskId: "Rest", ...iv("01:08", "01:20"), pinned: false, status: "planned" },
     ]);
 
     // Its centre is 10:15, and nothing fits from there on, so it goes in the earliest fit.
