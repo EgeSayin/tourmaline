@@ -21,6 +21,7 @@ import { CATEGORY_COLORS } from "@/lib/categories";
 import type { Downtime } from "@/lib/downtime";
 import { PRIORITIES, SPREAD_STRATEGIES } from "@/lib/items";
 import { PLACEMENT_STATUSES, SLOT_MIN } from "@/lib/placements";
+import { MINUTES_PER_DAY } from "@/lib/time/time-of-day";
 import type { Occurrences, Recurrence } from "@/lib/recurrence";
 import { DEFAULT_SETTINGS } from "@/lib/settings";
 import type { TimeZone } from "@/lib/time/time-zone";
@@ -32,6 +33,7 @@ export const categoryColorEnum = pgEnum("category_color", CATEGORY_COLORS);
 
 // A literal: check constraints can't take parameters.
 const slotMin = sql.raw(String(SLOT_MIN));
+const minutesPerDay = sql.raw(String(MINUTES_PER_DAY));
 
 const timestamptz = (name: string) => timestamp(name, { withTimezone: true });
 
@@ -167,6 +169,9 @@ export const tasks = pgTable(
     splitMaxChunkMin: integer("split_max_chunk_min"),
     spread: spreadEnum("spread").notNull(),
     withinPeriod: boolean("within_period").notNull().default(false),
+    timeOfDayStartMin: integer("time_of_day_start_min"),
+    timeOfDayEndMin: integer("time_of_day_end_min"),
+    timeOfDayMust: boolean("time_of_day_must"),
     /** A one-off task marked done; occurrences use their state. Not part of the task's own fields. */
     done: boolean("done").notNull().default(false),
   },
@@ -174,6 +179,10 @@ export const tasks = pgTable(
     ...itemConstraints("tasks", t),
     check("tasks_window", sql`${t.earliestStart} < ${t.deadline}`),
     check("tasks_within_period", sql`not ${t.withinPeriod} or ${t.recurrence} is not null`),
+    check(
+      "tasks_time_of_day",
+      sql`(${t.timeOfDayStartMin} is null) = (${t.timeOfDayEndMin} is null) and (${t.timeOfDayStartMin} is null) = (${t.timeOfDayMust} is null) and (${t.timeOfDayStartMin} is null or (0 <= ${t.timeOfDayStartMin} and ${t.timeOfDayStartMin} < ${t.timeOfDayEndMin} and ${t.timeOfDayEndMin} <= ${minutesPerDay} and ${t.timeOfDayStartMin} % ${slotMin} = 0 and ${t.timeOfDayEndMin} % ${slotMin} = 0))`,
+    ),
     check("tasks_duration", sql`${t.durationMin} > 0 and ${t.durationMin} % ${slotMin} = 0`),
     check(
       "tasks_split",

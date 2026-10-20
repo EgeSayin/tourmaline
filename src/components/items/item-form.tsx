@@ -14,7 +14,7 @@ import { useFormAction } from "@/hooks/use-form-action";
 import { createItemAction, deleteItemAction, updateItemAction } from "@/server/items/actions";
 import { BufferFields, FixedTimeFields } from "./fixed-item-fields";
 import { RepeatFields } from "./repeat-fields";
-import { DurationField, TaskScheduleSection, TaskWindowFields } from "./task-fields";
+import { DurationField, TaskScheduleSection, TaskWindowFields, TimeOfDayField } from "./task-fields";
 import { TaskDoneButton } from "./task-done-button";
 import { TimingSwitch } from "./timing-switch";
 
@@ -71,7 +71,14 @@ export function ItemForm({
           <FormSection title="When">
             {timing === "fixed" ? <FixedTimeFields /> : <DurationField />}
             <RepeatFields repeat={repeat} onRepeatChange={setRepeat} />
-            {timing === "fixed" ? <BufferFields /> : <TaskWindowFields repeat={repeat} />}
+            {timing === "fixed" ? (
+              <BufferFields />
+            ) : (
+              <>
+                <TaskWindowFields repeat={repeat} />
+                <TimeOfDayField />
+              </>
+            )}
           </FormSection>
           {timing === "flexible" && <TaskScheduleSection />}
         </FieldGroup>

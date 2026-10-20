@@ -1,0 +1,4 @@
+ALTER TABLE "tasks" ADD COLUMN "time_of_day_start_min" integer;--> statement-breakpoint
+ALTER TABLE "tasks" ADD COLUMN "time_of_day_end_min" integer;--> statement-breakpoint
+ALTER TABLE "tasks" ADD COLUMN "time_of_day_must" boolean;--> statement-breakpoint
+ALTER TABLE "tasks" ADD CONSTRAINT "tasks_time_of_day" CHECK (("tasks"."time_of_day_start_min" is null) = ("tasks"."time_of_day_end_min" is null) and ("tasks"."time_of_day_start_min" is null) = ("tasks"."time_of_day_must" is null) and ("tasks"."time_of_day_start_min" is null or (0 <= "tasks"."time_of_day_start_min" and "tasks"."time_of_day_start_min" < "tasks"."time_of_day_end_min" and "tasks"."time_of_day_end_min" <= 1440 and "tasks"."time_of_day_start_min" % 5 = 0 and "tasks"."time_of_day_end_min" % 5 = 0)));

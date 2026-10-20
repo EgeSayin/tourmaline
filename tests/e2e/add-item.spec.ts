@@ -33,6 +33,29 @@ test.describe("adding items", () => {
     await expect(page.getByText(title).first()).toBeAttached();
   });
 
+  test("keeps a task to a time of day picked from a preset and the slider", async ({ page }, testInfo) => {
+    const form = await openAddItemForm(page);
+    await form.getByLabel("Title").fill(`E2E practice (${testInfo.project.name})`);
+    await form.getByLabel("Duration", { exact: true }).fill("5h");
+    await form.getByLabel("Due").fill(localDateTime(3, "23:00"));
+    await expect(form.getByRole("button", { name: "Any time" })).toHaveAttribute("aria-pressed", "true");
+
+    await form.getByRole("button", { name: "Evening" }).click();
+    await expect(form.getByText("18:00–22:00")).toBeVisible();
+    await form.getByRole("slider", { name: "Until" }).press("ArrowRight");
+    await expect(form.getByText("18:00–22:15")).toBeVisible();
+    await expect(form.getByRole("button", { name: "Evening" })).toHaveAttribute("aria-pressed", "false");
+    await form.getByRole("radio", { name: "Always" }).click();
+
+    // Five hours in one block can't fit in the evening.
+    await form.getByRole("button", { name: "Add item" }).click();
+    await expect(form.getByText("Its blocks are longer than these hours")).toBeVisible();
+
+    await form.getByLabel("Duration", { exact: true }).fill("1h");
+    await form.getByRole("button", { name: "Add item" }).click();
+    await expect(form).toBeHidden();
+  });
+
   test("adds a fixed item at its time, defaulting to mandatory", async ({ page }, testInfo) => {
     const title = `E2E office hours (${testInfo.project.name})`;
     const form = await openAddItemForm(page);

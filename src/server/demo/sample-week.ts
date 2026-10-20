@@ -53,6 +53,7 @@ function flexible(
     split: null,
     spread: "asap",
     withinPeriod: false,
+    timeOfDay: null,
   };
 }
 
@@ -140,8 +141,15 @@ export function sampleWeek(now: Date) {
   const tasks: NewTask[] = [
     // Kept within its day: a missed lunch isn't eaten the next morning.
     recurringTask("Lunch", 45, local(from(daily), "11:30"), daily, "mandatory", true),
-    { ...recurringTask("Gym", 60, local(from(gym), "17:00"), gym, "high"), categoryId: "health" },
-    recurringTask("Language practice", 20, local(from(daily), "10:00"), daily),
+    {
+      ...recurringTask("Gym", 60, local(from(gym), "17:00"), gym, "high"),
+      categoryId: "health",
+      timeOfDay: { startMinute: 17 * 60, endMinute: 21 * 60, must: true },
+    },
+    {
+      ...recurringTask("Language practice", 20, local(from(daily), "10:00"), daily),
+      timeOfDay: { startMinute: 8 * 60, endMinute: 12 * 60, must: false },
+    },
     {
       ...flexible("Calculus problem set", 3 * 60, [local(MON, "00:00"), local(THU, "14:00")]),
       categoryId: "calc",

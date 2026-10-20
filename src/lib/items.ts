@@ -1,6 +1,7 @@
 import type { Occurrences, Recurrence } from "./recurrence";
 import { addMinutes } from "./time/duration";
 import type { Interval } from "./time/interval";
+import type { DayRange } from "./time/time-of-day";
 
 /** Most to least important. */
 export const PRIORITIES = ["mandatory", "high", "normal", "low"] as const;
@@ -36,6 +37,11 @@ export interface ChunkSizes {
   maxChunkMin: number;
 }
 
+/** The hours of the day a task's blocks go in, the same every day: only these when `must`, otherwise these if they fit. */
+export interface TimeOfDay extends DayRange {
+  must: boolean;
+}
+
 export interface Task extends BaseItem {
   timing: "flexible";
   durationMin: number;
@@ -49,6 +55,7 @@ export interface Task extends BaseItem {
    * comes before the next occurrence, so time it misses is never planned past it. Always `false` for a one-off task.
    */
   withinPeriod: boolean;
+  timeOfDay: TimeOfDay | null;
   /** Marked done as a whole, so it isn't planned. An occurrence's comes from its state. */
   done: boolean;
 }

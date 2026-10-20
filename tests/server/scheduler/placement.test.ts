@@ -4,13 +4,13 @@ import { describe, expect, it } from "vitest";
 import type { ChunkSizes, SpreadStrategy } from "@/lib/items";
 import { CHUNK_BREAK_MIN, type SchedulerSettings } from "@/lib/settings";
 import { minutesBetween } from "@/lib/time/duration";
-import { mergeIntervals, subtractIntervals } from "@/lib/time/interval";
+import { intersectIntervals, mergeIntervals, subtractIntervals } from "@/lib/time/interval";
 import { freeTimeMap } from "@/server/scheduler/free-time";
 import { placeTasks } from "@/server/scheduler/placement";
 import { planTask } from "@/server/scheduler/task-time";
 import { findEarliestSlot } from "@/server/scheduler/search";
 import { intervalArb, iv, SPAN_MIN, utc } from "../../support/intervals";
-import { fixed, fixedItemArb, flexible, flexibleItemsArb } from "../../support/items";
+import { fixed, fixedItemArb, flexible, flexibleItemsArb, inRequiredHours, requiredTime } from "../../support/items";
 import { utcSettingsArb } from "../../support/settings";
 
 describe("placeTasks", () => {
@@ -176,6 +176,7 @@ describe("placeTasks", () => {
             if (!task.split) expect(chunks).toHaveLength(1);
             for (const [i, chunk] of chunks.entries()) {
               expect(chunk.start >= task.earliestStart && chunk.end <= task.deadline).toBe(true);
+              expect(inRequiredHours(task, chunk)).toBe(true);
               expect(subtractIntervals([chunk], free)).toEqual([]);
               if (i > 0) expect(minutesBetween(chunks[i - 1].end, chunk.start)).toBeGreaterThanOrEqual(CHUNK_BREAK_MIN);
             }
@@ -190,7 +191,10 @@ describe("placeTasks", () => {
           const leftover = subtractIntervals(free, placements);
           for (const task of unplaced.filter((task) => !task.split)) {
             expect(
-              findEarliestSlot(leftover, task.durationMin, { start: task.earliestStart, end: task.deadline }),
+              findEarliestSlot(intersectIntervals(leftover, requiredTime(task)), task.durationMin, {
+                start: task.earliestStart,
+                end: task.deadline,
+              }),
             ).toBeNull();
           }
         },

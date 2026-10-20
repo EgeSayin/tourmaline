@@ -100,7 +100,7 @@ function fixedRow(tx: WorkspaceTx, item: NewFixedItem) {
 }
 
 function taskRow(tx: WorkspaceTx, item: NewTask) {
-  const { durationMin, earliestStart, deadline, split, spread, withinPeriod } = item;
+  const { durationMin, earliestStart, deadline, split, spread, withinPeriod, timeOfDay } = item;
   return {
     ...sharedRow(tx, item),
     durationMin,
@@ -110,6 +110,9 @@ function taskRow(tx: WorkspaceTx, item: NewTask) {
     splitMaxChunkMin: split?.maxChunkMin ?? null,
     spread,
     withinPeriod,
+    timeOfDayStartMin: timeOfDay?.startMinute ?? null,
+    timeOfDayEndMin: timeOfDay?.endMinute ?? null,
+    timeOfDayMust: timeOfDay?.must ?? null,
   };
 }
 
@@ -150,6 +153,10 @@ function toTask(row: typeof tasks.$inferSelect): Task {
         : { minChunkMin: row.splitMinChunkMin, maxChunkMin: row.splitMaxChunkMin },
     spread: row.spread,
     withinPeriod: row.withinPeriod,
+    timeOfDay:
+      row.timeOfDayStartMin === null || row.timeOfDayEndMin === null || row.timeOfDayMust === null
+        ? null
+        : { startMinute: row.timeOfDayStartMin, endMinute: row.timeOfDayEndMin, must: row.timeOfDayMust },
     done: row.done,
   };
 }

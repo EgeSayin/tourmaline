@@ -10,6 +10,7 @@ import {
 } from "@/lib/items";
 import { SLOT_MIN } from "@/lib/placements";
 import type { Interval } from "@/lib/time/interval";
+import { hoursOf } from "@/server/scheduler/preferences";
 import { intervalArb, SPAN_MIN } from "./intervals";
 
 /** `item` as it's saved, without the id and occurrence states the database adds. */
@@ -54,6 +55,7 @@ export function flexible(title: string, durationMin: number, window: Interval, p
     split: null,
     spread: "asap",
     withinPeriod: false,
+    timeOfDay: null,
     done: false,
   };
 }
@@ -70,6 +72,15 @@ export const splitArb = fc
   .tuple(taskMinutesArb(SLOT_MIN, 120), taskMinutesArb(0, 120))
   .map(([minChunkMin, extra]) => ({ minChunkMin, maxChunkMin: minChunkMin + extra }));
 
+/** Hours on the slot grid, a hard limit or a preference. */
+export const timeOfDayArb = fc
+  .tuple(taskMinutesArb(0, 23 * 60), taskMinutesArb(SLOT_MIN, 8 * 60), fc.boolean())
+  .map(([startMinute, lengthMin, must]) => ({
+    startMinute,
+    endMinute: Math.min(startMinute + lengthMin, 24 * 60),
+    must,
+  }));
+
 /** Tasks with unique ids. */
 export const flexibleItemsArb = fc
   .array(
@@ -79,13 +90,32 @@ export const flexibleItemsArb = fc
       fc.constantFrom(...PRIORITIES),
       fc.option(splitArb, { nil: null }),
       fc.constantFrom(...SPREAD_STRATEGIES),
+      fc.option(timeOfDayArb, { nil: null, freq: 3 }),
     ),
     { maxLength: 10 },
   )
   .map((tasks) =>
-    tasks.map(([durationMin, window, priority, split, spread], i) => ({
+    tasks.map(([durationMin, window, priority, split, spread, timeOfDay], i) => ({
       ...flexible(`Task ${i}`, durationMin, window, priority),
       split,
       spread,
+      timeOfDay,
     })),
   );
+
+/** Whether `block` lies in `task`'s time of day when it must, read in UTC. */
+export function inRequiredHours(task: Task, block: Interval): boolean {
+  if (!task.timeOfDay?.must) return true;
+  const { startMinute, endMinute } = task.timeOfDay;
+  const start = block.start.getUTCHours() * 60 + block.start.getUTCMinutes();
+  return (
+    (startMinute === 0 && endMinute === 24 * 60) ||
+    (start >= startMinute && start + (block.end.getTime() - block.start.getTime()) / 60_000 <= endMinute)
+  );
+}
+
+/** Where `task` may go: its window, cut to its time of day when it must keep to it, read in UTC. */
+export function requiredTime(task: Task): Interval[] {
+  const window = { start: task.earliestStart, end: task.deadline };
+  return task.timeOfDay?.must ? [...hoursOf(task, "UTC")] : [window];
+}

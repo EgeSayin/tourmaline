@@ -23,6 +23,10 @@ export function useFormValue(name: string): string | undefined {
   return use(FormStateContext).values[name];
 }
 
+export function useFormErrors(name: string): string[] | undefined {
+  return use(FormStateContext).errors[name];
+}
+
 export function FormStateProvider({ children, ...state }: FieldValues & { children: React.ReactNode }) {
   return <FormStateContext value={state}>{children}</FormStateContext>;
 }

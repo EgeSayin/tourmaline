@@ -6,11 +6,11 @@ import { PRIORITIES, type Task } from "@/lib/items";
 import { isPending, PLACEMENT_STATUSES, type Placement } from "@/lib/placements";
 import { CHUNK_BREAK_MIN, type SchedulerSettings } from "@/lib/settings";
 import { freeTimeMap } from "@/server/scheduler/free-time";
-import { subtractIntervals } from "@/lib/time/interval";
+import { intersectIntervals, subtractIntervals } from "@/lib/time/interval";
 import { replan } from "@/server/scheduler/replan";
 import { findEarliestSlot } from "@/server/scheduler/search";
 import { intervalArb, SPAN_MIN, utc } from "../../support/intervals";
-import { fixed, fixedItemArb, flexible, flexibleItemsArb } from "../../support/items";
+import { fixed, fixedItemArb, flexible, flexibleItemsArb, inRequiredHours, requiredTime } from "../../support/items";
 import { utcSettingsArb } from "../../support/settings";
 
 const scenarioArb = fc
@@ -193,6 +193,48 @@ describe("replan", () => {
     expect(again.unplaced.map((task) => task.title)).toEqual(["Marathon"]);
   });
 
+  it("keeps a task in its time of day: only there when it must be, moving less important blocks; there when it fits, if preferred", () => {
+    // Free 09:00–22:00; the reading holds 18:00–20:00.
+    const settings: SchedulerSettings = { timeZone: "UTC", downtime: nightly(22 * 60, 9 * 60) };
+    const day = utc("2026-10-05T00:00", "2026-10-06T00:00");
+    const planned = (taskId: string, from: string, to: string): Placement => ({
+      taskId,
+      ...utc(`2026-10-05T${from}`, `2026-10-05T${to}`),
+      pinned: false,
+      status: "planned",
+    });
+    const reading = planned("Reading", "18:00", "20:00");
+    const plan = (must: boolean, existing = [reading]) =>
+      replan({
+        horizon: utc("2026-10-05T08:00", "2026-10-06T00:00"),
+        fixedItems: [],
+        tasks: [
+          flexible("Reading", 120, day, "low"),
+          { ...flexible("Gym", 60, day), timeOfDay: { startMinute: 18 * 60, endMinute: 20 * 60, must } },
+        ],
+        existing,
+        settings,
+      });
+
+    // Preferred: the evening is taken, and a preference moves nothing, so it goes in the earliest fit.
+    expect(plan(false).placements).toEqual([planned("Gym", "09:00", "10:00"), reading]);
+    // Required: the reading gives way.
+    expect(plan(true).placements).toEqual([planned("Reading", "09:00", "11:00"), planned("Gym", "18:00", "19:00")]);
+    // Preferred, with the evening free: there, though earlier time is free too.
+    expect(plan(false, []).placements).toEqual([
+      planned("Reading", "09:00", "11:00"),
+      planned("Gym", "18:00", "19:00"),
+    ]);
+
+    // Keeping out of a less important optional item's time ranks above preferred hours, so that preference goes first.
+    const club = { ...fixed("Club", utc("2026-10-05T18:00", "2026-10-05T20:00")), priority: "low" as const };
+    const gym = { ...flexible("Gym", 60, day), timeOfDay: { startMinute: 18 * 60, endMinute: 20 * 60, must: false } };
+    const horizon = utc("2026-10-05T08:00", "2026-10-06T00:00");
+    expect(replan({ horizon, fixedItems: [club], tasks: [gym], existing: [], settings }).placements).toEqual([
+      planned("Gym", "09:00", "10:00"),
+    ]);
+  });
+
   it("places a task in the time another of its level took first, when another order fits both", () => {
     const settings: SchedulerSettings = { timeZone: "UTC", downtime: Array(7).fill([]) };
     // Free 08:30–09:30, 10:30–11:20 and 12:15–13:00.
@@ -358,6 +400,7 @@ describe("replan", () => {
         for (const [i, placement] of byStart.entries()) {
           const task = tasks.find((t) => t.id === placement.taskId)!;
           expect(placement.start >= task.earliestStart && placement.end <= task.deadline).toBe(true);
+          expect(inRequiredHours(task, placement)).toBe(true);
           expect(subtractIntervals([placement], subtractIntervals(free, kept))).toEqual([]);
           if (i > 0) expect(byStart[i - 1].end <= placement.start).toBe(true);
         }
@@ -390,7 +433,10 @@ describe("replan", () => {
             // Only for single blocks: a greedy chunk search can miss chunks that would fit.
             if (!task.split) {
               expect(
-                findEarliestSlot(leftover, remaining, { start: task.earliestStart, end: task.deadline }),
+                findEarliestSlot(intersectIntervals(leftover, requiredTime(task)), remaining, {
+                  start: task.earliestStart,
+                  end: task.deadline,
+                }),
               ).toBeNull();
             }
           } else {

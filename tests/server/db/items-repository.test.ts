@@ -31,6 +31,7 @@ const essay: NewTask = {
   split: { minChunkMin: 30, maxChunkMin: 90 },
   spread: "just-in-time",
   withinPeriod: false,
+  timeOfDay: null,
 };
 
 /** `item` as loaded: with its id and occurrence states, and a task not done. */

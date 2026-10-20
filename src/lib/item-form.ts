@@ -11,6 +11,11 @@ export const CATCH_UP_OPTIONS = ["later", "in-period"] as const;
 
 export type CatchUp = (typeof CATCH_UP_OPTIONS)[number];
 
+/** Whether a task's time of day is a hard limit or a preference. */
+export const TIME_OF_DAY_RULES = ["prefer", "must"] as const;
+
+export type TimeOfDayRule = (typeof TIME_OF_DAY_RULES)[number];
+
 export function itemToFormValues(item: Item, timeZone: TimeZone): Record<string, string> {
   const local = (date: Date) => toDateTimeInputValue(date, timeZone);
   const { recurrence } = item;
@@ -45,5 +50,8 @@ export function itemToFormValues(item: Item, timeZone: TimeZone): Record<string,
     maxChunkMin: item.split ? String(item.split.maxChunkMin) : "",
     spread: item.spread,
     catchUp: item.withinPeriod ? "in-period" : "later",
+    timeOfDayStart: item.timeOfDay ? String(item.timeOfDay.startMinute) : "",
+    timeOfDayEnd: item.timeOfDay ? String(item.timeOfDay.endMinute) : "",
+    timeOfDayRule: item.timeOfDay?.must ? "must" : "prefer",
   };
 }

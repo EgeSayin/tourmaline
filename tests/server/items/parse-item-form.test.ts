@@ -78,6 +78,7 @@ describe("parseItemForm", () => {
         split: { minChunkMin: 30, maxChunkMin: 60 },
         spread: "just-in-time",
         withinPeriod: false,
+        timeOfDay: null,
       },
     });
   });
@@ -237,6 +238,40 @@ describe("parseItemForm", () => {
     expect(parseItemForm(task, tz, now)).toEqual({ ok: false, errors: { deadline: ["Enter a date and time"] } });
   });
 
+  it("parses a task's time of day, and rejects hours it must keep to but can't fit in", () => {
+    const task = {
+      timing: "flexible",
+      title: "Gym",
+      durationMin: "90",
+      deadline: "2026-10-07T23:00", // Wednesday
+      timeOfDayStart: String(18 * 60),
+      timeOfDayEnd: String(20 * 60),
+    };
+    const parse = (fields: Record<string, string>) => parseItemForm({ ...task, ...fields }, tz, now);
+
+    expect(parse({})).toMatchObject({
+      ok: true,
+      item: { timeOfDay: { startMinute: 1080, endMinute: 1200, must: false } },
+    });
+    expect(parse({ timeOfDayRule: "must" })).toMatchObject({ ok: true, item: { timeOfDay: { must: true } } });
+    expect(parse({ timeOfDayStart: "", timeOfDayEnd: "" })).toMatchObject({ ok: true, item: { timeOfDay: null } });
+
+    const errors = (fields: Record<string, string>) => {
+      const parsed = parse(fields);
+      return parsed.ok ? null : parsed.errors.timeOfDay;
+    };
+    expect(errors({ timeOfDayEnd: String(18 * 60) })).toEqual(["Choose hours that end after they start"]);
+    // Must: a 90-minute block can't fit in an hour; preferred hours may be shorter than the task.
+    expect(errors({ timeOfDayEnd: String(19 * 60), timeOfDayRule: "must" })).toEqual([
+      "Its blocks are longer than these hours",
+    ]);
+    expect(errors({ timeOfDayEnd: String(19 * 60) })).toBeNull();
+    // Due Monday 19:00, it has an hour of its evening left.
+    expect(errors({ deadline: "2026-10-05T19:00", timeOfDayRule: "must" })).toEqual([
+      "It can't fit in these hours before it's due",
+    ]);
+  });
+
   it("parses an item's own form values, category included, back into the same item", () => {
     const lecture = {
       ...fixed("Lecture", { start: new Date("2026-10-05T15:00Z"), end: new Date("2026-10-05T16:15Z") }, 15, 5),
@@ -247,6 +282,7 @@ describe("parseItemForm", () => {
       ...flexible("Essay", 120, { start: new Date("2026-10-31T13:00Z"), end: new Date("2026-11-02T22:00Z") }, "high"),
       split: { minChunkMin: 30, maxChunkMin: 60 },
       spread: "even" as const,
+      timeOfDay: { startMinute: 18 * 60, endMinute: 22 * 60, must: false },
     };
 
     const weeklyLecture = {
@@ -256,6 +292,7 @@ describe("parseItemForm", () => {
     const dailyGym = {
       ...flexible("Gym", 60, { start: new Date("2026-10-05T14:00Z"), end: new Date("2026-10-06T14:00Z") }),
       recurrence: { frequency: "daily", interval: 1, until: null } satisfies Recurrence,
+      timeOfDay: { startMinute: 7 * 60, endMinute: 9 * 60 + 30, must: true },
     };
 
     const dailyLunch = {

@@ -1,9 +1,20 @@
 "use client";
 
 import { useState } from "react";
-import { FormChoice, FormDurationInput, FormInput, FormSection, useFormValue } from "@/components/forms/form-fields";
-import { CATCH_UP_OPTIONS, type CatchUp, type Repeat } from "@/lib/item-form";
+import {
+  FormChoice,
+  FormDurationInput,
+  FormInput,
+  FormSection,
+  useFormErrors,
+  useFormValue,
+} from "@/components/forms/form-fields";
+import { TimeRangeSlider } from "@/components/forms/time-range-slider";
+import { Button } from "@/components/ui/button";
+import { FieldDescription, FieldError, FieldLegend, FieldSet } from "@/components/ui/field";
+import { CATCH_UP_OPTIONS, type CatchUp, type Repeat, TIME_OF_DAY_RULES, type TimeOfDayRule } from "@/lib/item-form";
 import { SPREAD_STRATEGIES, type SpreadStrategy } from "@/lib/items";
+import { toTimeInputValue } from "@/lib/time/time-of-day";
 
 const SPREAD_LABELS = {
   asap: "Early",
@@ -50,6 +61,63 @@ export function TaskWindowFields({ repeat }: { repeat: Repeat }) {
         />
       )}
     </>
+  );
+}
+
+const TIME_OF_DAY_PRESETS: { label: string; range: [number, number] }[] = [
+  { label: "Morning", range: [8 * 60, 12 * 60] },
+  { label: "Afternoon", range: [12 * 60, 17 * 60] },
+  { label: "Evening", range: [18 * 60, 22 * 60] },
+];
+
+const TIME_OF_DAY_RULE_LABELS = { prefer: "If it fits", must: "Always" } satisfies Record<TimeOfDayRule, string>;
+
+/** The hours of the day a task's blocks go in, picked from presets or on a slider, kept to always or if they fit. */
+export function TimeOfDayField() {
+  const [start, end] = [useFormValue("timeOfDayStart"), useFormValue("timeOfDayEnd")];
+  const [range, setRange] = useState<[number, number] | null>(start && end ? [Number(start), Number(end)] : null);
+  const messages = useFormErrors("timeOfDay");
+  const isRange = (other: [number, number] | null) => other?.[0] === range?.[0] && other?.[1] === range?.[1];
+
+  return (
+    <FieldSet data-invalid={messages ? true : undefined} className="gap-2">
+      <FieldLegend variant="label">Time of day</FieldLegend>
+      <input type="hidden" name="timeOfDayStart" value={range?.[0] ?? ""} />
+      <input type="hidden" name="timeOfDayEnd" value={range?.[1] ?? ""} />
+      <div className="flex flex-wrap gap-1">
+        {[{ label: "Any time", range: null }, ...TIME_OF_DAY_PRESETS].map((preset) => (
+          <Button
+            key={preset.label}
+            type="button"
+            size="sm"
+            variant={isRange(preset.range) ? "default" : "outline"}
+            aria-pressed={isRange(preset.range)}
+            onClick={() => setRange(preset.range)}
+          >
+            {preset.label}
+          </Button>
+        ))}
+      </div>
+      {range && (
+        <>
+          <div className="flex items-center gap-3">
+            <TimeRangeSlider value={range} onValueChange={setRange} />
+            <span className="w-24 shrink-0 text-right text-sm tabular-nums">
+              {toTimeInputValue(range[0])}–{toTimeInputValue(range[1])}
+            </span>
+          </div>
+          <FormChoice
+            name="timeOfDayRule"
+            label="Keep to it"
+            description="Always: never planned outside these hours. If it fits: outside them only when they're full."
+            options={TIME_OF_DAY_RULES.map((value) => ({ value, label: TIME_OF_DAY_RULE_LABELS[value] }))}
+            defaultValue="prefer"
+          />
+        </>
+      )}
+      {!range && <FieldDescription>Planned at any time of day.</FieldDescription>}
+      <FieldError errors={messages?.map((message) => ({ message }))} />
+    </FieldSet>
   );
 }
 

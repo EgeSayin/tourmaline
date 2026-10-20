@@ -1,16 +1,9 @@
 import { minutesBetween } from "@/lib/time/duration";
-import { bufferedSpan, type FixedItem, PRIORITIES, type Task } from "@/lib/items";
+import { type FixedItem, PRIORITIES, type Task } from "@/lib/items";
 import { isPending, type Placement } from "@/lib/placements";
 import type { SchedulerSettings } from "@/lib/settings";
 import { freeTimeMap } from "./free-time";
-import {
-  type Interval,
-  type IntervalSet,
-  later,
-  mergeIntervals,
-  overlaps,
-  subtractIntervals,
-} from "@/lib/time/interval";
+import { type Interval, type IntervalSet, later, overlaps, subtractIntervals } from "@/lib/time/interval";
 import { BY_URGENCY, type PlanStrategy, placeTasks } from "./placement";
 import { better, placementKey, scorePlan, worthMovingBlocks } from "./objective";
 import { openTo, type PlanTask, planTask } from "./task-time";
@@ -55,12 +48,13 @@ export function replan({ horizon, fixedItems, tasks, existing, settings }: Repla
   const optional = fixedItems.filter((item) => item.priority !== "mandatory");
   const mandatory = fixedItems.filter((item) => item.priority === "mandatory");
   const free = subtractIntervals(now < horizon.end ? freeTimeMap(horizon, mandatory, settings) : [], kept);
-  const planTasks = tasks.map((task) => planTask({ ...task, earliestStart: later(task.earliestStart, now) }, optional));
+  const context = { optional, timeZone: settings.timeZone };
+  const planTasks = tasks.map((task) => planTask({ ...task, earliestStart: later(task.earliestStart, now) }, context));
+  const planTasksById = new Map(planTasks.map((task) => [task.id, task]));
 
-  const optionalTime = mergeIntervals(optional.map(bufferedSpan));
   const fill = (saved: Placement[], strategy: PlanStrategy) => {
     const plan = fillAroundKept(planTasks, kept, saved, free, strategy);
-    return { ...plan, score: scorePlan({ ...plan, saved: movable, optionalTime }) };
+    return { ...plan, score: scorePlan({ ...plan, saved: movable, tasks: planTasksById }) };
   };
 
   const tasksById = new Map(tasks.map((task) => [task.id, task]));
@@ -77,7 +71,8 @@ export function replan({ horizon, fixedItems, tasks, existing, settings }: Repla
     }
     improved = best !== base && worthMovingBlocks(best.score);
   }
-  return { placements: best.placements, unplaced: best.unplaced.map(({ allowed: _, ...task }) => task) };
+  const unplaced = best.unplaced.map(({ allowed: _, preferred: __, searchOrder: ___, ...task }) => task);
+  return { placements: best.placements, unplaced };
 }
 
 interface Plan {
@@ -93,7 +88,7 @@ interface Plan {
 function keptVariants(plan: Plan, now: Date, priorityOf: (placement: Placement) => number): Placement[][] {
   const pending = plan.placements.filter((placement) => isPending(placement, now));
   const inTheWay = (placement: Placement) =>
-    plan.unplaced.some((task) => task.allowed.at(-1)!.some((time) => overlaps(placement, time)));
+    plan.unplaced.some((task) => task.allowed.some((time) => overlaps(placement, time)));
   const variants = new Map([[pending.map(placementKey).join(), pending]]);
   for (let level = PRIORITIES.length - 1; level >= 0; level--) {
     const bumped = (placement: Placement) => priorityOf(placement) >= level;

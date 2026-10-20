@@ -12,6 +12,9 @@ export interface DayRange {
  */
 export type WeeklyRanges = readonly (readonly DayRange[])[];
 
+/** `range` on every weekday. */
+export const everyDay = (range: DayRange): WeeklyRanges => Array.from({ length: 7 }, () => [range]);
+
 const pad = (value: number) => String(value).padStart(2, "0");
 
 export function toTimeInputValue(minuteOfDay: number): string {
