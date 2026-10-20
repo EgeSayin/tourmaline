@@ -193,44 +193,65 @@ describe("replan", () => {
     expect(again.unplaced.map((task) => task.title)).toEqual(["Marathon"]);
   });
 
-  it("keeps a task in its time of day: only there when it must be, moving less important blocks; there when it fits, if preferred", () => {
+  it("gives a time of day to the task that wants it, moving blocks that can go elsewhere; only there when it must be", () => {
     // Free 09:00–22:00; the reading holds 18:00–20:00.
     const settings: SchedulerSettings = { timeZone: "UTC", downtime: nightly(22 * 60, 9 * 60) };
     const day = utc("2026-10-05T00:00", "2026-10-06T00:00");
-    const planned = (taskId: string, from: string, to: string): Placement => ({
+    const horizon = utc("2026-10-05T08:00", "2026-10-06T00:00");
+    const planned = (taskId: string, from: string, to: string, pinned = false): Placement => ({
       taskId,
       ...utc(`2026-10-05T${from}`, `2026-10-05T${to}`),
-      pinned: false,
+      pinned,
       status: "planned",
     });
-    const reading = planned("Reading", "18:00", "20:00");
-    const plan = (must: boolean, existing = [reading]) =>
-      replan({
-        horizon: utc("2026-10-05T08:00", "2026-10-06T00:00"),
-        fixedItems: [],
-        tasks: [
-          flexible("Reading", 120, day, "low"),
-          { ...flexible("Gym", 60, day), timeOfDay: { startMinute: 18 * 60, endMinute: 20 * 60, must } },
-        ],
-        existing,
-        settings,
-      });
+    const gym = (must: boolean) => ({
+      ...flexible("Gym", 60, day, "low"),
+      timeOfDay: { startMinute: 18 * 60, endMinute: 20 * 60, must },
+    });
+    const plan = (must: boolean, existing: Placement[]) =>
+      replan({ horizon, fixedItems: [], tasks: [flexible("Reading", 120, day), gym(must)], existing, settings });
 
-    // Preferred: the evening is taken, and a preference moves nothing, so it goes in the earliest fit.
-    expect(plan(false).placements).toEqual([planned("Gym", "09:00", "10:00"), reading]);
-    // Required: the reading gives way.
-    expect(plan(true).placements).toEqual([planned("Reading", "09:00", "11:00"), planned("Gym", "18:00", "19:00")]);
-    // Preferred, with the evening free: there, though earlier time is free too.
-    expect(plan(false, []).placements).toEqual([
-      planned("Reading", "09:00", "11:00"),
-      planned("Gym", "18:00", "19:00"),
-    ]);
+    // Preferred or required, the more important reading moves: it can go anywhere, and the gym wants the evening.
+    for (const must of [false, true]) {
+      expect(plan(must, [planned("Reading", "18:00", "20:00")]).placements).toEqual([
+        planned("Reading", "09:00", "11:00"),
+        planned("Gym", "18:00", "19:00"),
+      ]);
+    }
+    // Only the block in the gym's way moves: the notes, saved in the afternoon, stay though the morning is free.
+    const notes = planned("Notes", "15:00", "16:00");
+    expect(
+      replan({
+        horizon,
+        fixedItems: [],
+        tasks: [flexible("Reading", 120, day), flexible("Notes", 60, day), gym(false)],
+        existing: [planned("Reading", "18:00", "20:00"), notes],
+        settings,
+      }).placements,
+    ).toEqual([planned("Reading", "09:00", "11:00"), notes, planned("Gym", "18:00", "19:00")]);
+    // Pinned, the reading stays: preferred, the gym goes elsewhere; required, it waits in the queue.
+    const pinned = planned("Reading", "18:00", "20:00", true);
+    expect(plan(false, [pinned]).placements).toEqual([planned("Gym", "09:00", "10:00"), pinned]);
+    expect(plan(true, [pinned]).unplaced.map((task) => task.id)).toEqual(["Gym"]);
+
+    // Free only 09:00–10:00 and 18:00–19:00: the report, due late, would take the evening first; fresh or saved
+    // there, it gives way, as it fits in the morning too.
+    const twoHours = [
+      { startMinute: 0, endMinute: 9 * 60 },
+      { startMinute: 10 * 60, endMinute: 18 * 60 },
+      { startMinute: 19 * 60, endMinute: 24 * 60 },
+    ];
+    const report = { ...flexible("Report", 60, day, "high"), spread: "just-in-time" as const };
+    for (const existing of [[], [planned("Report", "18:00", "19:00")]]) {
+      const tight = { ...settings, downtime: Array(7).fill(twoHours) };
+      expect(
+        replan({ horizon, fixedItems: [], tasks: [report, gym(false)], existing, settings: tight }).placements,
+      ).toEqual([planned("Report", "09:00", "10:00"), planned("Gym", "18:00", "19:00")]);
+    }
 
     // Keeping out of a less important optional item's time ranks above preferred hours, so that preference goes first.
     const club = { ...fixed("Club", utc("2026-10-05T18:00", "2026-10-05T20:00")), priority: "low" as const };
-    const gym = { ...flexible("Gym", 60, day), timeOfDay: { startMinute: 18 * 60, endMinute: 20 * 60, must: false } };
-    const horizon = utc("2026-10-05T08:00", "2026-10-06T00:00");
-    expect(replan({ horizon, fixedItems: [club], tasks: [gym], existing: [], settings }).placements).toEqual([
+    expect(replan({ horizon, fixedItems: [club], tasks: [gym(false)], existing: [], settings }).placements).toEqual([
       planned("Gym", "09:00", "10:00"),
     ]);
   });

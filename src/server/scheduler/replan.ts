@@ -5,9 +5,9 @@ import type { SchedulerSettings } from "@/lib/settings";
 import { freeTimeMap } from "./free-time";
 import { type Interval, type IntervalSet, later, overlaps, subtractIntervals } from "@/lib/time/interval";
 import { BY_URGENCY, type PlanStrategy, placeTasks } from "./placement";
-import { better, placementKey, scorePlan, worthMovingBlocks } from "./objective";
+import { better, placementKey, scorePlan, shortchanged, worthMovingBlocks } from "./objective";
 import { openTo, type PlanTask, planTask } from "./task-time";
-import { byEarliestDeadline, byUrgency, withFirst } from "./urgency";
+import { byEarliestDeadline, byNeed, byUrgency, withFirst } from "./urgency";
 
 export interface ReplanInput {
   /** Starts now: earlier placements are done, and new ones go inside it. */
@@ -54,7 +54,8 @@ export function replan({ horizon, fixedItems, tasks, existing, settings }: Repla
 
   const fill = (saved: Placement[], strategy: PlanStrategy) => {
     const plan = fillAroundKept(planTasks, kept, saved, free, strategy);
-    return { ...plan, score: scorePlan({ ...plan, saved: movable, tasks: planTasksById }) };
+    const scored = { ...plan, saved: movable, tasks: planTasksById };
+    return { ...plan, score: scorePlan(scored), shortchanged: shortchanged(scored) };
   };
 
   const tasksById = new Map(tasks.map((task) => [task.id, task]));
@@ -62,7 +63,7 @@ export function replan({ horizon, fixedItems, tasks, existing, settings }: Repla
   let best = fill(movable, BY_URGENCY);
   for (let improved = worthMovingBlocks(best.score); improved;) {
     const base = best;
-    for (const keeping of keptVariants(base, now, priorityOf)) {
+    for (const keeping of keptVariants(base, planTasksById, now, priorityOf)) {
       for (const strategy of candidateStrategies(base)) {
         if (best.score.every((missed) => missed === 0)) break;
         const plan = fill(keeping, strategy);
@@ -78,17 +79,28 @@ export function replan({ horizon, fixedItems, tasks, existing, settings }: Repla
 interface Plan {
   placements: Placement[];
   unplaced: PlanTask[];
+  /** The ids of the tasks it shortchanges (see `shortchanged`). */
+  shortchanged: Set<string>;
 }
 
 /**
  * The pending placements of `plan` to keep in each variant: all of them, then for each priority level, least important
- * first, those of that level and below dropped where they overlap time an unplaced task may use, then all of them.
- * Each set comes once.
+ * first, those of that level and below dropped where they are a shortchanged task's own or overlap time it wants (any
+ * it may use when it was left out, else its best), then all of them. Each set comes once.
  */
-function keptVariants(plan: Plan, now: Date, priorityOf: (placement: Placement) => number): Placement[][] {
+function keptVariants(
+  plan: Plan,
+  tasks: ReadonlyMap<string, PlanTask>,
+  now: Date,
+  priorityOf: (placement: Placement) => number,
+): Placement[][] {
   const pending = plan.placements.filter((placement) => isPending(placement, now));
+  const unplaced = new Set(plan.unplaced.map((task) => task.id));
+  const wanted = [...plan.shortchanged].flatMap((id) =>
+    unplaced.has(id) ? tasks.get(id)!.allowed : tasks.get(id)!.searchOrder[0],
+  );
   const inTheWay = (placement: Placement) =>
-    plan.unplaced.some((task) => task.allowed.some((time) => overlaps(placement, time)));
+    plan.shortchanged.has(placement.taskId) || wanted.some((time) => overlaps(placement, time));
   const variants = new Map([[pending.map(placementKey).join(), pending]]);
   for (let level = PRIORITIES.length - 1; level >= 0; level--) {
     const bumped = (placement: Placement) => priorityOf(placement) >= level;
@@ -103,15 +115,16 @@ function keptVariants(plan: Plan, now: Date, priorityOf: (placement: Placement) 
 }
 
 /**
- * The orders tried on each variant: by urgency, by urgency ranked again after each placement, by earliest deadline,
- * and with `plan`'s unplaced tasks first.
+ * The orders tried on each variant: by urgency, by urgency ranked again after each placement, by need, by earliest
+ * deadline, and with the tasks `plan` shortchanges first.
  */
 function candidateStrategies(plan: Plan): PlanStrategy[] {
   return [
     BY_URGENCY,
     { order: byUrgency, reorder: true },
+    { order: byNeed, reorder: false },
     { order: byEarliestDeadline, reorder: false },
-    { order: withFirst(new Set(plan.unplaced.map((task) => task.id))), reorder: false },
+    { order: withFirst(plan.shortchanged), reorder: false },
   ];
 }
 
@@ -124,7 +137,7 @@ function fillAroundKept(
   saved: Placement[],
   free: IntervalSet,
   strategy: PlanStrategy,
-): Plan {
+): Pick<Plan, "placements" | "unplaced"> {
   const tasksById = new Map(tasks.map((task) => [task.id, task]));
   const placedMinutes = new Map<string, number>();
   const countPlaced = (placement: Placement) =>

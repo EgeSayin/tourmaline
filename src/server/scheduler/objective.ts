@@ -42,12 +42,13 @@ const keepTo = (preference: Preference): Goal => ({
 });
 
 /**
- * Every goal a plan is scored by, most important first: place every task; keep out of optional fixed items' time;
- * keep saved blocks where they are; keep to preferred hours. Each goal is counted per priority level, most important
+ * Every goal a plan is scored by, most important first, each settling who gets a time two tasks want: place every
+ * task (the one that would otherwise wait in the queue gets it); keep out of optional fixed items' time; keep to
+ * preferred hours; keep saved blocks where they are. Each goal is counted per priority level, most important
  * first, so within a goal a more important task always comes first. Spread ranks below these but isn't scored: it
  * only shapes each task's own search.
  */
-const GOALS: Goal[] = [placeTasks, keepTo(outsideOptionalItems), keepSaved, keepTo(inPreferredHours)];
+const GOALS: Goal[] = [placeTasks, keepTo(outsideOptionalItems), keepTo(inPreferredHours), keepSaved];
 
 /** The preferences of `GOALS`, in their order: a task gives up the last first. */
 export const PREFERENCES = GOALS.flatMap((goal) => (goal.preference ? [goal.preference] : []));
@@ -69,6 +70,12 @@ export function scorePlan(plan: ScoredPlan): PlanScore {
 /** Whether a plan scored `score` misses a goal worth moving saved blocks for: one ranked above keeping them. */
 export const worthMovingBlocks = (score: PlanScore): boolean =>
   score.slice(0, GOALS.indexOf(keepSaved) * PRIORITIES.length).some((missed) => missed > 0);
+
+/** The tasks a plan shortchanges: those missing a goal worth moving saved blocks for. */
+export function shortchanged(plan: ScoredPlan): Set<string> {
+  const goals = GOALS.slice(0, GOALS.indexOf(keepSaved));
+  return new Set(goals.flatMap((goal) => goal.miss(plan).flatMap(([taskId, missed]) => (missed > 0 ? [taskId] : []))));
+}
 
 /**
  * Whether `a` beats `b`: each goal counts only where every goal before it ties, and within a goal the more important

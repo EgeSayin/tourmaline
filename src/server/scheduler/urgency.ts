@@ -35,6 +35,9 @@ function sortBy(tasks: PlanTask[], ...comparators: Comparator[]): PlanTask[] {
   return [...tasks].sort((a, b) => comparators.reduce((order, comparator) => order || comparator(a, b), 0));
 }
 
+/** By need: pressure (highest first), then priority, then deadline, then id. */
+export const byNeed: TaskOrder = (tasks, free) => sortBy(tasks, byPressure(tasks, free), byPriority, byDeadline, byId);
+
 /** By priority, then pressure (highest first), then deadline, then id. */
 export const byUrgency: TaskOrder = (tasks, free) =>
   sortBy(tasks, byPriority, byPressure(tasks, free), byDeadline, byId);
@@ -42,15 +45,15 @@ export const byUrgency: TaskOrder = (tasks, free) =>
 /** By priority, then deadline (earliest first), then id. */
 export const byEarliestDeadline: TaskOrder = (tasks) => sortBy(tasks, byPriority, byDeadline, byId);
 
-/** Like `byUrgency`, but within each priority the tasks `first` holds go before the rest. */
+/** The tasks `first` holds, then the rest, each by need. */
 export const withFirst =
   (first: ReadonlySet<string>): TaskOrder =>
   (tasks, free) =>
     sortBy(
       tasks,
-      byPriority,
       (a, b) => Number(first.has(b.id)) - Number(first.has(a.id)),
       byPressure(tasks, free),
+      byPriority,
       byDeadline,
       byId,
     );
