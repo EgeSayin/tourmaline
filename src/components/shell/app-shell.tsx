@@ -82,6 +82,12 @@ const PAGES = [
 
 export const NAV_PAGES = PAGES.filter((entry) => entry.nav);
 
+/** The page `pathname` is on or under; the calendar for the root. */
+export function pageAt(pathname: string): AppPage {
+  const match = PAGES.filter(({ href }) => href !== "/" && (pathname === href || pathname.startsWith(`${href}/`)));
+  return match[0]?.page ?? "calendar";
+}
+
 function AppNav({ page }: { page: AppPage }) {
   return (
     <nav aria-label="Pages" className="inline-flex gap-0.5 rounded-lg border bg-card p-0.5">

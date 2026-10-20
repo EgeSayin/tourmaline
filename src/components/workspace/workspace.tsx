@@ -9,6 +9,7 @@ import { BlockPanelProvider, useBlockPanel } from "@/components/schedule/block-p
 import { ReviewList } from "@/components/schedule/review-list";
 import { TaskQueue } from "@/components/schedule/task-queue";
 import { type AppPage, AppShell, NAV_PAGES } from "@/components/shell/app-shell";
+import { AreaBoundary } from "@/components/shell/area-boundary";
 import type { Shell } from "@/server/shell";
 
 type List = "review" | "queue";
@@ -87,15 +88,19 @@ export function Workspace({
             className="grid grid-cols-2"
           />
           <section aria-label="To review" hidden={list !== "review"}>
-            <ReviewList entries={review} timeZone={timeZone} />
+            <AreaBoundary>
+              <ReviewList entries={review} timeZone={timeZone} />
+            </AreaBoundary>
           </section>
           <section aria-label="Task queue" hidden={list !== "queue"}>
-            <TaskQueue entries={queue} timeZone={timeZone} />
+            <AreaBoundary>
+              <TaskQueue entries={queue} timeZone={timeZone} />
+            </AreaBoundary>
           </section>
         </>
       }
       main={main}
-      side={editor ?? <BlockPanel />}
+      side={<AreaBoundary>{editor ?? <BlockPanel />}</AreaBoundary>}
       sideOpen={editor !== null || panelOpen}
       phoneSection={phoneView === "lists" ? "left" : editor !== null ? "side" : "main"}
       phoneNav={

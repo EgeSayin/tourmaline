@@ -27,7 +27,8 @@ async function parseSubmission(tx: WorkspaceTx, formData: FormData, now: Date) {
   return { fields, timeZone, parsed: parseItemForm(fields, timeZone, now) };
 }
 
-// An item or block another tab deleted meanwhile is left alone: the refreshed page shows it gone.
+// An item or block another tab changed or deleted meanwhile is left alone: the action resolves to `false` and the
+// refreshed page shows the latest.
 
 export async function createItemAction(_previous: FormState, formData: FormData): Promise<FormState> {
   return changeWorkspaceForm(async (tx, now) => {
@@ -48,34 +49,32 @@ export async function updateItemAction(id: string, _previous: FormState, formDat
   });
 }
 
-export async function deleteItemAction(id: string): Promise<void> {
+export async function deleteItemAction(id: string): Promise<boolean> {
   const validId = itemId.parse(id);
-  await changeWorkspace(async (tx, now) => {
-    await removeItem(tx, validId, now, (await loadSettings(tx)).timeZone);
-  });
+  return changeWorkspace(async (tx, now) => removeItem(tx, validId, now, (await loadSettings(tx)).timeZone));
 }
 
-export async function skipOccurrenceAction(id: string, date: string): Promise<void> {
+export async function skipOccurrenceAction(id: string, date: string): Promise<boolean> {
   const validId = itemId.parse(id);
   const validDate = z.iso.date().parse(date);
-  await changeWorkspace((tx, now) => skipOccurrence(tx, validId, validDate, now));
+  return changeWorkspace((tx, now) => skipOccurrence(tx, validId, validDate, now));
 }
 
-export async function setPlacementStatusAction(ref: PlacementRef, status: PlacementStatus): Promise<void> {
+export async function setPlacementStatusAction(ref: PlacementRef, status: PlacementStatus): Promise<boolean> {
   const validRef = placementRef.parse(ref);
   const validStatus = z.enum(PLACEMENT_STATUSES).parse(status);
-  await changeWorkspace((tx, now) => setPlacementStatus(tx, validRef, validStatus, now));
+  return changeWorkspace((tx, now) => setPlacementStatus(tx, validRef, validStatus, now));
 }
 
-export async function setPlacementPinnedAction(ref: PlacementRef, pinned: boolean): Promise<void> {
+export async function setPlacementPinnedAction(ref: PlacementRef, pinned: boolean): Promise<boolean> {
   const validRef = placementRef.parse(ref);
   const validPinned = z.boolean().parse(pinned);
-  await changeWorkspace((tx, now) => setPlacementPinned(tx, validRef, validPinned, now));
+  return changeWorkspace((tx, now) => setPlacementPinned(tx, validRef, validPinned, now));
 }
 
-export async function setTaskDoneAction(id: string, date: string | null, done: boolean): Promise<void> {
+export async function setTaskDoneAction(id: string, date: string | null, done: boolean): Promise<boolean> {
   const validId = itemId.parse(id);
   const validDate = z.iso.date().nullable().parse(date);
   const validDone = z.boolean().parse(done);
-  await changeWorkspace((tx, now) => setTaskDone(tx, validId, validDate, validDone, now));
+  return changeWorkspace((tx, now) => setTaskDone(tx, validId, validDate, validDone, now));
 }

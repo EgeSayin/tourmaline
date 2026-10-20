@@ -1,6 +1,7 @@
 "use client";
 
 import { startTransition, useActionState } from "react";
+import { toastNotSaved } from "@/components/forms/action-toasts";
 import type { FormState } from "@/lib/form-state";
 
 /** Fields show the submitted values after a failed submission, `initialValues` before. */
@@ -11,9 +12,14 @@ export function useFormAction(
 ) {
   const [state, formAction, pending] = useActionState(
     async (previous: FormState, formData: FormData) => {
-      const result = await action(previous, formData);
-      if (result.status === "saved") onSaved?.();
-      return result;
+      try {
+        const result = await action(previous, formData);
+        if (result.status === "saved") onSaved?.();
+        return result;
+      } catch {
+        toastNotSaved();
+        return previous;
+      }
     },
     { status: "idle" } as FormState,
   );

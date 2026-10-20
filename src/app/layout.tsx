@@ -4,6 +4,7 @@ import { ThemeProvider } from "next-themes";
 import { CategoryFilterProvider } from "@/components/categories/category-filter";
 import { RefreshWhenStale } from "@/components/shell/refresh-when-stale";
 import { APP_NAME } from "@/components/shell/wordmark";
+import { Toaster } from "@/components/ui/sonner";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -29,6 +30,8 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
           <CategoryFilterProvider>{children}</CategoryFilterProvider>
           <RefreshWhenStale />
+          {/* On phones, above the bottom tab bar. */}
+          <Toaster position="bottom-right" mobileOffset={{ bottom: "5.5rem" }} />
         </ThemeProvider>
       </body>
     </html>

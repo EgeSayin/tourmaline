@@ -4,7 +4,7 @@ import { loadPlacement, updatePlacement } from "@/server/db/placements-repositor
 
 /**
  * Checks off, marks missed or plans again the placement `ref` points to. Only one that has started by `now` can be
- * missed. Returns `false` if there is no such placement.
+ * missed. Returns `false`, changing nothing, if there is no such placement or it can't be missed yet.
  */
 export async function setPlacementStatus(
   tx: WorkspaceTx,
@@ -13,8 +13,7 @@ export async function setPlacementStatus(
   now: Date,
 ): Promise<boolean> {
   const placement = await loadPlacement(tx, ref);
-  if (!placement) return false;
-  if (status === "missed" && placement.start > now) throw new Error("Only a started placement can be missed");
+  if (!placement || (status === "missed" && placement.start > now)) return false;
 
   await updatePlacement(tx, ref, { status });
   return true;
@@ -22,7 +21,7 @@ export async function setPlacementStatus(
 
 /**
  * Pins or unpins the placement `ref` points to. Only a planned one that hasn't ended by `now` can be pinned.
- * Returns `false` if there is no such placement.
+ * Returns `false`, changing nothing, if there is no such placement or it can't be pinned.
  */
 export async function setPlacementPinned(
   tx: WorkspaceTx,
@@ -31,10 +30,7 @@ export async function setPlacementPinned(
   now: Date,
 ): Promise<boolean> {
   const placement = await loadPlacement(tx, ref);
-  if (!placement) return false;
-  if (pinned && (placement.status !== "planned" || placement.end <= now)) {
-    throw new Error("Only a planned placement that hasn't ended can be pinned");
-  }
+  if (!placement || (pinned && (placement.status !== "planned" || placement.end <= now))) return false;
 
   await updatePlacement(tx, ref, { pinned });
   return true;

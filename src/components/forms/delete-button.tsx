@@ -3,7 +3,13 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { ActionButton } from "./action-button";
 
-export function DeleteButton({ onDelete, onDeleted }: { onDelete: () => Promise<void>; onDeleted: () => void }) {
+export function DeleteButton({
+  onDelete,
+  onDeleted,
+}: {
+  onDelete: () => Promise<boolean | void>;
+  onDeleted: () => void;
+}) {
   const [confirming, setConfirming] = useState(false);
 
   return confirming ? (
