@@ -30,12 +30,17 @@ export type NewCategory = Omit<Category, "id">;
 
 export const CATEGORY_NAME_MAX = 40;
 
-export type CategoryFilter = typeof ALL_CATEGORIES | typeof NO_CATEGORY | (string & {});
+/**
+ * Which items the calendar and the task list show: all but those in a hidden category, and those without one if
+ * `uncategorizedHidden`. Only what's shown; planning goes on as usual.
+ */
+export interface CategoryVisibility {
+  hiddenIds: string[];
+  uncategorizedHidden: boolean;
+}
 
-export const ALL_CATEGORIES = "all";
-export const NO_CATEGORY = "none";
+export const ALL_SHOWN: CategoryVisibility = { hiddenIds: [], uncategorizedHidden: false };
 
-export function matchesFilter(categoryId: string | null, filter: CategoryFilter): boolean {
-  if (filter === ALL_CATEGORIES) return true;
-  return filter === NO_CATEGORY ? categoryId === null : categoryId === filter;
+export function isShown(categoryId: string | null, { hiddenIds, uncategorizedHidden }: CategoryVisibility): boolean {
+  return categoryId === null ? !uncategorizedHidden : !hiddenIds.includes(categoryId);
 }

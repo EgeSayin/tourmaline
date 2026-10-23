@@ -3,6 +3,7 @@
 import { Inbox } from "lucide-react";
 import Link from "next/link";
 import { createContext, use, useState } from "react";
+import { CategoryVisibilityProvider } from "@/components/categories/category-visibility";
 import { SegmentedControl } from "@/components/controls/segmented-control";
 import { BlockPanel } from "@/components/schedule/block-panel";
 import { BlockPanelProvider, useBlockPanel } from "@/components/schedule/block-panel-state";
@@ -34,7 +35,9 @@ export function WorkspaceProvider({ shell, children }: { shell: Shell; children:
   return (
     <BlockPanelProvider timeZone={shell.timeZone} review={shell.review}>
       <ShellContext value={{ shell, phoneView, setPhoneView, list, setList }}>
-        <main>{children}</main>
+        <CategoryVisibilityProvider saved={shell.categoryVisibility}>
+          <main>{children}</main>
+        </CategoryVisibilityProvider>
       </ShellContext>
     </BlockPanelProvider>
   );

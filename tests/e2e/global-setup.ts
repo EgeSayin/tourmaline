@@ -3,7 +3,8 @@ import postgres from "postgres";
 import { E2E_ACCOUNT } from "./helpers";
 
 /**
- * Recreates the e2e database's contents: migrations, and the one account with the sample week, sign-up closed.
+ * Recreates the e2e database's contents: migrations, and the one account with the sample week and every category
+ * shown, sign-up closed.
  */
 export default async function globalSetup() {
   const adminUrl = process.env.DATABASE_URL;
@@ -26,6 +27,7 @@ export default async function globalSetup() {
     // Accounts a spec created, with their workspaces.
     await e2e`delete from workspaces where id in (select workspace_id from users where username <> ${E2E_ACCOUNT.username})`;
     await e2e`update instance set sign_up_open = false`;
+    await e2e`update settings set hidden_category_ids = '{}', uncategorized_hidden = false`;
     await e2e`update users set failed_sign_ins = 0, sign_in_paused_until = null`;
   } finally {
     await e2e.end();

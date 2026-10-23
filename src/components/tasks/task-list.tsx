@@ -3,9 +3,9 @@
 import { Repeat } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
-import { CategoryFilterSelect, useCategoryFilter } from "@/components/categories/category-filter";
+import { CategoryChips, useCategoryVisibility } from "@/components/categories/category-visibility";
 import { SegmentedControl } from "@/components/controls/segmented-control";
-import { type Category, matchesFilter } from "@/lib/categories";
+import { type Category, isShown } from "@/lib/categories";
 import { formatDateTime } from "@/lib/time/format";
 import type { TimeZone } from "@/lib/time/time-zone";
 import { cn } from "@/lib/utils";
@@ -45,27 +45,25 @@ export function TaskList({
   timeZone: TimeZone;
 }) {
   const [filter, setFilter] = useState<Filter>("open");
-  const [category] = useCategoryFilter();
+  const [visibility] = useCategoryVisibility();
   const shown = entries.filter(
-    (entry) => SHOWN[filter](entry.status) && matchesFilter(entry.target.item.categoryId, category),
+    (entry) => SHOWN[filter](entry.status) && isShown(entry.target.item.categoryId, visibility),
   );
 
   return (
     <>
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <SegmentedControl
-          label="Show"
-          value={filter}
-          onChange={setFilter}
-          options={[
-            { value: "open", label: "Open" },
-            { value: "done", label: "Done" },
-            { value: "all", label: "All" },
-          ]}
-          className="inline-grid grid-cols-3"
-        />
-        <CategoryFilterSelect categories={categories} />
-      </div>
+      <SegmentedControl
+        label="Show"
+        value={filter}
+        onChange={setFilter}
+        options={[
+          { value: "open", label: "Open" },
+          { value: "done", label: "Done" },
+          { value: "all", label: "All" },
+        ]}
+        className="inline-grid grid-cols-3 self-start"
+      />
+      <CategoryChips categories={categories} />
       {shown.length === 0 ? (
         <p className="rounded-lg border border-dashed px-3 py-4 text-sm text-muted-foreground">Nothing here.</p>
       ) : (

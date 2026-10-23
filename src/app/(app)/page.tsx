@@ -1,5 +1,5 @@
 import { connection } from "next/server";
-import { CategoryFilterSelect } from "@/components/categories/category-filter";
+import { CategoryChips } from "@/components/categories/category-visibility";
 import { CalendarGrid } from "@/components/schedule/calendar-grid";
 import { CalendarHeader } from "@/components/schedule/calendar-header";
 import { ScheduleLegend } from "@/components/schedule/schedule-legend";
@@ -24,10 +24,8 @@ export default async function Home({ searchParams }: PageProps<"/">) {
             today={week.today}
             navigation={week.navigation}
           />
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <ScheduleLegend />
-            <CategoryFilterSelect categories={week.categories} />
-          </div>
+          <ScheduleLegend />
+          <CategoryChips categories={week.categories} />
           <CalendarGrid
             today={week.today}
             weekDates={week.weekDates}

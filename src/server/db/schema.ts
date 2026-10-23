@@ -132,6 +132,12 @@ export const settings = pgTable(
     workspaceId: workspaceId().primaryKey(),
     timeZone: text("time_zone").$type<TimeZone>().notNull().default(DEFAULT_SETTINGS.timeZone),
     downtime: jsonb("downtime").$type<Downtime>().notNull().default(DEFAULT_SETTINGS.downtime),
+    /** See `CategoryVisibility`; deleting a category takes it out. */
+    hiddenCategoryIds: uuid("hidden_category_ids")
+      .array()
+      .notNull()
+      .default(sql`'{}'`),
+    uncategorizedHidden: boolean("uncategorized_hidden").notNull().default(false),
     ...auditColumns,
   },
   (t) => [ownRows(t.workspaceId), check("settings_downtime_week", sql`jsonb_array_length(${t.downtime}) = 7`)],

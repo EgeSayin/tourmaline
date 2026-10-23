@@ -3,7 +3,14 @@
 import { changeWorkspace, changeWorkspaceForm } from "@/server/workspaces/current-workspace";
 import { type FormState, formFields } from "@/lib/form-state";
 import { z } from "zod";
-import { deleteCategory, insertCategory, loadCategories, updateCategory } from "@/server/db/categories-repository";
+import type { CategoryVisibility } from "@/lib/categories";
+import {
+  deleteCategory,
+  insertCategory,
+  loadCategories,
+  saveCategoryVisibility,
+  updateCategory,
+} from "@/server/db/categories-repository";
 import { parseCategoryForm } from "./parse-category-form";
 
 const categoryId = z.uuid();
@@ -32,4 +39,11 @@ export async function saveCategoryAction(
 export async function deleteCategoryAction(id: string): Promise<void> {
   const validId = categoryId.parse(id);
   await changeWorkspace((tx) => deleteCategory(tx, validId), { replan: false });
+}
+
+const categoryVisibility = z.object({ hiddenIds: z.array(categoryId), uncategorizedHidden: z.boolean() });
+
+export async function saveCategoryVisibilityAction(visibility: CategoryVisibility): Promise<void> {
+  const valid = categoryVisibility.parse(visibility);
+  await changeWorkspace((tx) => saveCategoryVisibility(tx, valid), { replan: false });
 }

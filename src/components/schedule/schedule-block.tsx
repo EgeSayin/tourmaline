@@ -1,10 +1,10 @@
 "use client";
 
 import { Pin } from "lucide-react";
-import { useCategoryFilter } from "@/components/categories/category-filter";
+import { useCategoryVisibility } from "@/components/categories/category-visibility";
 import { PLACEMENT_STATE_LABELS } from "@/components/items/placement-state";
 import type { CalendarBlock, Laid } from "@/lib/calendar-blocks";
-import { matchesFilter } from "@/lib/categories";
+import { isShown } from "@/lib/categories";
 import { formatTimeRange } from "@/lib/time/format";
 import type { TimeZone } from "@/lib/time/time-zone";
 import { BLOCK_STYLES, blockFill, BUFFER_STYLE, CONFLICT_STYLE } from "./block-styles";
@@ -21,8 +21,8 @@ export function ScheduleBlock({
   timeZone: TimeZone;
   onSelect: () => void;
 }) {
-  const [filter] = useCategoryFilter();
-  const filteredOut = !matchesFilter(block.target.item.categoryId, filter);
+  const [visibility] = useCategoryVisibility();
+  const filteredOut = !isShown(block.target.item.categoryId, visibility);
   const fill = blockFill(block.color);
   const top = scale.top(block.startMinute);
   const isTiny = block.endMinute - block.startMinute < 15;
@@ -79,7 +79,7 @@ export function BufferStrip({
   scale: TimeScale;
   onSelect: () => void;
 }) {
-  const [filter] = useCategoryFilter();
+  const [visibility] = useCategoryVisibility();
   const fill = blockFill(block.color);
   const top = scale.top(buffer.startMinute);
   return (
@@ -99,7 +99,7 @@ export function BufferStrip({
         aria-hidden
         onClick={onSelect}
         className={`block size-full cursor-pointer ${fill.className} ${
-          matchesFilter(block.target.item.categoryId, filter) ? BUFFER_STYLE.className : "opacity-15"
+          isShown(block.target.item.categoryId, visibility) ? BUFFER_STYLE.className : "opacity-15"
         }`}
         style={{ ...fill.style, ...BUFFER_STYLE.style }}
       />
