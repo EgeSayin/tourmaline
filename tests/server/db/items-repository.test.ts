@@ -1,8 +1,8 @@
 import { describe, expect } from "vitest";
 import type { NewFixedItem, NewItem, NewTask } from "@/lib/items";
-import type { Occurrences } from "@/lib/recurrence";
+import type { OccurrenceChanges, Occurrences } from "@/lib/recurrence";
 import { deleteCategory, insertCategory } from "@/server/db/categories-repository";
-import { insertItem, loadItem, loadItems, updateItem } from "@/server/db/items-repository";
+import { insertItem, loadItem, loadItems, saveOccurrence, updateItem } from "@/server/db/items-repository";
 import { createGuestWorkspace } from "@/server/db/workspaces-repository";
 import { dbTest as it, savepoint } from "../../support/database";
 
@@ -34,10 +34,11 @@ const essay: NewTask = {
   timeOfDay: null,
 };
 
-/** `item` as loaded: with its id and occurrence states, and a task not done. */
-const stored = (id: string, item: NewItem, occurrences: Occurrences = {}) => ({
+/** `item` as loaded: with its id, occurrence states and changes, and a task not done. */
+const stored = (id: string, item: NewItem, occurrences: Occurrences = {}, changes: OccurrenceChanges = {}) => ({
   id,
   occurrences,
+  changes,
   ...item,
   ...(item.timing === "flexible" && { done: false }),
 });
@@ -57,6 +58,34 @@ describe("items repository", () => {
     expect(await loadItem(tx, "00000000-0000-4000-8000-000000000000")).toBeUndefined();
   });
 
+  it("keeps each occurrence's state and change apart, clearing one without the other, and holds them to their kind", async ({
+    tx,
+  }) => {
+    const gym: NewTask = { ...essay, title: "Gym", recurrence: { frequency: "daily", interval: 1, until: null } };
+    const later = { start: new Date("2026-10-06T20:00Z"), end: new Date("2026-10-07T02:00Z"), durationMin: 90 };
+    const gymId = await insertItem(tx, gym, { "2026-10-06": "done" }, { "2026-10-06": later, "2026-10-07": later });
+    expect(await loadItems(tx)).toEqual([
+      stored(gymId, gym, { "2026-10-06": "done" }, { "2026-10-06": later, "2026-10-07": later }),
+    ]);
+
+    await saveOccurrence(tx, (await loadItem(tx, gymId))!, "2026-10-06", { state: null });
+    await saveOccurrence(tx, (await loadItem(tx, gymId))!, "2026-10-07", { change: null, state: "skipped" });
+    expect(await loadItem(tx, gymId)).toEqual(stored(gymId, gym, { "2026-10-07": "skipped" }, { "2026-10-06": later }));
+
+    // Only a task occurrence is done, and only it has a duration.
+    const lectureId = await insertItem(tx, lecture);
+    const fixedLecture = (await loadItem(tx, lectureId))!;
+    await expect(
+      savepoint(tx, (inner) => saveOccurrence(inner, fixedLecture, "2026-10-07", { state: "done" })),
+    ).rejects.toThrow();
+    const storedGym = (await loadItem(tx, gymId))!;
+    await expect(
+      savepoint(tx, (inner) =>
+        saveOccurrence(inner, storedGym, "2026-10-08", { change: { ...later, durationMin: null } }),
+      ),
+    ).rejects.toThrow();
+  });
+
   it("updates an item in place", async ({ tx }) => {
     const id = await insertItem(tx, lecture, { "2026-10-07": "skipped" });
 
@@ -66,7 +95,7 @@ describe("items repository", () => {
       start: new Date("2026-10-06T15:00:00Z"),
       end: new Date("2026-10-06T16:15:00Z"),
     };
-    await updateItem(tx, id, moved, {});
+    await updateItem(tx, id, moved, {}, {});
     expect(await loadItems(tx)).toEqual([stored(id, moved)]);
   });
 
@@ -80,7 +109,7 @@ describe("items repository", () => {
 
     await deleteCategory(tx, categoryId);
     expect((await loadItems(tx)).map((item) => item.categoryId)).toEqual([null, null]);
-    await updateItem(tx, essayId, { ...essay, categoryId }, {}); // deleted in the meantime
+    await updateItem(tx, essayId, { ...essay, categoryId }, {}, {}); // deleted in the meantime
     expect(await loadItem(tx, essayId)).toMatchObject({ categoryId: null });
 
     const { workspaceId } = await createGuestWorkspace(tx);

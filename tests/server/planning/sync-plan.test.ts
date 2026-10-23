@@ -5,7 +5,7 @@ import type { Placement, PlacementStatus } from "@/lib/placements";
 import type { Recurrence } from "@/lib/recurrence";
 import { RECURRENCE_LOOKAHEAD_DAYS, type SchedulerSettings } from "@/lib/settings";
 import type { WorkspaceTx } from "@/server/db/workspace-transaction";
-import { deleteItem, insertItem, loadItem, loadItems, setItemDone, setOccurrences } from "@/server/db/items-repository";
+import { deleteItem, insertItem, loadItem, loadItems, saveOccurrence, setItemDone } from "@/server/db/items-repository";
 import { insertPlacements, loadPlacements } from "@/server/db/placements-repository";
 import { placements } from "@/server/db/schema";
 import { loadUnplaced, syncPlan } from "@/server/planning/sync-plan";
@@ -115,7 +115,7 @@ describe("syncPlan", () => {
     });
     await plan(tx, wednesdayNoon);
     await setItemDone(tx, essayId, true);
-    await setOccurrences(tx, (await loadItem(tx, gymId))!, { "2026-10-08": "done" });
+    await saveOccurrence(tx, (await loadItem(tx, gymId))!, "2026-10-08", { state: "done" });
 
     const result = await plan(tx, wednesdayNoon);
 

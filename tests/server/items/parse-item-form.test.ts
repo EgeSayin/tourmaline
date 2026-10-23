@@ -301,10 +301,10 @@ describe("parseItemForm", () => {
       withinPeriod: true,
     };
 
-    // The form leaves out what's stored apart from the item's own fields: its id, occurrence states and whether it's
-    // done.
-    for (const { id, occurrences, ...item } of [lecture, essay, weeklyLecture, dailyGym, dailyLunch]) {
-      const parsed = parseItemForm(itemToFormValues({ id, occurrences, ...item }, tz), tz, now);
+    // The form leaves out what's stored apart from the item's own fields: its id, occurrence states and changes, and
+    // whether it's done.
+    for (const { id, occurrences, changes, ...item } of [lecture, essay, weeklyLecture, dailyGym, dailyLunch]) {
+      const parsed = parseItemForm(itemToFormValues({ id, occurrences, changes, ...item }, tz), tz, now);
       const { done: _, ...fields } = { done: false, ...item };
       expect(parsed.ok && parsed.item).toEqual(fields);
     }

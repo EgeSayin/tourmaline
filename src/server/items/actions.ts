@@ -7,9 +7,11 @@ import { loadSettings } from "@/server/db/settings-repository";
 import type { WorkspaceTx } from "@/server/db/workspace-transaction";
 import { PLACEMENT_STATUSES, type PlacementRef, type PlacementStatus } from "@/lib/placements";
 import { parseOccurrenceId } from "@/lib/recurrence";
-import { createItem, editItem, removeItem, setTaskDone, skipOccurrence } from "./item-commands";
+import { changeOccurrence, createItem, editItem, removeItem, setTaskDone, skipOccurrence } from "./item-commands";
 import { setPlacementPinned, setPlacementStatus } from "./placement-commands";
-import { parseItemForm } from "./parse-item-form";
+import { parseItemForm, parseOccurrenceForm } from "./parse-item-form";
+import { loadItem } from "@/server/db/items-repository";
+import { occurrenceOn } from "@/server/recurrence";
 
 const itemId = z.uuid();
 const placementRef = z.object({
@@ -52,6 +54,36 @@ export async function updateItemAction(id: string, _previous: FormState, formDat
 export async function deleteItemAction(id: string): Promise<boolean> {
   const validId = itemId.parse(id);
   return changeWorkspace(async (tx, now) => removeItem(tx, validId, now, (await loadSettings(tx)).timeZone));
+}
+
+/** Gives one occurrence of a series its own timing; a series or occurrence gone meanwhile is left alone. */
+export async function changeOccurrenceAction(
+  id: string,
+  date: string,
+  _previous: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  const validId = itemId.parse(id);
+  const validDate = z.iso.date().parse(date);
+  return changeWorkspaceForm(async (tx, now) => {
+    const { timeZone } = await loadSettings(tx);
+    const item = await loadItem(tx, validId);
+    const occurrence = item && occurrenceOn(item, validDate, timeZone);
+    if (!occurrence) return { status: "saved" };
+    const fields = formFields(formData);
+    const parsed = parseOccurrenceForm(fields, occurrence.series, timeZone);
+    if (!parsed.ok) return { status: "invalid", errors: parsed.errors, fields };
+    await changeOccurrence(tx, validId, validDate, parsed.change, now, timeZone);
+    return { status: "saved" };
+  });
+}
+
+export async function resetOccurrenceAction(id: string, date: string): Promise<boolean> {
+  const validId = itemId.parse(id);
+  const validDate = z.iso.date().parse(date);
+  return changeWorkspace(async (tx, now) =>
+    changeOccurrence(tx, validId, validDate, null, now, (await loadSettings(tx)).timeZone),
+  );
 }
 
 export async function skipOccurrenceAction(id: string, date: string): Promise<boolean> {

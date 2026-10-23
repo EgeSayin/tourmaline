@@ -46,7 +46,8 @@ export function occurrenceDates(
  * as it is. Occurrences keep the first one's local start time; fixed ones also keep its length, so a clock change
  * moves their end instead of inverting them. A recurring task's window runs from its earliest
  * start to the same time on the date the rule next occurs, even past `until` or a skipped date, or only to the end of
- * its period if that's earlier and it's `withinPeriod`; it's done if its occurrence state says so.
+ * its period if that's earlier and it's `withinPeriod`; it's done if its occurrence state says so. A changed
+ * occurrence has its own times instead, wherever they fall, so the result is sorted by start.
  */
 export function expandOccurrences<T extends Item>(item: T, range: Interval, timeZone: TimeZone): T[] {
   if (!item.recurrence) return [item];
@@ -70,9 +71,10 @@ export function expandOccurrences<T extends Item>(item: T, range: Interval, time
   const { until } = item.recurrence;
   const withinPeriod = isTask(item) && item.withinPeriod;
   const occurrences: T[] = [];
+  const occurs = (day: string) => !(until && day > until) && item.occurrences[day] !== "skipped";
   for (const [i, date] of dates.slice(0, -1).entries()) {
     const day = date.toString();
-    if ((until && day > until) || item.occurrences[day] === "skipped") continue;
+    if (!occurs(day) || item.changes[day]) continue;
 
     const start = startOn(date);
     const end = isFixed(item)
@@ -82,17 +84,57 @@ export function expandOccurrences<T extends Item>(item: T, range: Interval, time
         : startOn(dates[i + 1]);
     if (start >= range.end || end <= range.start) continue;
 
-    const occurrence = { ...withSpan(item, { start, end }), id: occurrenceId(item.id, day) };
-    occurrences.push(isTask(occurrence) ? { ...occurrence, done: item.occurrences[day] === "done" } : occurrence);
+    occurrences.push(occurrenceOf(item, day, { start, end }));
   }
-  return occurrences;
+  for (const [day, change] of Object.entries(item.changes)) {
+    if (!occurs(day) || change.start >= range.end || change.end <= range.start) continue;
+    const occurrence = occurrenceOf(item, day, change);
+    occurrences.push(isTask(occurrence) ? { ...occurrence, durationMin: change.durationMin! } : occurrence);
+  }
+  return occurrences.sort((a, b) => itemSpan(a).start.getTime() - itemSpan(b).start.getTime());
+}
+
+function occurrenceOf<T extends Item>(item: T, day: string, span: Interval): T {
+  const occurrence = { ...withSpan(item, span), id: occurrenceId(item.id, day) };
+  return isTask(occurrence) ? { ...occurrence, done: item.occurrences[day] === "done" } : occurrence;
+}
+
+/** Whether series `item` has an occurrence that goes by local date `date`, skipped or not. */
+export function occursOn(item: NewItem, date: string, timeZone: TimeZone): boolean {
+  if (!item.recurrence) return false;
+  const day = Temporal.PlainDate.from(date);
+  const first = localDate(itemSpan(item).start, timeZone);
+  return occurrenceDates(item.recurrence, first, day, day.add({ days: 1 })).length > 0;
+}
+
+/**
+ * The occurrence of series `item` that goes by local date `date`, as its series has it and as it is (with its change),
+ * or `undefined` if there is none or it's skipped.
+ */
+export function occurrenceOn<T extends Item>(
+  item: T,
+  date: string,
+  timeZone: TimeZone,
+): { series: T; own: T } | undefined {
+  const day = Temporal.PlainDate.from(date);
+  const range = { start: startOfDay(day, timeZone), end: startOfDay(day.add({ days: 1 }), timeZone) };
+  const id = occurrenceId(item.id, date);
+  const unchanged = expandOccurrences({ ...item, changes: {} }, range, timeZone).find(
+    (occurrence) => occurrence.id === id,
+  );
+  if (!unchanged) return undefined;
+  const series = { ...unchanged, changes: item.changes };
+  const change = item.changes[date];
+  if (!change) return { series, own: series };
+  const own = withSpan(series, change);
+  return { series, own: isTask(own) ? { ...own, durationMin: change.durationMin! } : own };
 }
 
 /** The first occurrence of a recurring `item`, or `undefined` if it ends before occurring. */
 export function firstOccurrence(item: NewItem, timeZone: TimeZone): Item | undefined {
   const stored: Item = isTask(item)
-    ? { ...item, id: "", occurrences: {}, done: false }
-    : { ...item, id: "", occurrences: {} };
+    ? { ...item, id: "", occurrences: {}, changes: {}, done: false }
+    : { ...item, id: "", occurrences: {}, changes: {} };
   return nextOccurrence(stored, itemSpan(item).start, timeZone);
 }
 

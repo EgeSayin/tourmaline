@@ -1,13 +1,20 @@
 import { bufferedSpan, isFixed, isTask, type Item, itemSpan, type NewItem } from "@/lib/items";
-import { occurrenceId, type Occurrences, parseOccurrenceId, type Recurrence } from "@/lib/recurrence";
+import {
+  type OccurrenceChange,
+  type OccurrenceChanges,
+  occurrenceId,
+  type Occurrences,
+  parseOccurrenceId,
+  type Recurrence,
+} from "@/lib/recurrence";
 import type { TimeZone } from "@/lib/time/time-zone";
 import type { WorkspaceTx } from "@/server/db/workspace-transaction";
 import {
   deleteItem,
   insertItem,
   loadItem,
+  saveOccurrence,
   setItemDone,
-  setOccurrences,
   updateItem,
 } from "@/server/db/items-repository";
 import {
@@ -18,7 +25,7 @@ import {
   moveOccurrencePlacements,
   replacePendingPlacements,
 } from "@/server/db/placements-repository";
-import { firstOccurrence } from "@/server/recurrence";
+import { firstOccurrence, occursOn } from "@/server/recurrence";
 import { localDate } from "@/server/time/temporal";
 
 export function createItem(tx: WorkspaceTx, item: NewItem): Promise<string> {
@@ -28,8 +35,9 @@ export function createItem(tx: WorkspaceTx, item: NewItem): Promise<string> {
 /**
  * Saves `item` over the stored item `id`, from `item`'s first local date on. A series that already occurred before
  * that date keeps those occurrences: it ends the day before, and `item` is saved as a new item that takes over the
- * series' occurrence states and the blocks of its occurrences from that date if it recurs. Anything else is updated
- * in place, or replaced by a new item if its kind changes. An edit that frees time (see `freesTime`) has the plan made
+ * series' occurrence states, the changed occurrences that still occur under its rule, and the blocks of its
+ * occurrences from that date if it recurs. Anything else is updated in place, or replaced by a new item if its kind
+ * changes. An edit that frees time (see `freesTime`) has the plan made
  * again from scratch.
  * Returns the id that now holds `item`, or `undefined` if no item has `id`.
  */
@@ -45,11 +53,21 @@ export async function editItem(
 
   if (freesTime(existing, item)) await planAfresh(tx, now);
   const from = localDate(itemSpan(item).start, timeZone).toString();
+  const kept = (date: string) => existing.timing === item.timing && occursOn(item, date, timeZone);
   if (!occurredBefore(existing, from, timeZone)) {
-    return saveInPlace(tx, existing, item, item.recurrence ? existing.occurrences : {}, now);
+    const history = item.recurrence
+      ? { occurrences: existing.occurrences, changes: changesWhere(existing.changes, kept) }
+      : NO_HISTORY;
+    return saveInPlace(tx, existing, item, history, now);
   }
 
-  const newId = await insertItem(tx, item, item.recurrence ? occurrencesFrom(existing.occurrences, from) : {});
+  const history = item.recurrence
+    ? {
+        occurrences: occurrencesFrom(existing.occurrences, from),
+        changes: changesWhere(existing.changes, (date) => date >= from && kept(date)),
+      }
+    : NO_HISTORY;
+  const newId = await insertItem(tx, item, history.occurrences, history.changes);
   await endSeriesBefore(tx, existing, from, now, item.recurrence && isTask(item) ? newId : undefined);
   return newId;
 }
@@ -78,8 +96,30 @@ export async function skipOccurrence(tx: WorkspaceTx, itemId: string, date: stri
   if (!item?.recurrence) return false;
 
   await planAfresh(tx, now);
-  await setOccurrences(tx, item, { ...item.occurrences, [date]: "skipped" });
+  await saveOccurrence(tx, item, date, { state: "skipped" });
   await dropPlanned(tx, occurrenceId(itemId, date), now);
+  return true;
+}
+
+/**
+ * Gives the occurrence of series `itemId` on local date `date` its own timing, or with `null` its series' again, and
+ * has the plan made again from scratch. Returns `false` if the series has no such occurrence, or `change` doesn't fit
+ * its kind: a task occurrence's has a duration, a fixed one's doesn't.
+ */
+export async function changeOccurrence(
+  tx: WorkspaceTx,
+  itemId: string,
+  date: string,
+  change: OccurrenceChange | null,
+  now: Date,
+  timeZone: TimeZone,
+): Promise<boolean> {
+  const item = await loadItem(tx, itemId);
+  if (!item?.recurrence || !occursOn(item, date, timeZone) || item.occurrences[date] === "skipped") return false;
+  if (change && (change.durationMin === null) !== isFixed(item)) return false;
+
+  await planAfresh(tx, now);
+  await saveOccurrence(tx, item, date, { change });
   return true;
 }
 
@@ -99,8 +139,7 @@ export async function setTaskDone(
   if (!item || !isTask(item) || (date !== null) !== (item.recurrence !== null)) return false;
 
   if (date) {
-    const { [date]: _, ...others } = item.occurrences;
-    await setOccurrences(tx, item, done ? { ...others, [date]: "done" } : others);
+    await saveOccurrence(tx, item, date, { state: done ? "done" : null });
   } else {
     await setItemDone(tx, itemId, done);
   }
@@ -112,8 +151,16 @@ export async function setTaskDone(
   return true;
 }
 
+/** What a series keeps of its occurrences: their states and changes. */
+interface History {
+  occurrences: Occurrences;
+  changes: OccurrenceChanges;
+}
+
+const NO_HISTORY: History = { occurrences: {}, changes: {} };
+
 /**
- * Replaces `existing` with `item` and `occurrences`, returning the id that now holds it: a new one if the kind
+ * Replaces `existing` with `item` and `history`, returning the id that now holds it: a new one if the kind
  * changes, which drops a task's placements. A task kept as one keeps all but its pending placements, so time already
  * spent on it still counts, and the rest are placed again.
  */
@@ -121,15 +168,15 @@ async function saveInPlace(
   tx: WorkspaceTx,
   existing: Item,
   item: NewItem,
-  occurrences: Occurrences,
+  { occurrences, changes }: History,
   now: Date,
 ): Promise<string> {
   if (existing.timing !== item.timing) {
     await deleteItem(tx, existing);
-    return insertItem(tx, item, occurrences);
+    return insertItem(tx, item, occurrences, changes);
   }
   if (isTask(item)) await deletePendingPlacements(tx, existing.id, now);
-  await updateItem(tx, existing.id, item, occurrences);
+  await updateItem(tx, existing.id, item, occurrences, changes);
   return existing.id;
 }
 
@@ -140,8 +187,8 @@ function occurredBefore(item: Item, date: string, timeZone: TimeZone): boolean {
 }
 
 /**
- * Ends series `item` the day before local date `date` (unless it already ends earlier), keeping the states of the
- * occurrences before it. The blocks of those from it on that aren't pending move to series `successorId`, or the
+ * Ends series `item` the day before local date `date` (unless it already ends earlier), keeping the states and
+ * changes of the occurrences before it. The blocks of those from it on that aren't pending move to series `successorId`, or the
  * planned ones are dropped.
  */
 async function endSeriesBefore(
@@ -154,7 +201,11 @@ async function endSeriesBefore(
   const dayBefore = Temporal.PlainDate.from(date).subtract({ days: 1 }).toString();
   const { until } = item.recurrence!;
   const ended = { ...item, recurrence: { ...item.recurrence!, until: until && until < dayBefore ? until : dayBefore } };
-  await saveInPlace(tx, item, ended, occurrencesBefore(item.occurrences, date), now);
+  const history = {
+    occurrences: occurrencesBefore(item.occurrences, date),
+    changes: changesWhere(item.changes, (day) => day < date),
+  };
+  await saveInPlace(tx, item, ended, history, now);
   if (successorId) await moveOccurrencePlacements(tx, item.id, successorId, date);
   else await dropPlannedOccurrences(tx, item.id, date, now);
 }
@@ -164,6 +215,9 @@ const occurrencesFrom = (occurrences: Occurrences, date: string): Occurrences =>
 
 const occurrencesBefore = (occurrences: Occurrences, date: string): Occurrences =>
   Object.fromEntries(Object.entries(occurrences).filter(([day]) => day < date));
+
+const changesWhere = (changes: OccurrenceChanges, keep: (date: string) => boolean): OccurrenceChanges =>
+  Object.fromEntries(Object.entries(changes).filter(([date]) => keep(date)));
 
 /**
  * Drops every pending block (see `isPending`), so the next plan places all tasks anew and they can move into time a

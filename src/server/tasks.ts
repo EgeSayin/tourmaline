@@ -12,7 +12,7 @@ import { loadCategories } from "@/server/db/categories-repository";
 import { loadItem, loadItems } from "@/server/db/items-repository";
 import { loadSettings } from "@/server/db/settings-repository";
 import { loadItemPlacements, loadTaskPlacements } from "@/server/db/placements-repository";
-import { upcomingOccurrences } from "@/server/recurrence";
+import { occurrenceOn, upcomingOccurrences } from "@/server/recurrence";
 
 /**
  * `queued`: planned, but its remaining time, or an occurrence's, doesn't fit before its deadline. `done`: marked done.
@@ -93,6 +93,8 @@ export interface OccurrenceEntry {
   start: Date;
   /** A fixed occurrence's end, or a task occurrence's deadline. */
   end: Date;
+  /** Whether it has its own timing. */
+  changed: boolean;
   blocks: TaskBlock[];
 }
 
@@ -114,7 +116,36 @@ export async function loadSchedule(tx: WorkspaceTx, id: string, now: Date, timeZ
   const occurrences = upcomingOccurrences(item, now, OCCURRENCES_SHOWN, timeZone).map((occurrence) => ({
     date: parseOccurrenceId(occurrence.id).date!,
     ...itemSpan(occurrence),
+    changed: parseOccurrenceId(occurrence.id).date! in item.changes,
     blocks: placements.filter((placement) => placement.taskId === occurrence.id).map((p) => toTaskBlock(p, now)),
   }));
   return { blocks: [], occurrences };
+}
+
+/** One occurrence of a series as the editor opens it. */
+export interface OccurrenceEdit {
+  date: string;
+  /** The series at this occurrence, under the series' id: what "this and later ones" edits. */
+  series: Item;
+  /** The occurrence as it is, with its own timing if it has one. */
+  own: Item;
+  changed: boolean;
+}
+
+/** Series `id`'s occurrence on local date `date`, or `null` if there is none, or it's skipped. */
+export async function loadOccurrenceEdit(
+  tx: WorkspaceTx,
+  id: string,
+  date: string,
+  timeZone: TimeZone,
+): Promise<OccurrenceEdit | null> {
+  const item = await loadItem(tx, id);
+  const occurrence = item && occurrenceOn(item, date, timeZone);
+  if (!item || !occurrence) return null;
+  return {
+    date,
+    series: { ...occurrence.series, id },
+    own: { ...occurrence.own, id },
+    changed: date in item.changes,
+  };
 }

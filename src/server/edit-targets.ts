@@ -4,11 +4,14 @@ import { parseOccurrenceId } from "@/lib/recurrence";
 import type { TimeZone } from "@/lib/time/time-zone";
 import { nextOccurrence } from "@/server/recurrence";
 
-/** Finds what to open for a task, occurrence or item id: its item as the editor shows it, or `undefined` if gone. */
+/**
+ * Finds what to open for a task, occurrence or item id: its item as the editor shows it, a series at its next
+ * occurrence without changes of its own, or `undefined` if gone.
+ */
 export function editTargets(items: Item[], now: Date, timeZone: TimeZone): (id: string) => EditTarget | undefined {
   const editable = new Map(
     items.map((item) => {
-      const next = nextOccurrence(item, now, timeZone);
+      const next = nextOccurrence({ ...item, changes: {} }, now, timeZone);
       return [item.id, next ? { ...next, id: item.id } : item];
     }),
   );

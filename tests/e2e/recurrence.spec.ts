@@ -1,15 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { WEEKDAY_NAMES } from "@/lib/time/format";
-import {
-  blockPanel,
-  earlySlot,
-  itemEditor,
-  localDate,
-  localDateTime,
-  openAddItemForm,
-  TIME_ZONE,
-  showQueue,
-} from "./helpers";
+import { blockPanel, earlySlot, itemEditor, localDate, localDateTime, openAddItemForm, showQueue } from "./helpers";
 
 const weekdayLabel = (days: number) => WEEKDAY_NAMES[localDate(days).dayOfWeek - 1];
 /** As queue entries show a date, e.g. "Wed, Oct 7". */
@@ -17,7 +8,7 @@ const dateLabel = (days: number) =>
   localDate(days).toLocaleString("en-US", { weekday: "short", month: "short", day: "numeric" });
 
 test.describe("recurring items", () => {
-  test("repeats a fixed item on its chosen days until its end date, and edits it from its next occurrence on", async ({
+  test("repeats a fixed item on its chosen days until its end date, and edits it from an occurrence on", async ({
     page,
   }, testInfo) => {
     const title = `E2E standup (${testInfo.project.name})`;
@@ -46,13 +37,16 @@ test.describe("recurring items", () => {
     await expect(page.getByRole("heading", { name: /\d/ }).first()).toBeVisible();
     await expect(block).toHaveCount(0);
 
-    // Opens the series at its next occurrence: today's, unless it has already ended.
+    // Opens the series at today's occurrence, to edit from it on.
     await page.goto("/");
-    await block.first().click();
+    await page
+      .getByRole("group", { name: dateLabel(0) })
+      .getByRole("button", { name: `${title} ${slot.label}` })
+      .click();
     await blockPanel(page, testInfo).getByRole("link", { name: "Open task" }).click();
     const panel = itemEditor(page);
-    const ended = Temporal.PlainTime.compare(Temporal.Now.plainTimeISO(TIME_ZONE), slot.end) >= 0;
-    await expect(panel.getByLabel("Date", { exact: true })).toHaveValue(String(localDate(ended ? 1 : 0)));
+    await panel.getByRole("radio", { name: "This and later ones" }).click();
+    await expect(panel.getByLabel("Date", { exact: true })).toHaveValue(String(localDate(0)));
     await expect(panel.getByLabel("Starts")).toHaveValue(slot.start);
     await expect(panel.getByLabel("How often")).toHaveValue("weekly");
     await expect(panel.getByLabel("Until", { exact: true })).toHaveValue(String(localDate(1)));
@@ -61,7 +55,7 @@ test.describe("recurring items", () => {
       "true",
     );
 
-    // Saved from the next occurrence on, so yesterday's keeps the old title and tomorrow's has the new one.
+    // Saved from today's on, so yesterday's keeps the old title and tomorrow's has the new one.
     await panel.getByLabel("Title").fill(`${title} moved`);
     await panel.getByRole("button", { name: "Save changes" }).click();
     await expect(panel).toBeHidden();
@@ -104,8 +98,10 @@ test.describe("recurring items", () => {
     await expect(todays).toBeVisible();
     await expect(queue.getByRole("link", { name: `${title} · ${dateLabel(-1)}` })).toHaveCount(0);
 
+    // Opens at the occurrence, with the series a switch away.
     await entries.first().click();
     const panel = itemEditor(page);
+    await panel.getByRole("radio", { name: "This and later ones" }).click();
     await expect(panel.getByLabel("How often")).toHaveValue("daily");
     await expect(panel.getByLabel("Due")).toHaveCount(0);
     await expect(panel.getByRole("radio", { name: "Same day only" })).toHaveAttribute("aria-checked", "true");
@@ -132,10 +128,53 @@ test.describe("recurring items", () => {
     await expect(todays).toBeVisible();
 
     await entries.first().click();
+    await panel.getByRole("radio", { name: "This and later ones" }).click();
     await panel.getByRole("button", { name: "Delete" }).click();
     await panel.getByRole("button", { name: "Confirm delete" }).click();
     await expect(panel).toBeHidden();
     await showQueue(page, testInfo);
     await expect(todays).toHaveCount(0);
+  });
+
+  test("moves one occurrence of a series alone, and resets it to the series", async ({ page }, testInfo) => {
+    const title = `E2E daily check-in (${testInfo.project.name})`;
+    const [slot, later] = [earlySlot(testInfo, 4), earlySlot(testInfo, 5)];
+    const inDay = (days: number, label: string) =>
+      page.getByRole("group", { name: dateLabel(days) }).getByRole("button", { name: `${title} ${label}` });
+
+    const form = await openAddItemForm(page);
+    await form.getByRole("radio", { name: "At a set time" }).click();
+    await form.getByLabel("Title").fill(title);
+    await form.getByLabel("Date", { exact: true }).fill(String(localDate(0)));
+    await form.getByLabel("Starts").fill(slot.start);
+    await form.getByLabel("Ends").fill(slot.end);
+    await form.getByLabel("How often").selectOption("daily");
+    await form.getByLabel("Until", { exact: true }).fill(String(localDate(2)));
+    await form.getByRole("button", { name: "Add item" }).click();
+    await expect(form).toBeHidden();
+
+    await page.goto(`/?date=${localDate(1)}`);
+    await inDay(1, slot.label).click();
+    await blockPanel(page, testInfo).getByRole("link", { name: "Open task" }).click();
+    const editor = itemEditor(page);
+    await expect(editor.getByText(`The occurrence on ${dateLabel(1)}`)).toBeVisible();
+    await expect(editor.getByRole("radio", { name: "Only this one" })).toHaveAttribute("aria-checked", "true");
+    await editor.getByLabel("Starts").fill(later.start);
+    await expect(editor.getByLabel("Ends")).toHaveValue(later.end);
+    await editor.getByRole("button", { name: "Save this occurrence" }).click();
+    await expect(editor).toBeHidden();
+
+    await page.goto(`/?date=${localDate(1)}`);
+    await expect(inDay(1, later.label)).toBeVisible();
+    await expect(inDay(1, slot.label)).toHaveCount(0);
+    await expect(inDay(2, slot.label)).toBeVisible();
+
+    await inDay(1, later.label).click();
+    await blockPanel(page, testInfo).getByRole("link", { name: "Open task" }).click();
+    await expect(editor.getByText("Changed from the series.")).toBeVisible();
+    await editor.getByRole("button", { name: "Reset to the series" }).click();
+    await expect(editor).toBeHidden();
+    await page.goto(`/?date=${localDate(1)}`);
+    await expect(inDay(1, slot.label)).toBeVisible();
   });
 });

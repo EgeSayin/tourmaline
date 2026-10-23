@@ -55,3 +55,17 @@ export function itemToFormValues(item: Item, timeZone: TimeZone): Record<string,
     timeOfDayRule: item.timeOfDay?.must ? "must" : "prefer",
   };
 }
+
+/** One occurrence's timing as its form edits it: a fixed one's date and times, a task one's duration and window. */
+export function occurrenceToFormValues(occurrence: Item, timeZone: TimeZone): Record<string, string> {
+  const local = (date: Date) => toDateTimeInputValue(date, timeZone);
+  if (occurrence.timing === "fixed") {
+    const { date, startTime, endTime } = itemToFormValues(occurrence, timeZone);
+    return { date, startTime, endTime };
+  }
+  return {
+    durationMin: String(occurrence.durationMin),
+    earliestStart: local(occurrence.earliestStart),
+    deadline: local(occurrence.deadline),
+  };
+}

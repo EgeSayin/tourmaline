@@ -1,11 +1,16 @@
 import { and, eq, sql } from "drizzle-orm";
 import type { FixedItem, Item, NewFixedItem, NewItem, NewTask, Task } from "@/lib/items";
-import type { Occurrences } from "@/lib/recurrence";
+import type { OccurrenceChange, OccurrenceChanges, Occurrences, OccurrenceState } from "@/lib/recurrence";
 import { ownedBy, type WorkspaceTx } from "./workspace-transaction";
-import { categories, fixedItems, tasks } from "./schema";
+import { categories, fixedItemOccurrences, fixedItems, taskOccurrences, tasks } from "./schema";
 
-export async function insertItem(tx: WorkspaceTx, item: NewItem, occurrences: Occurrences = {}): Promise<string> {
-  const values = { workspaceId: tx.workspaceId, occurrences };
+export async function insertItem(
+  tx: WorkspaceTx,
+  item: NewItem,
+  occurrences: Occurrences = {},
+  changes: OccurrenceChanges = {},
+): Promise<string> {
+  const values = { workspaceId: tx.workspaceId };
   const [{ id }] =
     item.timing === "fixed"
       ? await tx
@@ -16,37 +21,97 @@ export async function insertItem(tx: WorkspaceTx, item: NewItem, occurrences: Oc
           .insert(tasks)
           .values({ ...taskRow(tx, item), ...values })
           .returning({ id: tasks.id });
+  await insertOccurrences(tx, item.timing, id, occurrences, changes);
   return id;
 }
 
-/** Saves `item` over the stored item `id`, which must be of the same kind. */
-export async function updateItem(tx: WorkspaceTx, id: string, item: NewItem, occurrences: Occurrences): Promise<void> {
+/** Saves `item` over the stored item `id`, which must be of the same kind, with these occurrences instead of its own. */
+export async function updateItem(
+  tx: WorkspaceTx,
+  id: string,
+  item: NewItem,
+  occurrences: Occurrences,
+  changes: OccurrenceChanges,
+): Promise<void> {
   if (item.timing === "fixed") {
     await tx
       .update(fixedItems)
-      .set({ ...fixedRow(tx, item), occurrences })
+      .set(fixedRow(tx, item))
       .where(and(ownedBy(tx, fixedItems), eq(fixedItems.id, id)));
+    await tx
+      .delete(fixedItemOccurrences)
+      .where(and(ownedBy(tx, fixedItemOccurrences), eq(fixedItemOccurrences.itemId, id)));
   } else {
     await tx
       .update(tasks)
-      .set({ ...taskRow(tx, item), occurrences })
+      .set(taskRow(tx, item))
       .where(and(ownedBy(tx, tasks), eq(tasks.id, id)));
+    await tx.delete(taskOccurrences).where(and(ownedBy(tx, taskOccurrences), eq(taskOccurrences.itemId, id)));
+  }
+  await insertOccurrences(tx, item.timing, id, occurrences, changes);
+}
+
+/**
+ * Sets the state or the change of series `item`'s occurrence on local date `date`, or with `null` clears it; what
+ * `update` leaves out stays as it is.
+ */
+export async function saveOccurrence(
+  tx: WorkspaceTx,
+  item: Item,
+  date: string,
+  update: { state?: OccurrenceState | null; change?: OccurrenceChange | null },
+): Promise<void> {
+  const state = "state" in update ? (update.state ?? null) : (item.occurrences[date] ?? null);
+  const change = "change" in update ? (update.change ?? null) : (item.changes[date] ?? null);
+  const table = item.timing === "fixed" ? fixedItemOccurrences : taskOccurrences;
+  await tx.delete(table).where(and(ownedBy(tx, table), eq(table.itemId, item.id), eq(table.date, date)));
+  if (state || change) {
+    await insertOccurrences(tx, item.timing, item.id, state ? { [date]: state } : {}, change ? { [date]: change } : {});
   }
 }
 
-export async function setOccurrences(tx: WorkspaceTx, item: Item, occurrences: Occurrences): Promise<void> {
-  if (item.timing === "fixed") {
-    await tx
-      .update(fixedItems)
-      .set({ occurrences })
-      .where(and(ownedBy(tx, fixedItems), eq(fixedItems.id, item.id)));
-  } else {
-    await tx
-      .update(tasks)
-      .set({ occurrences })
-      .where(and(ownedBy(tx, tasks), eq(tasks.id, item.id)));
+async function insertOccurrences(
+  tx: WorkspaceTx,
+  timing: Item["timing"],
+  itemId: string,
+  occurrences: Occurrences,
+  changes: OccurrenceChanges,
+): Promise<void> {
+  const rows = [...new Set([...Object.keys(occurrences), ...Object.keys(changes)])].map((date) => ({
+    workspaceId: tx.workspaceId,
+    itemId,
+    date,
+    state: occurrences[date] ?? null,
+    startAt: changes[date]?.start ?? null,
+    endAt: changes[date]?.end ?? null,
+  }));
+  if (rows.length === 0) return;
+  if (timing === "fixed") await tx.insert(fixedItemOccurrences).values(rows);
+  else {
+    const withDurations = rows.map((row) => ({ ...row, durationMin: changes[row.date]?.durationMin ?? null }));
+    await tx.insert(taskOccurrences).values(withDurations);
   }
 }
+
+type OccurrenceRow = typeof fixedItemOccurrences.$inferSelect & { durationMin?: number | null };
+
+/** The occurrence states and changes in `rows`, by item id. */
+function groupOccurrences(
+  rows: OccurrenceRow[],
+): Map<string, { occurrences: Occurrences; changes: OccurrenceChanges }> {
+  const byItem = new Map<string, { occurrences: Occurrences; changes: OccurrenceChanges }>();
+  for (const row of rows) {
+    const entry = byItem.get(row.itemId) ?? { occurrences: {}, changes: {} };
+    if (row.state) entry.occurrences[row.date] = row.state;
+    if (row.startAt && row.endAt) {
+      entry.changes[row.date] = { start: row.startAt, end: row.endAt, durationMin: row.durationMin ?? null };
+    }
+    byItem.set(row.itemId, entry);
+  }
+  return byItem;
+}
+
+const NO_OCCURRENCES = { occurrences: {}, changes: {} };
 
 export async function setItemDone(tx: WorkspaceTx, id: string, done: boolean): Promise<void> {
   await tx
@@ -65,11 +130,18 @@ export async function deleteItem(tx: WorkspaceTx, item: Item): Promise<void> {
 }
 
 export async function loadItems(tx: WorkspaceTx): Promise<Item[]> {
-  const [fixedRows, taskRows] = await Promise.all([
+  const [fixedRows, taskRows, fixedOccurrenceRows, taskOccurrenceRows] = await Promise.all([
     tx.select().from(fixedItems).where(ownedBy(tx, fixedItems)),
     tx.select().from(tasks).where(ownedBy(tx, tasks)),
+    tx.select().from(fixedItemOccurrences).where(ownedBy(tx, fixedItemOccurrences)),
+    tx.select().from(taskOccurrences).where(ownedBy(tx, taskOccurrences)),
   ]);
-  return [...fixedRows.map(toFixedItem), ...taskRows.map(toTask)];
+  const fixedHistory = groupOccurrences(fixedOccurrenceRows);
+  const taskHistory = groupOccurrences(taskOccurrenceRows);
+  return [
+    ...fixedRows.map((row) => toFixedItem(row, fixedHistory.get(row.id) ?? NO_OCCURRENCES)),
+    ...taskRows.map((row) => toTask(row, taskHistory.get(row.id) ?? NO_OCCURRENCES)),
+  ];
 }
 
 export async function loadItem(tx: WorkspaceTx, id: string): Promise<Item | undefined> {
@@ -83,7 +155,19 @@ export async function loadItem(tx: WorkspaceTx, id: string): Promise<Item | unde
       .from(tasks)
       .where(and(ownedBy(tx, tasks), eq(tasks.id, id))),
   ]);
-  return fixedRow ? toFixedItem(fixedRow) : taskRow && toTask(taskRow);
+  if (fixedRow) {
+    const rows = await tx
+      .select()
+      .from(fixedItemOccurrences)
+      .where(and(ownedBy(tx, fixedItemOccurrences), eq(fixedItemOccurrences.itemId, id)));
+    return toFixedItem(fixedRow, groupOccurrences(rows).get(id) ?? NO_OCCURRENCES);
+  }
+  if (!taskRow) return undefined;
+  const rows = await tx
+    .select()
+    .from(taskOccurrences)
+    .where(and(ownedBy(tx, taskOccurrences), eq(taskOccurrences.itemId, id)));
+  return toTask(taskRow, groupOccurrences(rows).get(id) ?? NO_OCCURRENCES);
 }
 
 /** A category deleted meanwhile, or another workspace's, is saved as none, as deleting it later would leave it. */
@@ -116,8 +200,10 @@ function taskRow(tx: WorkspaceTx, item: NewTask) {
   };
 }
 
-function toFixedItem(row: typeof fixedItems.$inferSelect): FixedItem {
-  const { id, title, priority, recurrence, occurrences, categoryId, location, bufferBeforeMin, bufferAfterMin } = row;
+type History = { occurrences: Occurrences; changes: OccurrenceChanges };
+
+function toFixedItem(row: typeof fixedItems.$inferSelect, { occurrences, changes }: History): FixedItem {
+  const { id, title, priority, recurrence, categoryId, location, bufferBeforeMin, bufferAfterMin } = row;
   return {
     id,
     title,
@@ -125,6 +211,7 @@ function toFixedItem(row: typeof fixedItems.$inferSelect): FixedItem {
     timing: "fixed",
     recurrence,
     occurrences,
+    changes,
     categoryId,
     start: row.startAt,
     end: row.endAt,
@@ -134,8 +221,8 @@ function toFixedItem(row: typeof fixedItems.$inferSelect): FixedItem {
   };
 }
 
-function toTask(row: typeof tasks.$inferSelect): Task {
-  const { id, title, priority, recurrence, occurrences, categoryId, durationMin, earliestStart, deadline } = row;
+function toTask(row: typeof tasks.$inferSelect, { occurrences, changes }: History): Task {
+  const { id, title, priority, recurrence, categoryId, durationMin, earliestStart, deadline } = row;
   return {
     id,
     title,
@@ -143,6 +230,7 @@ function toTask(row: typeof tasks.$inferSelect): Task {
     timing: "flexible",
     recurrence,
     occurrences,
+    changes,
     categoryId,
     durationMin,
     earliestStart,

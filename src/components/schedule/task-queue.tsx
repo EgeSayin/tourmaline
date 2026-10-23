@@ -1,5 +1,6 @@
 import { CircleCheck } from "lucide-react";
 import Link from "next/link";
+import { editHref } from "@/lib/calendar-blocks";
 import { formatDateTime, formatDuration, formatLocalDate } from "@/lib/time/format";
 import type { TimeZone } from "@/lib/time/time-zone";
 import type { QueueEntry } from "@/server/shell";
@@ -15,7 +16,7 @@ export function TaskQueue({ entries, timeZone }: { entries: QueueEntry[]; timeZo
       {entries.map(({ key, title, remainingMin, deadline, target }) => (
         <li key={key}>
           <Link
-            href={`/tasks?id=${target.item.id}`}
+            href={editHref(target)}
             className="flex w-full flex-col gap-0.5 rounded-lg border border-l-4 border-l-state-review bg-card px-3 py-2 text-left text-sm shadow-xs hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
           >
             <span>

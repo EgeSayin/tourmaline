@@ -1,4 +1,4 @@
-import type { Occurrences, Recurrence } from "./recurrence";
+import type { OccurrenceChanges, Occurrences, Recurrence } from "./recurrence";
 import { addMinutes } from "./time/duration";
 import type { Interval } from "./time/interval";
 import type { DayRange } from "./time/time-of-day";
@@ -20,6 +20,8 @@ interface BaseItem {
   recurrence: Recurrence | null;
   /** Empty for a one-off item. */
   occurrences: Occurrences;
+  /** Empty for a one-off item. */
+  changes: OccurrenceChanges;
   categoryId: string | null;
 }
 
@@ -63,14 +65,14 @@ export interface Task extends BaseItem {
 export type Item = FixedItem | Task;
 
 /**
- * An item as created or edited: the database assigns its `id`, and its occurrences' states and whether a task is
- * done are set separately.
+ * An item as created or edited: the database assigns its `id`, and its occurrences' states and changes and whether
+ * a task is done are set separately.
  */
 export type NewItem = NewFixedItem | NewTask;
 
-export type NewFixedItem = Omit<FixedItem, "id" | "occurrences">;
+export type NewFixedItem = Omit<FixedItem, "id" | "occurrences" | "changes">;
 
-export type NewTask = Omit<Task, "id" | "occurrences" | "done">;
+export type NewTask = Omit<Task, "id" | "occurrences" | "changes" | "done">;
 
 export const isFixed = <T extends NewItem>(item: T): item is Extract<T, { timing: "fixed" }> => item.timing === "fixed";
 export const isTask = <T extends NewItem>(item: T): item is Extract<T, { timing: "flexible" }> =>

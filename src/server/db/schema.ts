@@ -11,6 +11,7 @@ import {
   pgPolicy,
   pgRole,
   pgTable,
+  primaryKey,
   text,
   timestamp,
   unique,
@@ -23,13 +24,14 @@ import type { Downtime } from "@/lib/downtime";
 import { PRIORITIES, SPREAD_STRATEGIES } from "@/lib/items";
 import { PLACEMENT_STATUSES, SLOT_MIN } from "@/lib/placements";
 import { MINUTES_PER_DAY } from "@/lib/time/time-of-day";
-import type { Occurrences, Recurrence } from "@/lib/recurrence";
+import { OCCURRENCE_STATES, type Recurrence } from "@/lib/recurrence";
 import { DEFAULT_SETTINGS } from "@/lib/settings";
 import type { TimeZone } from "@/lib/time/time-zone";
 
 export const priorityEnum = pgEnum("priority", PRIORITIES);
 export const spreadEnum = pgEnum("spread", SPREAD_STRATEGIES);
 export const placementStatusEnum = pgEnum("placement_status", PLACEMENT_STATUSES);
+export const occurrenceStateEnum = pgEnum("occurrence_state", OCCURRENCE_STATES);
 
 // A literal: check constraints can't take parameters.
 const slotMin = sql.raw(String(SLOT_MIN));
@@ -160,8 +162,6 @@ const itemColumns = () => ({
   title: text("title").notNull(),
   priority: priorityEnum("priority").notNull().default("normal"),
   recurrence: jsonb("recurrence").$type<Recurrence>(),
-  /** The repository empties it when the item stops recurring. */
-  occurrences: jsonb("occurrences").$type<Occurrences>().notNull().default({}),
   categoryId: uuid("category_id"),
   ...auditColumns,
 });
@@ -232,6 +232,61 @@ export const tasks = pgTable(
 );
 
 /** Where tasks are scheduled. */
+/**
+ * What happened to one occurrence of a series, or its own timing: a row only for an occurrence that has either, by
+ * the local date it goes by (see `OccurrenceChange`). The repository drops them when the item stops recurring.
+ */
+const occurrenceColumns = () => ({
+  workspaceId: workspaceId(),
+  date: date("date").notNull(),
+  state: occurrenceStateEnum("state"),
+  startAt: timestamptz("start_at"),
+  endAt: timestamptz("end_at"),
+});
+
+const occurrenceConstraints = (
+  table: string,
+  t: { workspaceId: PgColumn; itemId: PgColumn; date: PgColumn; state: PgColumn; startAt: PgColumn; endAt: PgColumn },
+) => [
+  ownRows(t.workspaceId),
+  primaryKey({ name: `${table}_pk`, columns: [t.itemId, t.date] }),
+  check(`${table}_times`, sql`(${t.startAt} is null) = (${t.endAt} is null) and ${t.startAt} < ${t.endAt}`),
+  check(`${table}_used`, sql`${t.state} is not null or ${t.startAt} is not null`),
+];
+
+export const fixedItemOccurrences = pgTable(
+  "fixed_item_occurrences",
+  {
+    itemId: uuid("item_id")
+      .notNull()
+      .references(() => fixedItems.id, { onDelete: "cascade" }),
+    ...occurrenceColumns(),
+  },
+  (t) => [
+    ...occurrenceConstraints("fixed_item_occurrences", t),
+    // Only a task is done.
+    check("fixed_item_occurrences_state", sql`${t.state} is distinct from 'done'`),
+  ],
+);
+
+export const taskOccurrences = pgTable(
+  "task_occurrences",
+  {
+    itemId: uuid("item_id")
+      .notNull()
+      .references(() => tasks.id, { onDelete: "cascade" }),
+    ...occurrenceColumns(),
+    durationMin: integer("duration_min"),
+  },
+  (t) => [
+    ...occurrenceConstraints("task_occurrences", t),
+    check(
+      "task_occurrences_duration",
+      sql`(${t.durationMin} is null) = (${t.startAt} is null) and ${t.durationMin} > 0`,
+    ),
+  ],
+);
+
 export const placements = pgTable(
   "placements",
   {

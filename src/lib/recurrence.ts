@@ -20,11 +20,26 @@ export type Recurrence =
       weekdays: Weekday[];
     });
 
+export const OCCURRENCE_STATES = ["skipped", "done"] as const;
+
 /** What happened to one occurrence of a recurring item; one that occurs as planned has no state. */
-export type OccurrenceState = "skipped" | "done";
+export type OccurrenceState = (typeof OCCURRENCE_STATES)[number];
 
 /** The states of a recurring item's occurrences, by local date (`YYYY-MM-DD`). */
 export type Occurrences = Record<string, OccurrenceState>;
+
+/**
+ * One occurrence's own timing in place of its series': a fixed occurrence's start and end, or a task occurrence's
+ * window and duration (`null` for a fixed one). It may fall on another date, and still goes by its own.
+ */
+export interface OccurrenceChange {
+  start: Date;
+  end: Date;
+  durationMin: number | null;
+}
+
+/** The changed occurrences of a recurring item, by the local date each goes by. */
+export type OccurrenceChanges = Record<string, OccurrenceChange>;
 
 const OCCURRENCE_SEPARATOR = "@";
 

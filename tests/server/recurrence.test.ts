@@ -1,7 +1,13 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import { type Occurrences, type Recurrence, WEEKDAYS } from "@/lib/recurrence";
-import { expandOccurrences, nextOccurrence, occurrenceDates, upcomingOccurrences } from "@/server/recurrence";
+import {
+  expandOccurrences,
+  nextOccurrence,
+  occurrenceDates,
+  occurrenceOn,
+  upcomingOccurrences,
+} from "@/server/recurrence";
 import { utc } from "../support/intervals";
 import { fixed, flexible } from "../support/items";
 
@@ -200,6 +206,43 @@ describe("expandOccurrences", () => {
     expect(expandOccurrences(gym, utc("2026-10-05T04:00", "2026-10-12T04:00"), tz)).toEqual([
       window(gym, "2026-10-05T14:00", "2026-10-09T14:00"),
       window(gym, "2026-10-09T14:00", "2026-10-12T04:00"),
+    ]);
+  });
+
+  it("gives a changed occurrence its own times wherever they fall, in start order, unless it's skipped", () => {
+    // Mon and Wed 11:00–12:15 EDT; Monday Oct 26's moves to Tuesday 14:00, Wednesday Oct 28's is skipped.
+    const lecture = {
+      ...fixed("Lecture", utc("2026-10-26T15:00", "2026-10-26T16:15")),
+      recurrence: { frequency: "weekly", interval: 1, weekdays: [1, 3], until: null } satisfies Recurrence,
+      occurrences: { "2026-10-28": "skipped" } satisfies Occurrences,
+      changes: {
+        "2026-10-26": { ...utc("2026-10-27T18:00", "2026-10-27T19:00"), durationMin: null },
+        "2026-10-28": { ...utc("2026-10-29T18:00", "2026-10-29T19:00"), durationMin: null },
+      },
+    };
+    const times = (start: string, end: string) => ({ ...lecture, ...utc(start, end) });
+
+    expect(expandOccurrences(lecture, utc("2026-10-27T04:00", "2026-11-03T05:00"), tz)).toEqual([
+      { ...times("2026-10-27T18:00", "2026-10-27T19:00"), id: "Lecture@2026-10-26" },
+      { ...times("2026-11-02T16:00", "2026-11-02T17:15"), id: "Lecture@2026-11-02" },
+    ]);
+    // Its own date no longer holds it.
+    expect(ids(expandOccurrences(lecture, utc("2026-10-26T04:00", "2026-10-27T04:00"), tz))).toEqual([]);
+    expect(occurrenceOn(lecture, "2026-10-26", tz)).toEqual({
+      series: { ...times("2026-10-26T15:00", "2026-10-26T16:15"), id: "Lecture@2026-10-26" },
+      own: { ...times("2026-10-27T18:00", "2026-10-27T19:00"), id: "Lecture@2026-10-26" },
+    });
+    expect(occurrenceOn(lecture, "2026-10-28", tz)).toBeUndefined();
+
+    // A task occurrence takes its own window and duration.
+    const gym = {
+      ...flexible("Gym", 60, utc("2026-10-05T14:00", "2026-10-06T14:00")),
+      recurrence: { frequency: "daily", interval: 1, until: null } satisfies Recurrence,
+      changes: { "2026-10-06": { ...utc("2026-10-06T20:00", "2026-10-07T02:00"), durationMin: 120 } },
+    };
+    const { start: earliestStart, end: deadline } = utc("2026-10-06T20:00", "2026-10-07T02:00");
+    expect(expandOccurrences(gym, utc("2026-10-06T20:00", "2026-10-06T21:00"), tz)).toEqual([
+      { ...gym, earliestStart, deadline, durationMin: 120, id: "Gym@2026-10-06" },
     ]);
   });
 

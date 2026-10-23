@@ -13,6 +13,11 @@ export interface EditTarget {
   occurrenceDate: string | null;
 }
 
+/** Where the tasks page edits `target`: its item, opened at its occurrence if it is one. */
+export function editHref({ item, occurrenceDate }: EditTarget): string {
+  return `/tasks?id=${item.id}${occurrenceDate ? `&date=${occurrenceDate}` : ""}`;
+}
+
 export type BlockStyle = "fixed" | "fixed-optional" | "displaced" | "scheduled" | "to-review" | "done" | "missed";
 
 export interface BlockPlacement {

@@ -1,9 +1,17 @@
 import { z } from "zod";
 import type { FormErrors } from "@/lib/form-state";
 import { CATCH_UP_OPTIONS, REPEAT_OPTIONS, TIME_OF_DAY_RULES } from "@/lib/item-form";
-import { type NewItem, type NewTask, PRIORITIES, SPREAD_STRATEGIES, type TimeOfDay } from "@/lib/items";
+import {
+  isFixed,
+  type Item,
+  type NewItem,
+  type NewTask,
+  PRIORITIES,
+  SPREAD_STRATEGIES,
+  type TimeOfDay,
+} from "@/lib/items";
 import { SLOT_MIN } from "@/lib/placements";
-import { type Recurrence, WEEKDAYS } from "@/lib/recurrence";
+import { type OccurrenceChange, type Recurrence, WEEKDAYS } from "@/lib/recurrence";
 import { minutesBetween } from "@/lib/time/duration";
 import { MINUTES_PER_DAY } from "@/lib/time/time-of-day";
 import type { TimeZone } from "@/lib/time/time-zone";
@@ -210,4 +218,54 @@ function fitsInHours(task: NewTask, blockMin: number, timeZone: TimeZone): boole
     .map((stretch) => minutesBetween(stretch.start, stretch.end))
     .filter((minutes) => minutes >= blockMin);
   return usable.reduce((sum, minutes) => sum + minutes, 0) >= task.durationMin;
+}
+
+const fixedOccurrenceForm = z
+  .object({ date: z.iso.date({ error: "Enter a date" }), startTime: localTime, endTime: localTime })
+  .refine((form) => form.startTime !== form.endTime, { path: ["endTime"], message: "End must differ from start" });
+
+const taskOccurrenceForm = z
+  .object({
+    durationMin: z.preprocess(toNumber, taskMinutes),
+    earliestStart: localDateTime,
+    deadline: localDateTime,
+  })
+  .refine((form) => form.deadline > form.earliestStart, {
+    path: ["deadline"],
+    message: "Deadline must be after the earliest start",
+  });
+
+export type ParsedOccurrenceForm = { ok: true; change: OccurrenceChange } | { ok: false; errors: FormErrors };
+
+/**
+ * Validates one occurrence's own timing for an occurrence of `series`: a fixed one's date and times, which end the
+ * next day if earlier than the start; a task one's duration and window, which must fit its time of day if it must
+ * keep to it.
+ */
+export function parseOccurrenceForm(
+  fields: Record<string, unknown>,
+  series: Item,
+  timeZone: TimeZone,
+): ParsedOccurrenceForm {
+  const at = (local: string) => toDate(Temporal.PlainDateTime.from(local).toZonedDateTime(timeZone));
+  if (isFixed(series)) {
+    const parsed = fixedOccurrenceForm.safeParse(fields);
+    if (!parsed.success) return { ok: false, errors: z.flattenError(parsed.error).fieldErrors };
+    const { date, startTime, endTime } = parsed.data;
+    const endDate = endTime < startTime ? Temporal.PlainDate.from(date).add({ days: 1 }) : date;
+    return {
+      ok: true,
+      change: { start: at(`${date}T${startTime}`), end: at(`${endDate}T${endTime}`), durationMin: null },
+    };
+  }
+
+  const parsed = taskOccurrenceForm.safeParse(fields);
+  if (!parsed.success) return { ok: false, errors: z.flattenError(parsed.error).fieldErrors };
+  const { durationMin, earliestStart, deadline } = parsed.data;
+  const occurrence = { ...series, durationMin, earliestStart: at(earliestStart), deadline: at(deadline) };
+  const blockMin = Math.min(series.split?.minChunkMin ?? durationMin, durationMin);
+  if (series.timeOfDay?.must && !fitsInHours(occurrence, blockMin, timeZone)) {
+    return { ok: false, errors: { deadline: ["It can't fit in its hours of the day before it's due"] } };
+  }
+  return { ok: true, change: { start: occurrence.earliestStart, end: occurrence.deadline, durationMin } };
 }

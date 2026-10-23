@@ -8,6 +8,7 @@ import { PlacementActions } from "@/components/items/placement-actions";
 import { SkipOccurrenceButton } from "@/components/items/skip-occurrence-button";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { useMediaQuery } from "@/hooks/use-media-query";
+import { editHref } from "@/lib/calendar-blocks";
 import { cn } from "@/lib/utils";
 import { type OpenedBlock, useBlockPanel } from "./block-panel-state";
 
@@ -39,10 +40,7 @@ function PanelContent({ block }: { block: OpenedBlock }) {
           <SkipOccurrenceButton itemId={item.id} date={occurrenceDate} onSkipped={close} />
         </div>
       )}
-      <Link
-        href={`/tasks?id=${item.id}`}
-        className={cn(buttonVariants({ variant: "outline", size: "sm" }), "self-start")}
-      >
+      <Link href={editHref(target)} className={cn(buttonVariants({ variant: "outline", size: "sm" }), "self-start")}>
         Open task
         <ArrowRight />
       </Link>

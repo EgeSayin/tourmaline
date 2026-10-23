@@ -5,7 +5,7 @@ import { occurrenceId, type Recurrence } from "@/lib/recurrence";
 import { insertItem, loadItem, loadItems } from "@/server/db/items-repository";
 import { insertPlacements, loadPlacement, loadPlacements } from "@/server/db/placements-repository";
 import { placements } from "@/server/db/schema";
-import { editItem, removeItem, setTaskDone, skipOccurrence } from "@/server/items/item-commands";
+import { changeOccurrence, editItem, removeItem, setTaskDone, skipOccurrence } from "@/server/items/item-commands";
 import { dbTest as it } from "../../support/database";
 import { utc } from "../../support/intervals";
 import { fixed, flexible, unsaved } from "../../support/items";
@@ -40,7 +40,7 @@ describe("editItem", () => {
   it("ends a series that already occurred the day before the edit, and saves the edit as a new series", async ({
     tx,
   }) => {
-    const id = await insertItem(tx, lecture, { "2026-09-14": "skipped", "2026-10-19": "done" });
+    const id = await insertItem(tx, lecture, { "2026-09-14": "skipped", "2026-10-19": "skipped" });
 
     // From Mon Oct 12 on, at 14:00.
     const edited = movedTo("2026-10-12T18:00", "2026-10-12T19:15", { title: "Lecture (new room)" });
@@ -56,7 +56,7 @@ describe("editItem", () => {
     expect(await loadItem(tx, newId!)).toEqual({
       id: newId,
       ...edited,
-      occurrences: { "2026-10-19": "done" },
+      occurrences: { "2026-10-19": "skipped" },
     });
   });
 
@@ -242,6 +242,70 @@ describe("changes that free time", () => {
       expect(await loadPlacement(tx, pinned)).toEqual(pinned);
       await tx.delete(placements);
     }
+  });
+});
+
+describe("changeOccurrence", () => {
+  it("gives one occurrence its own timing and resets it, refusing dates the series doesn't have and the wrong kind", async ({
+    tx,
+  }) => {
+    const id = await insertItem(tx, lecture, { "2026-10-26": "skipped" });
+    // Monday Oct 19's lecture on Tuesday 14:00.
+    const tuesday = { ...utc("2026-10-20T18:00", "2026-10-20T19:00"), durationMin: null };
+
+    expect(await changeOccurrence(tx, id, "2026-10-19", tuesday, now, tz)).toBe(true);
+    expect((await loadItem(tx, id))!.changes).toEqual({ "2026-10-19": tuesday });
+    expect(await changeOccurrence(tx, id, "2026-10-20", tuesday, now, tz)).toBe(false); // not a Monday
+    expect(await changeOccurrence(tx, id, "2026-10-26", tuesday, now, tz)).toBe(false); // skipped
+    expect(await changeOccurrence(tx, id, "2026-10-19", { ...tuesday, durationMin: 60 }, now, tz)).toBe(false);
+    const gymId = await insertItem(tx, gym);
+    expect(await changeOccurrence(tx, gymId, "2026-10-06", tuesday, now, tz)).toBe(false);
+
+    expect(await changeOccurrence(tx, id, "2026-10-19", null, now, tz)).toBe(true);
+    expect((await loadItem(tx, id))!.changes).toEqual({});
+  });
+
+  it("carries changes into a series edit while their dates still occur, and drops them when the kind changes", async ({
+    tx,
+  }) => {
+    const own = (date: string) => ({ ...utc(`${date}T20:00`, `${date}T21:00`), durationMin: null });
+    // Mondays, changed on Oct 12 and Oct 19.
+    const id = await insertItem(tx, lecture, {}, { "2026-10-12": own("2026-10-13"), "2026-10-19": own("2026-10-20") });
+
+    // From Oct 19 on, on Mondays and Wednesdays: Oct 12's stays with the old series, Oct 19's moves on.
+    const newId = await editItem(
+      tx,
+      id,
+      movedTo("2026-10-19T15:00", "2026-10-19T16:15", {
+        recurrence: { frequency: "weekly", interval: 1, weekdays: [1, 3], until: null },
+      }),
+      now,
+      tz,
+    );
+    expect((await loadItem(tx, id))!.changes).toEqual({ "2026-10-12": own("2026-10-13") });
+    expect((await loadItem(tx, newId!))!.changes).toEqual({ "2026-10-19": own("2026-10-20") });
+
+    // On Wednesdays only from Oct 19 on: Monday Oct 19 no longer occurs.
+    const wednesdays = await editItem(
+      tx,
+      newId!,
+      movedTo("2026-10-21T15:00", "2026-10-21T16:15", {
+        recurrence: { frequency: "weekly", interval: 1, weekdays: [3], until: null },
+      }),
+      now,
+      tz,
+    );
+    expect((await loadItem(tx, wednesdays!))!.changes).toEqual({});
+
+    const kept = await insertItem(tx, lecture, {}, { "2026-10-19": own("2026-10-20") });
+    const asTask = await editItem(
+      tx,
+      kept,
+      { ...gym, ...utc("2026-10-19T15:00", "2026-10-20T15:00") } as NewItem,
+      now,
+      tz,
+    );
+    expect((await loadItem(tx, asTask!))!.changes).toEqual({});
   });
 });
 
