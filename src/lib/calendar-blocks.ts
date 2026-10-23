@@ -6,15 +6,27 @@ import { toLocal } from "./time/local-time";
 import { MINUTES_PER_DAY } from "./time/time-of-day";
 import type { TimeZone } from "./time/time-zone";
 
+/** One occurrence of a series as an editor opens it. */
+export interface OccurrenceEdit {
+  date: string;
+  /** The series at this occurrence, under the series' id: what "this and later ones" edits. */
+  series: Item;
+  /** The occurrence as it is, with its own timing if it has one. */
+  own: Item;
+  changed: boolean;
+}
+
 /** The item a block or entry belongs to, as the editor opens it, and which occurrence it is. */
 export interface EditTarget {
   /** The stored item: a series at its next occurrence (as saved once it has ended), under the series' id. */
   item: Item;
   occurrenceDate: string | null;
+  /** `null` for a one-off item, or an occurrence that's skipped. */
+  occurrence: OccurrenceEdit | null;
 }
 
 /** Where the tasks page edits `target`: its item, opened at its occurrence if it is one. */
-export function editHref({ item, occurrenceDate }: EditTarget): string {
+export function editHref({ item, occurrenceDate }: Pick<EditTarget, "item" | "occurrenceDate">): string {
   return `/tasks?id=${item.id}${occurrenceDate ? `&date=${occurrenceDate}` : ""}`;
 }
 

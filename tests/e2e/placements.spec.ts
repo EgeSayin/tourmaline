@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { blockPanel, itemEditor, localDate, localDateTime, openAddItemForm } from "./helpers";
+import { blockPanel, itemEditor, localDate, localDateTime, openAddItemForm, openTaskLink } from "./helpers";
 
 test.describe("scheduled blocks", () => {
   test("pins and unpins a block, checks it off early and undoes that, from the calendar and from its task", async ({
@@ -38,7 +38,7 @@ test.describe("scheduled blocks", () => {
     await expect(block).not.toHaveAttribute("aria-label", /\)$/);
 
     await block.click();
-    await panel.getByRole("link", { name: "Open task" }).click();
+    await openTaskLink(page, testInfo).click();
     const blocks = itemEditor(page).getByRole("group", { name: "Blocks" });
     await expect(blocks.getByText(/· Planned$/)).toBeVisible();
     await blocks.getByRole("button", { name: "Done early" }).click();

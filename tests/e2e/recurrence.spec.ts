@@ -1,6 +1,15 @@
 import { expect, test } from "@playwright/test";
 import { WEEKDAY_NAMES } from "@/lib/time/format";
-import { blockPanel, earlySlot, itemEditor, localDate, localDateTime, openAddItemForm, showQueue } from "./helpers";
+import {
+  blockPanel,
+  earlySlot,
+  itemEditor,
+  localDate,
+  localDateTime,
+  openAddItemForm,
+  openTaskLink,
+  showQueue,
+} from "./helpers";
 
 const weekdayLabel = (days: number) => WEEKDAY_NAMES[localDate(days).dayOfWeek - 1];
 /** As queue entries show a date, e.g. "Wed, Oct 7". */
@@ -43,7 +52,7 @@ test.describe("recurring items", () => {
       .getByRole("group", { name: dateLabel(0) })
       .getByRole("button", { name: `${title} ${slot.label}` })
       .click();
-    await blockPanel(page, testInfo).getByRole("link", { name: "Open task" }).click();
+    await openTaskLink(page, testInfo).click();
     const panel = itemEditor(page);
     await panel.getByRole("radio", { name: "This and later ones" }).click();
     await expect(panel.getByLabel("Date", { exact: true })).toHaveValue(String(localDate(0)));
@@ -155,7 +164,7 @@ test.describe("recurring items", () => {
 
     await page.goto(`/?date=${localDate(1)}`);
     await inDay(1, slot.label).click();
-    await blockPanel(page, testInfo).getByRole("link", { name: "Open task" }).click();
+    await openTaskLink(page, testInfo).click();
     const editor = itemEditor(page);
     await expect(editor.getByText(`The occurrence on ${dateLabel(1)}`)).toBeVisible();
     await expect(editor.getByRole("radio", { name: "Only this one" })).toHaveAttribute("aria-checked", "true");
@@ -170,7 +179,7 @@ test.describe("recurring items", () => {
     await expect(inDay(2, slot.label)).toBeVisible();
 
     await inDay(1, later.label).click();
-    await blockPanel(page, testInfo).getByRole("link", { name: "Open task" }).click();
+    await openTaskLink(page, testInfo).click();
     await expect(editor.getByText("Changed from the series.")).toBeVisible();
     await editor.getByRole("button", { name: "Reset to the series" }).click();
     await expect(editor).toBeHidden();

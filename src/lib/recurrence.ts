@@ -1,3 +1,5 @@
+import { formatLocalDate, WEEKDAY_NAMES } from "./time/format";
+
 /** ISO weekday numbers, Monday first. */
 export const WEEKDAYS = [1, 2, 3, 4, 5, 6, 7] as const;
 
@@ -21,6 +23,16 @@ export type Recurrence =
     });
 
 export const OCCURRENCE_STATES = ["skipped", "done"] as const;
+
+/** The rule in words, e.g. "Every 2 weeks on Mon, Wed until Fri, Dec 11". */
+export function describeRecurrence(rule: Recurrence): string {
+  const unit = rule.frequency === "daily" ? "day" : "week";
+  const every =
+    rule.interval === 1 ? (rule.frequency === "daily" ? "Daily" : "Weekly") : `Every ${rule.interval} ${unit}s`;
+  const days =
+    rule.frequency === "weekly" ? ` on ${rule.weekdays.map((day) => WEEKDAY_NAMES[day - 1]).join(", ")}` : "";
+  return `${every}${days}${rule.until ? ` until ${formatLocalDate(rule.until)}` : ""}`;
+}
 
 /** What happened to one occurrence of a recurring item; one that occurs as planned has no state. */
 export type OccurrenceState = (typeof OCCURRENCE_STATES)[number];

@@ -9,7 +9,7 @@ import { isFixed } from "@/lib/items";
 import type { TimeZone } from "@/lib/time/time-zone";
 import { useFormAction } from "@/hooks/use-form-action";
 import { changeOccurrenceAction, resetOccurrenceAction } from "@/server/items/actions";
-import type { OccurrenceEdit } from "@/server/tasks";
+import type { OccurrenceEdit } from "@/lib/calendar-blocks";
 import { FixedTimeFields } from "./fixed-item-fields";
 import { DurationField } from "./task-fields";
 

@@ -11,7 +11,8 @@ import { formatLocalDate } from "@/lib/time/format";
 import { buttonVariants } from "@/components/ui/button";
 import type { Category } from "@/lib/categories";
 import type { TimeZone } from "@/lib/time/time-zone";
-import type { ItemEntry, ItemSchedule, OccurrenceEdit } from "@/server/tasks";
+import type { OccurrenceEdit } from "@/lib/calendar-blocks";
+import type { ItemEntry, ItemSchedule } from "@/server/tasks";
 import { TaskBlocks } from "./task-blocks";
 import { TaskOccurrences } from "./task-occurrences";
 

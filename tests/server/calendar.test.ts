@@ -60,7 +60,7 @@ describe("the calendar and its lists", () => {
         title: "Marathon",
         remainingMin: 24 * 60,
         deadline: marathon.deadline,
-        target: { item: { ...marathon, id: marathonId }, occurrenceDate: null },
+        target: { item: { ...marathon, id: marathonId }, occurrenceDate: null, occurrence: null },
       },
     ]);
   });
@@ -104,7 +104,7 @@ describe("the calendar and its lists", () => {
 
     const calendar = await readPages(tx, wednesdayNoon);
 
-    const target = { item: { ...essay, id: essayId }, occurrenceDate: null };
+    const target = { item: { ...essay, id: essayId }, occurrenceDate: null, occurrence: null };
     expect(calendar?.review).toEqual(
       [lastWeek, monday].map(({ taskId, start, end }) => ({
         key: expect.any(String),

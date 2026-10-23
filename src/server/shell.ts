@@ -1,4 +1,6 @@
 import type { EditTarget } from "@/lib/calendar-blocks";
+import type { Category } from "@/lib/categories";
+import { loadCategories } from "@/server/db/categories-repository";
 import type { PlacementRef } from "@/lib/placements";
 import type { TimeZone } from "@/lib/time/time-zone";
 import { loadItems } from "@/server/db/items-repository";
@@ -34,17 +36,20 @@ export interface Shell {
   queue: QueueEntry[];
   /** Every past block still to review, oldest first. */
   review: ReviewEntry[];
+  /** To file items under from the block panel. */
+  categories: Category[];
 }
 
 /** Reads the plan (see `loadQueue`) and the blocks still to review. */
 export async function loadShell(tx: WorkspaceTx, now: Date): Promise<Shell> {
-  const [settings, items] = await Promise.all([loadSettings(tx), loadItems(tx)]);
+  const [settings, items, categories] = await Promise.all([loadSettings(tx), loadItems(tx), loadCategories(tx)]);
   const { timeZone } = settings;
   const targetFor = editTargets(items, now, timeZone);
   const [queue, toReview] = await Promise.all([loadQueue(tx, items, settings, now), loadPlacementsToReview(tx, now)]);
 
   return {
     timeZone,
+    categories,
     queue: queue.map(({ id, title, remainingMin, deadline }) => ({
       key: id,
       title,

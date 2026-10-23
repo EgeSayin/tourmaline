@@ -40,6 +40,11 @@ export function WorkspaceProvider({ shell, children }: { shell: Shell; children:
   );
 }
 
+/** What the shell around every page shows. */
+export function useShell(): Shell {
+  return use(ShellContext)!.shell;
+}
+
 /** Lists on the left (opening on review while it has any), the page in the middle, and `editor` or the block panel on the right. */
 export function Workspace({
   page,

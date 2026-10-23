@@ -41,7 +41,7 @@ describe("toCalendarBlocks", () => {
     const targetFor = (id: string): EditTarget | undefined => {
       const [itemId, date = null] = id.split("@");
       const item = items.get(itemId);
-      return item && { item, occurrenceDate: date };
+      return item && { item, occurrenceDate: date, occurrence: null };
     };
 
     const blocks = toCalendarBlocks([lecture, party], [placed, placedAgain, deleted], tz, targetFor, [cs], placed.end);
@@ -57,7 +57,7 @@ describe("toCalendarBlocks", () => {
         date: "2026-10-05",
         startMinute: 11 * 60,
         endMinute: 12 * 60 + 15,
-        target: { item: lecture, occurrenceDate: null },
+        target: { item: lecture, occurrenceDate: null, occurrence: null },
         placement: null,
         conflict: false,
         buffers: [
@@ -75,7 +75,7 @@ describe("toCalendarBlocks", () => {
         date: "2026-10-05",
         startMinute: 22 * 60 + 30,
         endMinute: 24 * 60, // cut off at midnight
-        target: { item: party, occurrenceDate: null },
+        target: { item: party, occurrenceDate: null, occurrence: null },
         placement: null,
         conflict: false,
         buffers: [],
@@ -95,7 +95,7 @@ describe("toCalendarBlocks", () => {
         date: "2026-10-05",
         startMinute,
         endMinute,
-        target: { item: reading, occurrenceDate: "2026-10-05" },
+        target: { item: reading, occurrenceDate: "2026-10-05", occurrence: null },
         placement: { ref: { taskId, start }, state, pinned },
         conflict: false,
         buffers: [],
@@ -131,7 +131,7 @@ describe("conflicts", () => {
     const items = new Map<string, Item>([lecture, club, dinner, nextDay, yoga, reading].map((item) => [item.id, item]));
     const targetFor = (id: string): EditTarget | undefined => {
       const item = items.get(id);
-      return item && { item, occurrenceDate: null };
+      return item && { item, occurrenceDate: null, occurrence: null };
     };
 
     const now = new Date("2026-10-01T00:00Z");

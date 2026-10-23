@@ -1,4 +1,4 @@
-import { type BlockPlacement, type EditTarget, toBlockPlacement } from "@/lib/calendar-blocks";
+import { type BlockPlacement, type EditTarget, type OccurrenceEdit, toBlockPlacement } from "@/lib/calendar-blocks";
 import { isTask, type Item, itemSpan } from "@/lib/items";
 import type { Placement } from "@/lib/placements";
 import { parseOccurrenceId } from "@/lib/recurrence";
@@ -6,13 +6,13 @@ import { OCCURRENCES_SHOWN } from "@/lib/settings";
 import type { TimeZone } from "@/lib/time/time-zone";
 import { loadQueue, type QueuedTask } from "@/server/planning/saved-plan";
 import type { WorkspaceTx } from "@/server/db/workspace-transaction";
-import { editTargets } from "@/server/edit-targets";
+import { editTargets, occurrenceEdit } from "@/server/edit-targets";
 import { type CategoryEntry, listCategories } from "@/server/categories/category-list";
 import { loadCategories } from "@/server/db/categories-repository";
 import { loadItem, loadItems } from "@/server/db/items-repository";
 import { loadSettings } from "@/server/db/settings-repository";
 import { loadItemPlacements, loadTaskPlacements } from "@/server/db/placements-repository";
-import { occurrenceOn, upcomingOccurrences } from "@/server/recurrence";
+import { upcomingOccurrences } from "@/server/recurrence";
 
 /**
  * `queued`: planned, but its remaining time, or an occurrence's, doesn't fit before its deadline. `done`: marked done.
@@ -122,16 +122,6 @@ export async function loadSchedule(tx: WorkspaceTx, id: string, now: Date, timeZ
   return { blocks: [], occurrences };
 }
 
-/** One occurrence of a series as the editor opens it. */
-export interface OccurrenceEdit {
-  date: string;
-  /** The series at this occurrence, under the series' id: what "this and later ones" edits. */
-  series: Item;
-  /** The occurrence as it is, with its own timing if it has one. */
-  own: Item;
-  changed: boolean;
-}
-
 /** Series `id`'s occurrence on local date `date`, or `null` if there is none, or it's skipped. */
 export async function loadOccurrenceEdit(
   tx: WorkspaceTx,
@@ -140,12 +130,5 @@ export async function loadOccurrenceEdit(
   timeZone: TimeZone,
 ): Promise<OccurrenceEdit | null> {
   const item = await loadItem(tx, id);
-  const occurrence = item && occurrenceOn(item, date, timeZone);
-  if (!item || !occurrence) return null;
-  return {
-    date,
-    series: { ...occurrence.series, id },
-    own: { ...occurrence.own, id },
-    changed: date in item.changes,
-  };
+  return item ? occurrenceEdit(item, date, timeZone) : null;
 }

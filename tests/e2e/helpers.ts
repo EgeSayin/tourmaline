@@ -27,6 +27,11 @@ export function blockPanel(page: Page, testInfo: TestInfo) {
   return page.getByRole(isPhone(testInfo) ? "dialog" : "complementary", { name: "Block" });
 }
 
+/** The block panel's link to the tasks page: "Open task" beside its fields on desktop, "Edit" on phones. */
+export function openTaskLink(page: Page, testInfo: TestInfo) {
+  return blockPanel(page, testInfo).getByRole("link", { name: isPhone(testInfo) ? "Edit" : "Open task", exact: true });
+}
+
 /** The tasks page's editor for an existing item. */
 export function itemEditor(page: Page) {
   return page.getByRole("complementary", { name: "Edit item" });
@@ -70,7 +75,7 @@ export async function addFixedItemToday(
 /** Opens the item of the calendar block titled `title` in the editor, through its block panel. */
 export async function openItemForEditing(page: Page, testInfo: TestInfo, title: string) {
   await page.getByRole("button", { name: new RegExp(`^${RegExp.escape(title)}`) }).click();
-  await blockPanel(page, testInfo).getByRole("link", { name: "Open task" }).click();
+  await openTaskLink(page, testInfo).click();
   return itemEditor(page);
 }
 

@@ -8,7 +8,8 @@ import { Button } from "@/components/ui/button";
 import { FieldGroup } from "@/components/ui/field";
 import { itemToFormValues, type Repeat } from "@/lib/item-form";
 import type { Category } from "@/lib/categories";
-import { isTask, type Item, PRIORITIES, type Priority } from "@/lib/items";
+import { isTask, type Item } from "@/lib/items";
+import { PRIORITY_OPTIONS } from "./priority";
 import type { TimeZone } from "@/lib/time/time-zone";
 import { useFormAction } from "@/hooks/use-form-action";
 import { createItemAction, deleteItemAction, updateItemAction } from "@/server/items/actions";
@@ -17,15 +18,6 @@ import { RepeatFields } from "./repeat-fields";
 import { DurationField, TaskScheduleSection, TaskWindowFields, TimeOfDayField } from "./task-fields";
 import { TaskDoneButton } from "./task-done-button";
 import { TimingSwitch } from "./timing-switch";
-
-const PRIORITY_LABELS = {
-  mandatory: "Mandatory",
-  high: "High",
-  normal: "Normal",
-  low: "Low",
-} satisfies Record<Priority, string>;
-
-const PRIORITY_OPTIONS = PRIORITIES.map((value) => ({ value, label: PRIORITY_LABELS[value] }));
 
 export function ItemForm({
   item,
