@@ -1,0 +1,51 @@
+# Self-hosting: `cp .env.example .env`, set a password in it, then `docker compose up -d` in this folder.
+name: tourmaline
+
+services:
+  db:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: tourmaline
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: tourmaline
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tourmaline -d tourmaline"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # Applies pending migrations once per start, before the app; if one fails, the app doesn't start on a half-migrated
+  # database.
+  migrate:
+    image: ${TOURMALINE_IMAGE:-ghcr.io/egesayin/tourmaline}:${TOURMALINE_VERSION:-latest}
+    build: ..
+    command: ["node", "cli/migrate.mjs"]
+    environment:
+      DATABASE_URL: postgres://tourmaline:${POSTGRES_PASSWORD}@db:5432/tourmaline
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: "no"
+
+  app:
+    image: ${TOURMALINE_IMAGE:-ghcr.io/egesayin/tourmaline}:${TOURMALINE_VERSION:-latest}
+    build: ..
+    restart: unless-stopped
+    # Forwards stop signals to the server, so it shuts down cleanly.
+    init: true
+    environment:
+      DATABASE_URL: postgres://tourmaline:${POSTGRES_PASSWORD}@db:5432/tourmaline
+      DEMO_MODE: ${DEMO_MODE:-false}
+    ports:
+      - "${PORT:-3000}:3000"
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+
+volumes:
+  db-data:

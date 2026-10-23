@@ -1,0 +1,20 @@
+# Only what the image build needs: sources, migrations and the lockfile.
+node_modules
+.next
+dist
+coverage
+test-results
+playwright-report
+playwright
+.git
+.github
+.vscode
+.env*
+*.md
+docs
+Dockerfile
+.dockerignore
+docker-compose.yml
+deploy
+.DS_Store
+*.tsbuildinfo

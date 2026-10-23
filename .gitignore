@@ -50,3 +50,6 @@ next-env.d.ts
 
 # playwright
 /playwright/.auth/
+
+# bundled scripts for the Docker image
+/dist/
