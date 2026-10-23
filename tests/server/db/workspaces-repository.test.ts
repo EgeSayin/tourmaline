@@ -5,7 +5,7 @@ import { deleteItem, loadItems, updateItem } from "@/server/db/items-repository"
 import { loadPlacements } from "@/server/db/placements-repository";
 import { workspaces } from "@/server/db/schema";
 import { loadSettings } from "@/server/db/settings-repository";
-import { PERSONAL_WORKSPACE_ID } from "@/server/db/workspace-transaction";
+import { createAccount } from "@/server/db/accounts-repository";
 import { createGuestWorkspace, deleteIdleWorkspaces, openSession } from "@/server/db/workspaces-repository";
 import { seedWorkspace } from "@/server/demo/seed-workspace";
 import { SESSION_TOUCH_MIN } from "@/server/workspaces/guest-limits";
@@ -19,7 +19,10 @@ const week = utc("2026-10-01T00:00", "2026-10-15T00:00");
 describe("guest workspaces", () => {
   it("each sees and changes only its own data, through a session only its token opens", async ({ tx }) => {
     const guest = await createGuestWorkspace(tx);
-    expect(await openSession(tx, guest.token, now, SESSION_TOUCH_MIN)).toBe(guest.workspaceId);
+    expect(await openSession(tx, guest.token, now, SESSION_TOUCH_MIN)).toEqual({
+      workspaceId: guest.workspaceId,
+      userId: null,
+    });
     expect(await openSession(tx, `${guest.token}x`, now, SESSION_TOUCH_MIN)).toBeUndefined();
 
     const inGuest = <T>(work: Parameters<typeof savepoint<T>>[1]) => savepoint(tx, work, guest.workspaceId);
@@ -39,33 +42,31 @@ describe("guest workspaces", () => {
     expect((await inGuest(loadItems)).map((item) => item.title)).toContain(guestItem.title);
   });
 
-  it("are deleted once idle or beyond the most kept, with their sessions; the personal one never is", async ({
-    tx,
-  }) => {
+  it("are deleted once idle or beyond the most kept, with their sessions; an account's never is", async ({ tx }) => {
     const [idle, older, recent] = [
       await createGuestWorkspace(tx),
       await createGuestWorkspace(tx),
       await createGuestWorkspace(tx),
     ];
-    const usedAt = (guest: typeof idle, date: string) =>
+    const account = await createAccount(tx, "owner", "hash");
+    if (!account.ok) throw new Error("Couldn't create the account");
+    const usedAt = (workspaceId: string, date: string) =>
       tx
         .update(workspaces)
         .set({ lastUsedAt: new Date(date) })
-        .where(eq(workspaces.id, guest.workspaceId));
-    await usedAt(idle, "2026-09-01T00:00Z");
-    await usedAt(older, "2026-10-05T00:00Z");
-    await usedAt(recent, "2026-10-06T00:00Z");
-    await tx
-      .update(workspaces)
-      .set({ lastUsedAt: new Date("2026-01-01T00:00Z") })
-      .where(eq(workspaces.id, PERSONAL_WORKSPACE_ID));
+        .where(eq(workspaces.id, workspaceId));
+    await usedAt(tx.workspaceId, "2026-09-01T00:00Z"); // the test's own, also a guest's
+    await usedAt(idle.workspaceId, "2026-09-01T00:00Z");
+    await usedAt(older.workspaceId, "2026-10-05T00:00Z");
+    await usedAt(recent.workspaceId, "2026-10-06T00:00Z");
+    await usedAt(account.workspaceId, "2026-01-01T00:00Z");
 
     await deleteIdleWorkspaces(tx, new Date("2026-09-30T00:00Z"), 1);
 
     const left = await tx.select({ id: workspaces.id }).from(workspaces);
-    expect(left.map((workspace) => workspace.id).sort()).toEqual([PERSONAL_WORKSPACE_ID, recent.workspaceId].sort());
+    expect(left.map((workspace) => workspace.id).sort()).toEqual([account.workspaceId, recent.workspaceId].sort());
     expect(await openSession(tx, idle.token, now, SESSION_TOUCH_MIN)).toBeUndefined();
-    expect(await openSession(tx, recent.token, now, SESSION_TOUCH_MIN)).toBe(recent.workspaceId);
+    expect((await openSession(tx, recent.token, now, SESSION_TOUCH_MIN))?.workspaceId).toBe(recent.workspaceId);
 
     // Opening it marks it used, but not again within `SESSION_TOUCH_MIN`.
     const lastUsed = async () =>

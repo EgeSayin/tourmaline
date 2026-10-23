@@ -1,6 +1,12 @@
 import { expect, type Page, type TestInfo } from "@playwright/test";
 import { toTimeInputValue } from "@/lib/time/time-of-day";
 
+/** The account the specs sign in as; global setup seeds it with the sample week. */
+export const E2E_ACCOUNT = { username: "e2e", password: "e2e-password" };
+
+/** Where the setup project keeps the account's signed-in session for the other projects. */
+export const SIGNED_IN_STATE = "playwright/.auth/e2e.json";
+
 // Matches the seeded settings.
 export const TIME_ZONE = "America/New_York";
 

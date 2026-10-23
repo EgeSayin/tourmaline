@@ -1,5 +1,6 @@
 import { existsSync } from "node:fs";
 import { defineConfig, devices } from "@playwright/test";
+import { SIGNED_IN_STATE } from "./tests/e2e/helpers";
 
 if (existsSync(".env.local")) process.loadEnvFile(".env.local");
 
@@ -17,8 +18,13 @@ export default defineConfig({
     trace: "on-first-retry",
   },
   projects: [
-    { name: "desktop", use: { ...devices["Desktop Chrome"] } },
-    { name: "phone", use: { ...devices["Pixel 7"] } },
+    { name: "setup", testMatch: /\.setup\.ts$/ },
+    {
+      name: "desktop",
+      use: { ...devices["Desktop Chrome"], storageState: SIGNED_IN_STATE },
+      dependencies: ["setup"],
+    },
+    { name: "phone", use: { ...devices["Pixel 7"], storageState: SIGNED_IN_STATE }, dependencies: ["setup"] },
   ],
   webServer: {
     command: `npx next build && npx next start -p ${PORT}`,

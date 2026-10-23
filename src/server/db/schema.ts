@@ -17,6 +17,7 @@ import {
   uuid,
   type PgColumn,
 } from "drizzle-orm/pg-core";
+import { USERNAME_PATTERN } from "@/lib/accounts";
 import { CATEGORY_COLOR_PATTERN } from "@/lib/categories";
 import type { Downtime } from "@/lib/downtime";
 import { PRIORITIES, SPREAD_STRATEGIES } from "@/lib/items";
@@ -34,6 +35,7 @@ export const placementStatusEnum = pgEnum("placement_status", PLACEMENT_STATUSES
 const slotMin = sql.raw(String(SLOT_MIN));
 const minutesPerDay = sql.raw(String(MINUTES_PER_DAY));
 const categoryColorPattern = sql.raw(`'${CATEGORY_COLOR_PATTERN.source}'`);
+const usernamePattern = sql.raw(`'${USERNAME_PATTERN.source}'`);
 
 const timestamptz = (name: string) => timestamp(name, { withTimezone: true });
 
@@ -57,7 +59,7 @@ function ownRows(column: PgColumn) {
   return pgPolicy("own_rows", { to: workspaceUser, using: own, withCheck: own });
 }
 
-/** Whose data a row is: a guest's in demo mode, otherwise the one personal workspace a migration creates. */
+/** Whose data a row is: an account's, or in demo mode a guest's. */
 export const workspaces = pgTable(
   "workspaces",
   {
@@ -70,12 +72,49 @@ export const workspaces = pgTable(
   (t) => [ownRows(t.id)],
 );
 
-/** A guest's session: only a hash of the token its cookie holds, so a leaked table opens no workspace. */
+/** An account of a self-hosted instance, owning one workspace. Read only by owner connections, like sessions. */
+export const users = pgTable(
+  "users",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    /** Stored lowercase, so names differing only in case are one name. */
+    username: text("username").notNull().unique(),
+    passwordHash: text("password_hash").notNull(),
+    isAdmin: boolean("is_admin").notNull().default(false),
+    workspaceId: uuid("workspace_id")
+      .notNull()
+      .unique()
+      .references(() => workspaces.id, { onDelete: "cascade" }),
+    /** Wrong passwords since the last sign-in; past a few, each one pauses sign-in for longer. */
+    failedSignIns: integer("failed_sign_ins").notNull().default(0),
+    signInPausedUntil: timestamptz("sign_in_paused_until"),
+    ...auditColumns,
+  },
+  (t) => [check("users_username", sql`${t.username} ~ ${usernamePattern}`)],
+);
+
+/** The instance's own settings: a single row, which a migration creates. */
+export const instance = pgTable(
+  "instance",
+  {
+    id: boolean("id").primaryKey().default(true),
+    /** Whether anyone may create an account; the first account can always be created. */
+    signUpOpen: boolean("sign_up_open").notNull().default(false),
+  },
+  (t) => [check("instance_single_row", sql`${t.id}`)],
+);
+
+/**
+ * A guest's or an account's session: only a hash of the token its cookie holds, so a leaked table opens no
+ * workspace.
+ */
 export const sessions = pgTable("sessions", {
   tokenHash: text("token_hash").primaryKey(),
   workspaceId: uuid("workspace_id")
     .notNull()
     .references(() => workspaces.id, { onDelete: "cascade" }),
+  /** `null` for a guest. */
+  userId: uuid("user_id").references(() => users.id, { onDelete: "cascade" }),
   createdAt: timestamptz("created_at").notNull().defaultNow(),
 });
 

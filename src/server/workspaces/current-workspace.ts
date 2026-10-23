@@ -2,36 +2,44 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { refresh } from "next/cache";
 import { cache } from "react";
+import type { Account } from "@/lib/accounts";
 import type { FormState } from "@/lib/form-state";
+import { loadAccount } from "@/server/db/accounts-repository";
 import { db } from "@/server/db/client";
-import {
-  inWorkspace,
-  PERSONAL_WORKSPACE_ID,
-  readInWorkspace,
-  type WorkspaceTx,
-} from "@/server/db/workspace-transaction";
-import { openSession } from "@/server/db/workspaces-repository";
+import { inWorkspace, readInWorkspace, type WorkspaceTx } from "@/server/db/workspace-transaction";
+import { type OpenSession, openSession } from "@/server/db/workspaces-repository";
 import { plannedToday, replanWorkspace } from "@/server/planning/saved-plan";
 import { SESSION_TOUCH_MIN } from "./guest-limits";
+import { SESSION_COOKIE } from "./session-cookie";
 
-/** The public demo: each visitor gets a guest workspace of their own. Otherwise there is one personal workspace. */
+/** The public demo: each visitor gets a guest workspace of their own. Otherwise each account has one. */
 export const DEMO_MODE = process.env.DEMO_MODE === "true";
-
-export const SESSION_COOKIE = "session";
 
 /** Where a demo visitor without a session starts one. */
 const WELCOME_PATH = "/welcome";
 
-/** The workspace of the request's live session, if it has one. */
-export const sessionWorkspace = cache(async (): Promise<string | undefined> => {
+export const SIGN_IN_PATH = "/sign-in";
+
+/** The request's live session, if it has one: a guest's in the demo, otherwise an account's. */
+export const currentSession = cache(async (): Promise<OpenSession | undefined> => {
   const token = (await cookies()).get(SESSION_COOKIE)?.value;
-  return token ? openSession(db, token, new Date(), SESSION_TOUCH_MIN) : undefined;
+  const session = token ? await openSession(db, token, new Date(), SESSION_TOUCH_MIN) : undefined;
+  return session && (session.userId === null) === DEMO_MODE ? session : undefined;
 });
 
-/** The request's workspace, sending a demo visitor without a live session to the welcome page. */
+export async function sessionWorkspace(): Promise<string | undefined> {
+  return (await currentSession())?.workspaceId;
+}
+
+/** The signed-in account; `undefined` in the demo. */
+export const currentAccount = cache(async (): Promise<Account | undefined> => {
+  const userId = (await currentSession())?.userId;
+  return userId ? loadAccount(db, userId) : undefined;
+});
+
+/** The request's workspace, sending a visitor without a live session to where they start one. */
 async function currentWorkspace(): Promise<string> {
-  if (!DEMO_MODE) return PERSONAL_WORKSPACE_ID;
-  return (await sessionWorkspace()) ?? redirect(WELCOME_PATH);
+  return (await sessionWorkspace()) ?? redirect(DEMO_MODE ? WELCOME_PATH : SIGN_IN_PATH);
 }
 
 /**

@@ -4,7 +4,8 @@ import { migrate } from "drizzle-orm/postgres-js/migrator";
 import postgres from "postgres";
 import { test } from "vitest";
 import { createDatabase, type Database } from "@/server/db/connection";
-import { PERSONAL_WORKSPACE_ID, type WorkspaceTx } from "@/server/db/workspace-transaction";
+import type { WorkspaceTx } from "@/server/db/workspace-transaction";
+import { createWorkspace } from "@/server/db/workspaces-repository";
 
 const MIGRATION_LOCK_ID = 727_001;
 
@@ -32,7 +33,7 @@ async function prepareTestDatabase(adminUrl: string, testUrl: string) {
 
 /**
  * Vitest `test` with lazy database fixtures; tests that don't use them never connect.
- * `tx` is a transaction in the personal workspace that is rolled back after the test.
+ * `tx` is a transaction in a new workspace, rolled back after the test.
  */
 export const dbTest = test.extend<{ $worker: { db: Database }; $test: { tx: WorkspaceTx } }>({
   db: [
@@ -52,7 +53,7 @@ export const dbTest = test.extend<{ $worker: { db: Database }; $test: { tx: Work
   tx: async ({ db }, use) => {
     await db
       .transaction(async (tx) => {
-        await use(Object.assign(tx, { workspaceId: PERSONAL_WORKSPACE_ID }));
+        await use(Object.assign(tx, { workspaceId: await createWorkspace(tx) }));
         tx.rollback();
       })
       .catch((error) => {

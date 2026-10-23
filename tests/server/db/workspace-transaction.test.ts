@@ -2,7 +2,7 @@ import { sql } from "drizzle-orm";
 import { describe, expect } from "vitest";
 import { insertItem } from "@/server/db/items-repository";
 import { tasks, workspaces } from "@/server/db/schema";
-import { enterWorkspace, inWorkspace, PERSONAL_WORKSPACE_ID } from "@/server/db/workspace-transaction";
+import { enterWorkspace, inWorkspace } from "@/server/db/workspace-transaction";
 import { createGuestWorkspace } from "@/server/db/workspaces-repository";
 import { dbTest as it, savepoint } from "../../support/database";
 import { utc } from "../../support/intervals";
@@ -54,7 +54,7 @@ describe("inWorkspace", () => {
       ]);
       await asGuest.update(tasks).set({ title: "Taken" });
       await expect(
-        savepoint(asGuest, (nested) => insertItem(nested, flexible("Planted", 60, week)), PERSONAL_WORKSPACE_ID),
+        savepoint(asGuest, (nested) => insertItem(nested, flexible("Planted", 60, week)), tx.workspaceId),
       ).rejects.toThrow();
       await asGuest.execute(sql`reset role`);
     });
@@ -64,7 +64,7 @@ describe("inWorkspace", () => {
 
   it("is held by every table with a workspace's rows, and reaches no other table", async ({ tx }) => {
     // Read and written only by session code, as the owner.
-    const ownerOnly = ["sessions"];
+    const ownerOnly = ["sessions", "users"];
     const tables = await tx.execute<{
       name: string;
       scoped: boolean;

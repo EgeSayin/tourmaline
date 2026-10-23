@@ -36,6 +36,13 @@
       "when": 1792769017009,
       "tag": "0004_category_hex_colors",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1792771747273,
+      "tag": "0005_accounts",
+      "breakpoints": true
     }
   ]
 }

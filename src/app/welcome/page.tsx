@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { connection } from "next/server";
 import { SiteFooter } from "@/components/shell/site-footer";
@@ -50,6 +51,16 @@ export default async function Welcome() {
           <p className="max-w-2xl text-sm text-muted-foreground">
             You get your own copy of a sample week to change as you like. No sign-up, and nothing about you is stored.
             It is deleted after {GUEST_IDLE_DAYS} days without a visit.
+          </p>
+          <p className="text-sm text-muted-foreground">
+            Have an account?{" "}
+            <Link href="/sign-in" className="font-medium text-foreground underline-offset-4 hover:underline">
+              Sign in
+            </Link>{" "}
+            or{" "}
+            <Link href="/sign-up" className="font-medium text-foreground underline-offset-4 hover:underline">
+              create one
+            </Link>
           </p>
         </form>
       </section>
