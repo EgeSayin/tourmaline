@@ -24,7 +24,7 @@ describe("guest workspaces", () => {
 
     const inGuest = <T>(work: Parameters<typeof savepoint<T>>[1]) => savepoint(tx, work, guest.workspaceId);
     await inGuest((guestTx) => seedWorkspace(guestTx, now));
-    await insertCategory(tx, { name: "CS 101", color: "red" }); // the same name as a guest's is fine
+    await insertCategory(tx, { name: "CS 101", color: "#ef4444" }); // the same name as a guest's is fine
     const [guestItem] = await inGuest(loadItems);
     const [guestCategory] = await inGuest(loadCategories);
 

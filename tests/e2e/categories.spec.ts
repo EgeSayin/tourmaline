@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 import { itemEditor, localDateTime, openAddItemForm } from "./helpers";
 
 test.describe("categories", () => {
-  test("adds a category, refuses a taken name, renames and recolours it, files an item under it, and deletes it", async ({
+  test("adds a category, refuses a taken name, renames it and gives it a custom colour, files an item under it, and deletes it", async ({
     page,
   }, testInfo) => {
     const name = `E2E course (${testInfo.project.name})`;
@@ -29,7 +29,8 @@ test.describe("categories", () => {
     await expect(editing.getByLabel("Name")).toHaveValue(name);
     await expect(editing.getByRole("radio", { name: "Green" })).toHaveAttribute("aria-checked", "true");
     await editing.getByLabel("Name").fill(`${name} renamed`);
-    await editing.getByRole("radio", { name: "Purple" }).click();
+    await editing.getByLabel("Custom colour").fill("#0f766e");
+    await expect(editing.getByRole("radio", { checked: true })).toHaveCount(0);
     await editing.getByRole("button", { name: "Save changes" }).click();
     await expect(editing).toBeHidden();
 
@@ -51,7 +52,7 @@ test.describe("categories", () => {
     await expect(entry(`${name} renamed`)).toContainText("1 item");
 
     await entry(`${name} renamed`).click();
-    await expect(editing.getByRole("radio", { name: "Purple" })).toHaveAttribute("aria-checked", "true");
+    await expect(editing.getByLabel("Custom colour")).toHaveValue("#0f766e");
     await editing.getByRole("button", { name: "Delete" }).click();
     await editing.getByRole("button", { name: "Confirm delete" }).click();
     await expect(editing).toBeHidden();

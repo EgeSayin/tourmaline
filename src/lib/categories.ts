@@ -1,17 +1,23 @@
-export const CATEGORY_COLORS = [
-  "slate",
-  "red",
-  "orange",
-  "yellow",
-  "green",
-  "teal",
-  "blue",
-  "indigo",
-  "purple",
-  "pink",
-] as const;
+/** A colour as lowercase `#rrggbb`. */
+export type CategoryColor = string;
 
-export type CategoryColor = (typeof CATEGORY_COLORS)[number];
+export const CATEGORY_COLOR_PATTERN = /^#[0-9a-f]{6}$/;
+
+/** The quick picks in the editor; any other colour is picked as a custom one. */
+export const CATEGORY_PRESETS = {
+  Slate: "#64748b",
+  Red: "#ef4444",
+  Orange: "#f97316",
+  Yellow: "#facc15",
+  Green: "#22c55e",
+  Teal: "#14b8a6",
+  Blue: "#3b82f6",
+  Indigo: "#6366f1",
+  Purple: "#a855f7",
+  Pink: "#ec4899",
+} satisfies Record<string, CategoryColor>;
+
+export const NEW_CATEGORY_COLOR: CategoryColor = CATEGORY_PRESETS.Blue;
 
 export interface Category {
   id: string;

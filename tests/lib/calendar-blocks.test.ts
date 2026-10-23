@@ -10,7 +10,7 @@ const tz = "America/New_York";
 
 describe("toCalendarBlocks", () => {
   it("places blocks on their local day with a style per kind and state, their category's colour and their edit target, skipping items that are gone", () => {
-    const cs = { id: "cs", name: "CSC 101", color: "green" } as const;
+    const cs = { id: "cs", name: "CSC 101", color: "#22c55e" };
     // Mon 11:00–12:15 EDT, with 15 minutes before and 10 after.
     const lecture = { ...fixed("Lecture", utc("2026-10-05T15:00", "2026-10-05T16:15"), 15, 10), categoryId: cs.id };
     // Mon 22:30–01:00, with half an hour after, all past midnight.
@@ -53,7 +53,7 @@ describe("toCalendarBlocks", () => {
         start: lecture.start,
         end: lecture.end,
         style: "fixed",
-        color: "green",
+        color: "#22c55e",
         date: "2026-10-05",
         startMinute: 11 * 60,
         endMinute: 12 * 60 + 15,
@@ -91,7 +91,7 @@ describe("toCalendarBlocks", () => {
         start,
         end,
         style,
-        color: "green",
+        color: "#22c55e",
         date: "2026-10-05",
         startMinute,
         endMinute,

@@ -1,4 +1,4 @@
-import type { NewCategory } from "@/lib/categories";
+import { CATEGORY_PRESETS, type NewCategory } from "@/lib/categories";
 import type { NewFixedItem, NewTask, Priority } from "@/lib/items";
 import type { Recurrence, Weekday } from "@/lib/recurrence";
 import { DEFAULT_SETTINGS, type SchedulerSettings } from "@/lib/settings";
@@ -71,10 +71,10 @@ function recurringTask(
 
 /** Keyed by the `categoryId` the sample items use until the seed saves them. */
 const categories: Record<string, NewCategory> = {
-  cs: { name: "CS 101", color: "blue" },
-  calc: { name: "Calculus", color: "orange" },
-  seminar: { name: "Seminar", color: "purple" },
-  health: { name: "Health", color: "green" },
+  cs: { name: "CS 101", color: CATEGORY_PRESETS.Blue },
+  calc: { name: "Calculus", color: CATEGORY_PRESETS.Orange },
+  seminar: { name: "Seminar", color: CATEGORY_PRESETS.Purple },
+  health: { name: "Health", color: CATEGORY_PRESETS.Green },
 };
 
 const lectureBuffers = { location: "Science Hall 101", bufferBeforeMin: 15, bufferAfterMin: 15 };

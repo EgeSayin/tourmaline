@@ -73,7 +73,7 @@ describe("items repository", () => {
   it("keeps an item's category in its workspace, saving a deleted or another workspace's one as none", async ({
     tx,
   }) => {
-    const categoryId = await insertCategory(tx, { name: "CS 101", color: "blue" });
+    const categoryId = await insertCategory(tx, { name: "CS 101", color: "#3b82f6" });
     const lectureId = await insertItem(tx, { ...lecture, categoryId });
     const essayId = await insertItem(tx, { ...essay, categoryId });
     expect(await loadItem(tx, lectureId)).toMatchObject({ categoryId });
@@ -86,7 +86,7 @@ describe("items repository", () => {
     const { workspaceId } = await createGuestWorkspace(tx);
     const guestCategoryId = await savepoint(
       tx,
-      (guestTx) => insertCategory(guestTx, { name: "Theirs", color: "red" }),
+      (guestTx) => insertCategory(guestTx, { name: "Theirs", color: "#ef4444" }),
       workspaceId,
     );
     expect(await loadItem(tx, await insertItem(tx, { ...lecture, categoryId: guestCategoryId }))).toMatchObject({

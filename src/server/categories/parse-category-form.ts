@@ -1,12 +1,12 @@
 import { z } from "zod";
 import type { FormErrors } from "@/lib/form-state";
-import { type Category, CATEGORY_COLORS, CATEGORY_NAME_MAX, type NewCategory } from "@/lib/categories";
+import { type Category, CATEGORY_COLOR_PATTERN, CATEGORY_NAME_MAX, type NewCategory } from "@/lib/categories";
 
 export type ParsedCategoryForm = { ok: true; category: NewCategory } | { ok: false; errors: FormErrors };
 
 const categoryFormSchema = z.object({
   name: z.string().trim().min(1, "Enter a name").max(CATEGORY_NAME_MAX, `Keep it to ${CATEGORY_NAME_MAX} characters`),
-  color: z.enum(CATEGORY_COLORS, "Pick a colour"),
+  color: z.string("Pick a colour").trim().toLowerCase().regex(CATEGORY_COLOR_PATTERN, "Pick a colour"),
 });
 
 /** The name must differ, ignoring case, from every other category's. */

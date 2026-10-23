@@ -17,7 +17,7 @@ import {
   uuid,
   type PgColumn,
 } from "drizzle-orm/pg-core";
-import { CATEGORY_COLORS } from "@/lib/categories";
+import { CATEGORY_COLOR_PATTERN } from "@/lib/categories";
 import type { Downtime } from "@/lib/downtime";
 import { PRIORITIES, SPREAD_STRATEGIES } from "@/lib/items";
 import { PLACEMENT_STATUSES, SLOT_MIN } from "@/lib/placements";
@@ -29,11 +29,11 @@ import type { TimeZone } from "@/lib/time/time-zone";
 export const priorityEnum = pgEnum("priority", PRIORITIES);
 export const spreadEnum = pgEnum("spread", SPREAD_STRATEGIES);
 export const placementStatusEnum = pgEnum("placement_status", PLACEMENT_STATUSES);
-export const categoryColorEnum = pgEnum("category_color", CATEGORY_COLORS);
 
 // A literal: check constraints can't take parameters.
 const slotMin = sql.raw(String(SLOT_MIN));
 const minutesPerDay = sql.raw(String(MINUTES_PER_DAY));
+const categoryColorPattern = sql.raw(`'${CATEGORY_COLOR_PATTERN.source}'`);
 
 const timestamptz = (name: string) => timestamp(name, { withTimezone: true });
 
@@ -102,11 +102,12 @@ export const categories = pgTable(
     id: uuid("id").primaryKey().defaultRandom(),
     workspaceId: workspaceId(),
     name: text("name").notNull(),
-    color: categoryColorEnum("color").notNull(),
+    color: text("color").notNull(),
     ...auditColumns,
   },
   (t) => [
     ownRows(t.workspaceId),
+    check("categories_color", sql`${t.color} ~ ${categoryColorPattern}`),
     unique("categories_workspace_name").on(t.workspaceId, t.name),
     // For items' foreign key, which keeps their category in their workspace.
     unique("categories_workspace_id").on(t.workspaceId, t.id),

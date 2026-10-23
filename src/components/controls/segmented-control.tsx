@@ -8,7 +8,10 @@ export interface Segment<T extends string> {
   content?: React.ReactNode;
 }
 
-/** A radio group of buttons, framed ghost buttons of `size` unless `optionClassName` replaces their style. */
+/**
+ * A radio group of buttons, framed ghost buttons of `size` unless `optionClassName` replaces their style.
+ * `children` follow the options in the same row.
+ */
 export function SegmentedControl<T extends string>({
   label,
   options,
@@ -18,6 +21,7 @@ export function SegmentedControl<T extends string>({
   className,
   optionClassName,
   style,
+  children,
 }: {
   label: string;
   options: readonly Segment<T>[];
@@ -27,6 +31,7 @@ export function SegmentedControl<T extends string>({
   className?: string;
   optionClassName?: string;
   style?: React.CSSProperties;
+  children?: React.ReactNode;
 }) {
   return (
     <div
@@ -54,6 +59,7 @@ export function SegmentedControl<T extends string>({
           {option.content ?? option.label}
         </button>
       ))}
+      {children}
     </div>
   );
 }

@@ -1,12 +1,17 @@
 import type { BlockStyle } from "@/lib/calendar-blocks";
-import { CATEGORY_COLOR_CLASSES } from "@/components/categories/category-colors";
 import type { CategoryColor } from "@/lib/categories";
 
 export const BLOCK_FILL = "bg-muted text-foreground";
 
+/** Any colour tinted towards the page background, so the text stays readable in both themes. */
+const CATEGORY_FILL =
+  "bg-[color-mix(in_oklch,var(--category)_25%,var(--background))] text-foreground dark:bg-[color-mix(in_oklch,var(--category)_40%,var(--background))]";
+
 /** A block's fill comes from its category; the outline shows its kind and state. */
-export function blockFill(color: CategoryColor | null): string {
-  return color ? CATEGORY_COLOR_CLASSES[color].fill : BLOCK_FILL;
+export function blockFill(color: CategoryColor | null): { className: string; style?: React.CSSProperties } {
+  return color
+    ? { className: CATEGORY_FILL, style: { "--category": color } as React.CSSProperties }
+    : { className: BLOCK_FILL };
 }
 
 /** A fixed item's buffer: its fill striped with the page background, slightly faded, without an outline. */

@@ -23,6 +23,7 @@ export function ScheduleBlock({
 }) {
   const [filter] = useCategoryFilter();
   const filteredOut = !matchesFilter(block.target.item.categoryId, filter);
+  const fill = blockFill(block.color);
   const top = scale.top(block.startMinute);
   const isTiny = block.endMinute - block.startMinute < 15;
   const { placement } = block;
@@ -52,9 +53,10 @@ export function ScheduleBlock({
         title={label}
         className={`flex size-full cursor-pointer flex-col justify-start overflow-hidden rounded-md px-1 text-left text-xs md:px-2 ${
           isTiny ? "leading-3" : "py-1"
-        } transition hover:brightness-95 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none dark:hover:brightness-125 ${blockFill(block.color)} ${BLOCK_STYLES[block.style].className} ${block.conflict ? CONFLICT_STYLE.className : ""} ${
+        } transition hover:brightness-95 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none dark:hover:brightness-125 ${fill.className} ${BLOCK_STYLES[block.style].className} ${block.conflict ? CONFLICT_STYLE.className : ""} ${
           filteredOut ? "opacity-25" : ""
         }`}
+        style={fill.style}
       >
         <div className="flex items-start gap-1">
           <span className="truncate font-medium">{block.title}</span>
@@ -78,6 +80,7 @@ export function BufferStrip({
   onSelect: () => void;
 }) {
   const [filter] = useCategoryFilter();
+  const fill = blockFill(block.color);
   const top = scale.top(buffer.startMinute);
   return (
     <div
@@ -95,10 +98,10 @@ export function BufferStrip({
         tabIndex={-1}
         aria-hidden
         onClick={onSelect}
-        className={`block size-full cursor-pointer ${blockFill(block.color)} ${
+        className={`block size-full cursor-pointer ${fill.className} ${
           matchesFilter(block.target.item.categoryId, filter) ? BUFFER_STYLE.className : "opacity-15"
         }`}
-        style={BUFFER_STYLE.style}
+        style={{ ...fill.style, ...BUFFER_STYLE.style }}
       />
     </div>
   );
