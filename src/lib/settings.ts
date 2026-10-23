@@ -21,3 +21,6 @@ export const RECURRENCE_LOOKAHEAD_DAYS = 28;
 export const CHUNK_BREAK_MIN = 30;
 
 export const OCCURRENCES_SHOWN = 7;
+
+/** How many weeks the stats page looks back over, this one included. */
+export const STATS_WEEKS = 8;

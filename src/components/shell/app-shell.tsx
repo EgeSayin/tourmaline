@@ -1,4 +1,4 @@
-import { CalendarDays, ListTodo, Plus, Settings, Tags } from "lucide-react";
+import { CalendarDays, ChartColumn, ListTodo, Plus, Settings, Tags } from "lucide-react";
 import Link from "next/link";
 import { SiteFooter } from "@/components/shell/site-footer";
 import { Wordmark } from "@/components/shell/wordmark";
@@ -77,6 +77,7 @@ const PAGES = [
   { page: "calendar", href: "/", label: "Calendar", region: "Calendar", Icon: CalendarDays, nav: true },
   { page: "tasks", href: "/tasks", label: "Tasks", region: "Task list", Icon: ListTodo, nav: true },
   { page: "categories", href: "/categories", label: "Categories", region: "Category list", Icon: Tags, nav: true },
+  { page: "stats", href: "/stats", label: "Stats", region: "Stats", Icon: ChartColumn, nav: true },
   { page: "settings", href: "/settings", label: "Settings", region: "Settings", Icon: Settings, nav: false },
 ] as const;
 
