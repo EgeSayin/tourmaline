@@ -3,9 +3,12 @@ import type { CategoryColor } from "@/lib/categories";
 
 export const BLOCK_FILL = "bg-muted text-foreground";
 
-/** Any colour tinted towards the page background, so the text stays readable in both themes. */
+/**
+ * Any colour tinted towards a neutral base rather than the themed background, so the text stays readable in both
+ * themes and the theme never shifts a category's colour.
+ */
 const CATEGORY_FILL =
-  "bg-[color-mix(in_oklch,var(--category)_25%,var(--background))] text-foreground dark:bg-[color-mix(in_oklch,var(--category)_40%,var(--background))]";
+  "bg-[color-mix(in_oklch,var(--category)_25%,var(--category-base))] text-foreground dark:bg-[color-mix(in_oklch,var(--category)_40%,var(--category-base))]";
 
 /** A block's fill comes from its category; the outline shows its kind and state. */
 export function blockFill(color: CategoryColor | null): { className: string; style?: React.CSSProperties } {

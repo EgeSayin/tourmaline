@@ -91,15 +91,16 @@ export function pageAt(pathname: string): AppPage {
 
 function AppNav({ page }: { page: AppPage }) {
   return (
-    <nav aria-label="Pages" className="inline-flex gap-0.5 rounded-lg border bg-card p-0.5">
+    <nav aria-label="Pages" className="flex w-full gap-1 rounded-xl border bg-card p-1">
       {NAV_PAGES.map(({ page: target, href, label, Icon }) => (
         <Link
           key={target}
           href={href}
           aria-current={target === page ? "page" : undefined}
           className={cn(
-            buttonVariants({ variant: "ghost", size: "sm" }),
-            "text-muted-foreground aria-[current=page]:bg-muted aria-[current=page]:text-foreground",
+            buttonVariants({ variant: "ghost" }),
+            "h-10 flex-1 gap-2 text-sm text-muted-foreground [&_svg:not([class*='size-'])]:size-5",
+            "aria-[current=page]:bg-accent aria-[current=page]:text-accent-foreground aria-[current=page]:shadow-xs",
           )}
         >
           <Icon />

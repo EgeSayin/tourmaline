@@ -50,25 +50,28 @@
 }
 
 :root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
+  /* Mint: neutrals tinted toward green-teal, a mint-teal primary. Text pairs keep at least 4.5:1 contrast. */
+  --background: oklch(0.99 0.008 170);
+  --foreground: oklch(0.22 0.025 180);
+  --card: oklch(1 0.003 170);
+  --card-foreground: oklch(0.22 0.025 180);
+  --popover: oklch(1 0.003 170);
+  --popover-foreground: oklch(0.22 0.025 180);
+  --primary: oklch(0.5 0.1 172);
+  --primary-foreground: oklch(0.99 0.01 170);
+  --secondary: oklch(0.95 0.03 168);
+  --secondary-foreground: oklch(0.3 0.05 175);
+  --muted: oklch(0.955 0.016 168);
+  --muted-foreground: oklch(0.5 0.025 178);
+  --accent: oklch(0.93 0.045 167);
+  --accent-foreground: oklch(0.28 0.06 175);
   --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --radius: 0.625rem;
+  --border: oklch(0.91 0.02 168);
+  --input: oklch(0.89 0.025 168);
+  --ring: oklch(0.7 0.09 168);
+  --radius: 0.875rem;
+  /* What category colours are tinted towards: neutral, so the theme's tint never shifts them. */
+  --category-base: oklch(1 0 0);
   --gem-rim: oklch(0.58 0.12 158);
   --gem-core: oklch(0.72 0.15 2);
   /* What blocks and lists mark: a fixed item, a block by its state, a conflict, the current time. */
@@ -87,24 +90,25 @@
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
+  --background: oklch(0.17 0.015 185);
+  --foreground: oklch(0.96 0.012 165);
+  --card: oklch(0.21 0.018 183);
+  --card-foreground: oklch(0.96 0.012 165);
+  --popover: oklch(0.21 0.018 183);
+  --popover-foreground: oklch(0.96 0.012 165);
+  --primary: oklch(0.82 0.12 165);
+  --primary-foreground: oklch(0.2 0.03 180);
+  --secondary: oklch(0.27 0.025 180);
+  --secondary-foreground: oklch(0.95 0.01 165);
+  --muted: oklch(0.26 0.02 180);
+  --muted-foreground: oklch(0.73 0.03 170);
+  --accent: oklch(0.32 0.05 170);
+  --accent-foreground: oklch(0.95 0.02 165);
   --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
+  --border: oklch(0.9 0.05 165 / 12%);
+  --input: oklch(0.9 0.05 165 / 18%);
+  --ring: oklch(0.6 0.09 168);
+  --category-base: oklch(0.145 0 0);
   --gem-rim: oklch(0.66 0.12 158);
   --gem-core: oklch(0.76 0.14 2);
   --state-fixed: var(--color-sky-400);
