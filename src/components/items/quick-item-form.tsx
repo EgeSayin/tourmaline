@@ -47,19 +47,19 @@ export function QuickItemForm({
       <FormStateProvider values={values} errors={errors}>
         <FieldGroup>
           <FormInput name="title" label="Title" />
+          <CategorySelect categories={categories} />
           {fixed ? (
             <>
-              <FixedTimeFields />
               <FormInput name="location" label="Location (optional)" />
+              <FixedTimeFields repeats={item.recurrence !== null} />
             </>
           ) : (
             <>
+              <FormChoice name="priority" label="Priority" options={PRIORITY_OPTIONS} defaultValue="normal" />
               <DurationField />
               {!item.recurrence && <FormDateTimeInput name="deadline" label="Due" />}
-              <FormChoice name="priority" label="Priority" options={PRIORITY_OPTIONS} defaultValue="normal" />
             </>
           )}
-          <CategorySelect categories={categories} />
         </FieldGroup>
       </FormStateProvider>
       <FieldError errors={hiddenErrors.map((message) => ({ message }))} />

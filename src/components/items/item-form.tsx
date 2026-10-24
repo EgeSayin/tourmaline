@@ -59,14 +59,19 @@ export function ItemForm({
             defaultValue={timing === "fixed" ? "mandatory" : "normal"}
           />
           {timing === "fixed" && <FormInput name="location" label="Location (optional)" />}
-          {/* The repeat rule keeps its place as the kind changes, so what's entered in it stays. */}
-          <FormSection title="When">
-            {timing === "fixed" ? <FixedTimeFields /> : <DurationField />}
+          {/* Before "When", whose fields depend on it; it keeps its place as the kind changes, so what's entered stays. */}
+          <FormSection title="Repeat">
             <RepeatFields repeat={repeat} onRepeatChange={setRepeat} />
+          </FormSection>
+          <FormSection title="When">
             {timing === "fixed" ? (
-              <BufferFields />
+              <>
+                <FixedTimeFields repeats={repeat !== "none"} />
+                <BufferFields />
+              </>
             ) : (
               <>
+                <DurationField />
                 <TaskWindowFields repeat={repeat} />
                 <TimeOfDayField />
               </>

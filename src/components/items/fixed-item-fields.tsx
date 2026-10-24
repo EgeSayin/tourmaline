@@ -7,8 +7,8 @@ import { fromTimeInputValue, MINUTES_PER_DAY, toTimeInputValue } from "@/lib/tim
 
 const BUFFER_PRESETS = [10, 15, 30];
 
-/** A fixed item's date and times, before its repeat rule. */
-export function FixedTimeFields() {
+/** A fixed item's date and times; a repeating item's date is its first. */
+export function FixedTimeFields({ repeats = false }: { repeats?: boolean }) {
   const [start, setStart] = useState(useFormValue("startTime") ?? "");
   const [end, setEnd] = useState(useFormValue("endTime") ?? "");
   const isTime = (value: string) => TIME.test(value);
@@ -24,7 +24,7 @@ export function FixedTimeFields() {
 
   return (
     <>
-      <FormInput name="date" label="Date" type="date" placeholder="Not set" />
+      <FormInput name="date" label={repeats ? "First date" : "Date"} type="date" placeholder="Not set" />
       <div className="flex flex-wrap gap-4">
         <FormTimeInput name="startTime" label="Starts" value={start} onChange={moveStart} />
         <FormTimeInput
@@ -41,7 +41,7 @@ export function FixedTimeFields() {
 
 const TIME = /^\d{2}:\d{2}$/;
 
-/** The time kept free around a fixed item, after its repeat rule. */
+/** The time kept free around a fixed item. */
 export function BufferFields() {
   return (
     <>

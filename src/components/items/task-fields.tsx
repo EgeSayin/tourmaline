@@ -40,13 +40,13 @@ const DURATION_PRESETS = [30, 60, 90, 120];
 const catchUpLabels = (period: string) =>
   ({ later: "Plan it later", "in-period": `Same ${period} only` }) satisfies Record<CatchUp, string>;
 
-/** A task's length, before its repeat rule. */
+/** A task's length. */
 export function DurationField() {
   return <FormDurationInput name="durationMin" label="Duration" presets={DURATION_PRESETS} />;
 }
 
 /**
- * When a task can start and by when, after its repeat rule. A repeating task isn't asked for a due date: in its place,
+ * When a task can start and by when. A repeating task isn't asked for a due date: in its place,
  * until when each occurrence may be planned.
  */
 export function TaskWindowFields({ repeat }: { repeat: Repeat }) {

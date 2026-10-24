@@ -31,10 +31,10 @@ test.describe("recurring items", () => {
     const form = await openAddItemForm(page);
     await form.getByRole("radio", { name: "At a set time" }).click();
     await form.getByLabel("Title").fill(title);
-    await form.getByLabel("Date", { exact: true }).fill(String(localDate(-1)));
+    await form.getByLabel("How often").selectOption("weekly");
+    await form.getByLabel("First date", { exact: true }).fill(String(localDate(-1)));
     await fillTime(form, "Starts", slot.start);
     await fillTime(form, "Ends", slot.end);
-    await form.getByLabel("How often").selectOption("weekly");
     await form.getByRole("button", { name: "Add item" }).click();
     await expect(form.getByText("Choose at least one day")).toBeVisible();
 
@@ -59,9 +59,9 @@ test.describe("recurring items", () => {
     await openTaskLink(page, testInfo).click();
     const panel = itemEditor(page);
     await panel.getByRole("radio", { name: "This and later ones" }).click();
-    await expect(panel.getByLabel("Date", { exact: true })).toHaveValue(String(localDate(0)));
-    await expectTime(panel, "Starts", slot.start);
     await expect(panel.getByLabel("How often")).toHaveValue("weekly");
+    await expect(panel.getByLabel("First date", { exact: true })).toHaveValue(String(localDate(0)));
+    await expectTime(panel, "Starts", slot.start);
     await expect(panel.getByLabel("Until", { exact: true })).toHaveValue(String(localDate(1)));
     await expect(panel.getByRole("button", { name: weekdayLabel(0), exact: true })).toHaveAttribute(
       "aria-pressed",
@@ -158,10 +158,10 @@ test.describe("recurring items", () => {
     const form = await openAddItemForm(page);
     await form.getByRole("radio", { name: "At a set time" }).click();
     await form.getByLabel("Title").fill(title);
-    await form.getByLabel("Date", { exact: true }).fill(String(localDate(0)));
+    await form.getByLabel("How often").selectOption("daily");
+    await form.getByLabel("First date", { exact: true }).fill(String(localDate(0)));
     await fillTime(form, "Starts", slot.start);
     await fillTime(form, "Ends", slot.end);
-    await form.getByLabel("How often").selectOption("daily");
     await form.getByLabel("Until", { exact: true }).fill(String(localDate(2)));
     await form.getByRole("button", { name: "Add item" }).click();
     await expect(form).toBeHidden();
