@@ -177,10 +177,12 @@ test.describe("recurring items", () => {
     await editor.getByRole("button", { name: "Save this occurrence" }).click();
     await expect(editor).toBeHidden();
 
+    // Each day is opened by its own date: on desktop, tomorrow and the day after can fall in different weeks.
+    await page.goto(`/?date=${localDate(2)}`);
+    await expect(inDay(2, slot.label)).toBeVisible();
     await page.goto(`/?date=${localDate(1)}`);
     await expect(inDay(1, later.label)).toBeVisible();
     await expect(inDay(1, slot.label)).toHaveCount(0);
-    await expect(inDay(2, slot.label)).toBeVisible();
 
     await inDay(1, later.label).click();
     await openTaskLink(page, testInfo).click();
