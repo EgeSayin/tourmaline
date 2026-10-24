@@ -23,10 +23,15 @@ export function BlockDetails({
   const category = categories.find((candidate) => candidate.id === item.categoryId);
   const rows: [string, React.ReactNode][] = isTask(item)
     ? [
-        [item.upTo ? "Up to" : "Duration", formatDuration(item.durationMin)],
+        [
+          item.upTo ? `At most per ${item.recurrence?.frequency === "daily" ? "day" : "week"}` : "Duration",
+          item.upTo ? `${formatDuration(item.durationMin)}, spare time only` : formatDuration(item.durationMin),
+        ],
         ["Due", formatDateTime(item.deadline, timeZone, clock)],
         ["Priority", PRIORITY_LABELS[item.priority]],
-        ...(item.totalMin === null ? [] : [["Stop after", formatDuration(item.totalMin)] as [string, string]]),
+        ...(item.totalMin === null
+          ? []
+          : [["Stops after", `${formatDuration(item.totalMin)} in total`] as [string, string]]),
       ]
     : item.location
       ? [["Location", item.location]]

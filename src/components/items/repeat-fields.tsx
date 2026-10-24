@@ -49,8 +49,8 @@ export function RepeatFields({ repeat, onRepeatChange, total = false }: RepeatPr
       {repeat !== "none" && total && (
         <FormDurationInput
           name="totalMin"
-          label="Stop after"
-          description="Once this much time has gone into it, counting every block that wasn't missed. Leave empty to keep going."
+          label="Stop after a total of"
+          description="The series ends once its blocks add up to this much; missed ones don't count. Leave empty for no limit."
         />
       )}
     </>

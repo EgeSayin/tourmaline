@@ -73,8 +73,8 @@ export function ItemForm({
               </>
             ) : (
               <>
-                <DurationField upTo={upTo} />
-                {repeat !== "none" && <AmountField repeat={repeat} onAmountChange={setAmount} />}
+                {repeat !== "none" && <AmountField repeat={repeat} amount={amount} onAmountChange={setAmount} />}
+                <DurationField repeat={repeat} upTo={upTo} />
                 <TaskWindowFields repeat={repeat} upTo={upTo} />
                 <TimeOfDayField />
               </>

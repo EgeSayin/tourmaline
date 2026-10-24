@@ -95,11 +95,12 @@ test.describe("recurring items", () => {
     const form = await openAddItemForm(page);
     await form.getByLabel("Title").fill(title);
     await form.getByLabel("How often").selectOption("daily");
-    await form.getByRole("radio", { name: "What fits" }).click();
+    await expect(form.getByLabel("Duration hours")).toBeVisible();
+    await form.getByRole("radio", { name: "Only spare time" }).click();
     // The most it gets each day, kept to its own day.
-    await fillDuration(form, "Up to", 15 * 60); // longer than any free stretch in a day
+    await fillDuration(form, "At most per day", 15 * 60); // longer than any free stretch in a day
     await expect(form.getByRole("radio", { name: "Same day only" })).toHaveCount(0);
-    await fillDuration(form, "Stop after", 300 * 60);
+    await fillDuration(form, "Stop after a total of", 300 * 60);
     await fillDateTime(form, "Not before", localDateTime(-1, "10:00"));
     await form.getByRole("button", { name: "Add item" }).click();
     await expect(form).toBeHidden();
@@ -112,9 +113,9 @@ test.describe("recurring items", () => {
     await expect(row).toContainText("0m of 300h done");
     await row.click();
     const editor = itemEditor(page);
-    await expect(editor.getByRole("radio", { name: "What fits" })).toHaveAttribute("aria-checked", "true");
-    await expectDuration(editor, "Up to", 15 * 60);
-    await expectDuration(editor, "Stop after", 300 * 60);
+    await expect(editor.getByRole("radio", { name: "Only spare time" })).toHaveAttribute("aria-checked", "true");
+    await expectDuration(editor, "At most per day", 15 * 60);
+    await expectDuration(editor, "Stop after a total of", 300 * 60);
   });
 
   test("lists each occurrence of a repeating task that can't fit by its date, and opens the series to mark one done", async ({

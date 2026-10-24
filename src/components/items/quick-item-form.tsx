@@ -56,7 +56,7 @@ export function QuickItemForm({
           ) : (
             <>
               <FormChoice name="priority" label="Priority" options={PRIORITY_OPTIONS} defaultValue="normal" />
-              <DurationField upTo={isTask(item) && item.upTo} />
+              <DurationField repeat={item.recurrence?.frequency} upTo={isTask(item) && item.upTo} />
               {!item.recurrence && <FormDateTimeInput name="deadline" label="Due" />}
             </>
           )}

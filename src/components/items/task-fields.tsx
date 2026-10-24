@@ -42,29 +42,44 @@ const DURATION_PRESETS = [30, 60, 90, 120];
 const catchUpLabels = (period: string) =>
   ({ later: "Plan it later", "in-period": `Same ${period} only` }) satisfies Record<CatchUp, string>;
 
-const AMOUNT_LABELS = { all: "All of it", fits: "What fits" } satisfies Record<Amount, string>;
+const AMOUNT_LABELS = { all: "Its full time", fits: "Only spare time" } satisfies Record<Amount, string>;
 
-/** A task's length: for one that takes only what fits, the most it takes each time. */
-export function DurationField({ upTo = false }: { upTo?: boolean }) {
+const periodOf = (repeat: Repeat) => (repeat === "daily" ? "day" : "week");
+
+/** A task's length: for a repeating one that gets only spare time, the most it gets each period. */
+export function DurationField({ repeat = "none", upTo = false }: { repeat?: Repeat; upTo?: boolean }) {
   return (
     <FormDurationInput
       name="durationMin"
-      label={upTo ? "Up to" : "Duration"}
+      label={upTo ? `At most per ${periodOf(repeat)}` : "Duration"}
       presets={DURATION_PRESETS}
-      description={upTo ? "The most it gets each time." : undefined}
     />
   );
 }
 
-/** How much of its duration each occurrence of a repeating task gets: all of it, or only what fits. */
-export function AmountField({ repeat, onAmountChange }: { repeat: Repeat; onAmountChange: (amount: Amount) => void }) {
-  const period = repeat === "daily" ? "day" : "week";
+/**
+ * Whether each occurrence of a repeating task must get its full time, or gets only the time other tasks leave. Comes
+ * before the duration, which it relabels.
+ */
+export function AmountField({
+  repeat,
+  amount,
+  onAmountChange,
+}: {
+  repeat: Repeat;
+  amount: Amount;
+  onAmountChange: (amount: Amount) => void;
+}) {
+  const period = periodOf(repeat);
   return (
     <FormChoice
-      key={period}
       name="amount"
-      label="Each time"
-      description={`What fits: only time your other tasks leave in its ${period}. What doesn't fit is let go, not queued.`}
+      label={`Each ${period} it gets`}
+      description={
+        amount === "fits"
+          ? `Only time your other tasks leave, up to the most below. It never waits in the queue or moves other tasks, and time it doesn't get that ${period} is skipped.`
+          : `Planned like any task. If its full time doesn't fit, it waits in the queue, and lower-priority tasks may move to make room.`
+      }
       options={AMOUNT_OPTIONS.map((value) => ({ value, label: AMOUNT_LABELS[value] }))}
       defaultValue="all"
       onValueChange={onAmountChange}
