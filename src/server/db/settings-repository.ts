@@ -1,6 +1,7 @@
 import { sql } from "drizzle-orm";
 import type { PgColumn } from "drizzle-orm/pg-core";
 import type { SchedulerSettings } from "@/lib/settings";
+import type { ClockFormat } from "@/lib/time/clock";
 import { isTimeZone, type TimeZone } from "@/lib/time/time-zone";
 import { ownedBy, type WorkspaceTx } from "./workspace-transaction";
 import { fixedItems, placements, settings, tasks } from "./schema";
@@ -18,6 +19,16 @@ export async function saveSettings(tx: WorkspaceTx, { timeZone, downtime }: Sche
 
 export async function saveDowntime(tx: WorkspaceTx, downtime: SchedulerSettings["downtime"]): Promise<void> {
   await tx.update(settings).set({ downtime }).where(ownedBy(tx, settings));
+}
+
+/** The clock the account picked, or `null` while its times follow the browser's language. */
+export async function loadClockFormat(tx: WorkspaceTx): Promise<ClockFormat | null> {
+  const [row] = await tx.select({ clockFormat: settings.clockFormat }).from(settings).where(ownedBy(tx, settings));
+  return row.clockFormat;
+}
+
+export async function saveClockFormat(tx: WorkspaceTx, clockFormat: ClockFormat): Promise<void> {
+  await tx.update(settings).set({ clockFormat }).where(ownedBy(tx, settings));
 }
 
 /** Switches to `timeZone`, keeping every item's and block's local date and time: a 09:00 class stays at 09:00. */

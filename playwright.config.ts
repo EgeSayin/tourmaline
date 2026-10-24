@@ -15,6 +15,8 @@ export default defineConfig({
   reporter: process.env.CI ? "github" : "list",
   use: {
     baseURL: `http://localhost:${PORT}`,
+    // A 24-hour browser language, which the specs write their times in; clock-format.spec.ts tries a 12-hour one.
+    locale: "en-GB",
     trace: "on-first-retry",
   },
   projects: [

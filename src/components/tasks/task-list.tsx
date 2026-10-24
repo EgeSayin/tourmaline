@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { CategoryChips, useCategoryVisibility } from "@/components/categories/category-visibility";
 import { SegmentedControl } from "@/components/controls/segmented-control";
+import { useClockFormat } from "@/components/time/clock-format";
 import { type Category, isShown } from "@/lib/categories";
 import { formatDateTime } from "@/lib/time/format";
 import type { TimeZone } from "@/lib/time/time-zone";
@@ -80,6 +81,7 @@ export function TaskList({
 }
 
 function TaskRow({ entry, current, timeZone }: { entry: ItemEntry; current: boolean; timeZone: TimeZone }) {
+  const clock = useClockFormat();
   const { id, title, kind, recurring, when, status } = entry;
   return (
     <Link
@@ -93,7 +95,7 @@ function TaskRow({ entry, current, timeZone }: { entry: ItemEntry; current: bool
           {recurring && <Repeat className="size-3.5 shrink-0 text-muted-foreground" aria-label="Repeats" />}
         </span>
         <span className="text-xs text-muted-foreground tabular-nums">
-          {kind === "task" ? "Task · due" : "Event ·"} {formatDateTime(when, timeZone)}
+          {kind === "task" ? "Task · due" : "Event ·"} {formatDateTime(when, timeZone, clock)}
         </span>
       </span>
       <span className={cn("shrink-0 rounded-full px-2 py-0.5 text-xs", STATUS_STYLES[status])}>

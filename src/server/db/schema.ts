@@ -23,6 +23,7 @@ import { CATEGORY_COLOR_PATTERN } from "@/lib/categories";
 import type { Downtime } from "@/lib/downtime";
 import { PRIORITIES, SPREAD_STRATEGIES } from "@/lib/items";
 import { PLACEMENT_STATUSES, SLOT_MIN } from "@/lib/placements";
+import { CLOCK_FORMATS } from "@/lib/time/clock";
 import { MINUTES_PER_DAY } from "@/lib/time/time-of-day";
 import { OCCURRENCE_STATES, type Recurrence } from "@/lib/recurrence";
 import { DEFAULT_SETTINGS } from "@/lib/settings";
@@ -30,6 +31,7 @@ import type { TimeZone } from "@/lib/time/time-zone";
 
 export const priorityEnum = pgEnum("priority", PRIORITIES);
 export const spreadEnum = pgEnum("spread", SPREAD_STRATEGIES);
+export const clockFormatEnum = pgEnum("clock_format", CLOCK_FORMATS);
 export const placementStatusEnum = pgEnum("placement_status", PLACEMENT_STATUSES);
 export const occurrenceStateEnum = pgEnum("occurrence_state", OCCURRENCE_STATES);
 
@@ -138,6 +140,8 @@ export const settings = pgTable(
       .notNull()
       .default(sql`'{}'`),
     uncategorizedHidden: boolean("uncategorized_hidden").notNull().default(false),
+    /** `null` until the account picks one: times then follow the browser's language. */
+    clockFormat: clockFormatEnum("clock_format"),
     ...auditColumns,
   },
   (t) => [ownRows(t.workspaceId), check("settings_downtime_week", sql`jsonb_array_length(${t.downtime}) = 7`)],

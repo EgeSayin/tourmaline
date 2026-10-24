@@ -1,7 +1,8 @@
 "use client";
 
+import { useClockFormat } from "@/components/time/clock-format";
+import { formatTimeOfDay } from "@/lib/time/clock";
 import { toLocal } from "@/lib/time/local-time";
-import { toTimeInputValue } from "@/lib/time/time-of-day";
 import type { TimeZone } from "@/lib/time/time-zone";
 import type { TimeScale } from "./time-scale";
 
@@ -17,6 +18,7 @@ export function NowLine({
   scale: TimeScale;
   timeZone: TimeZone;
 }) {
+  const clock = useClockFormat();
   if (!now) return null;
   const local = toLocal(now, timeZone);
   const top = scale.top(local.minuteOfDay);
@@ -25,7 +27,7 @@ export function NowLine({
   return (
     <div
       role="separator"
-      aria-label={`Now, ${toTimeInputValue(local.minuteOfDay)}`}
+      aria-label={`Now, ${formatTimeOfDay(local.minuteOfDay, clock)}`}
       className="pointer-events-none absolute inset-x-0 z-10 border-t-2 border-now"
       style={{ top: top - 1 }}
     >

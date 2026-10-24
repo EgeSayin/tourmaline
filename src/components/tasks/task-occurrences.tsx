@@ -5,6 +5,7 @@ import { buttonVariants } from "@/components/ui/button";
 import { editHref } from "@/lib/calendar-blocks";
 import { SkipOccurrenceButton } from "@/components/items/skip-occurrence-button";
 import { TaskDoneButton } from "@/components/items/task-done-button";
+import { useClockFormat } from "@/components/time/clock-format";
 import { type Item, isTask } from "@/lib/items";
 import { formatDateTime, formatLocalDate, formatTimeRange } from "@/lib/time/format";
 import type { TimeZone } from "@/lib/time/time-zone";
@@ -20,6 +21,7 @@ export function TaskOccurrences({
   occurrences: OccurrenceEntry[];
   timeZone: TimeZone;
 }) {
+  const clock = useClockFormat();
   return (
     <FormSection title="Next occurrences">
       {occurrences.length === 0 ? (
@@ -32,7 +34,10 @@ export function TaskOccurrences({
                 <span className="font-medium">{formatLocalDate(date)}</span>
                 <span className="text-muted-foreground tabular-nums">
                   {" "}
-                  · {isTask(item) ? `due ${formatDateTime(end, timeZone)}` : formatTimeRange(start, end, timeZone)}
+                  ·{" "}
+                  {isTask(item)
+                    ? `due ${formatDateTime(end, timeZone, clock)}`
+                    : formatTimeRange(start, end, timeZone, clock)}
                   {changed && " · changed"}
                 </span>
               </p>

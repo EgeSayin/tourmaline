@@ -1,11 +1,13 @@
 import { CircleCheck } from "lucide-react";
 import Link from "next/link";
 import { editHref } from "@/lib/calendar-blocks";
+import { useClockFormat } from "@/components/time/clock-format";
 import { formatDateTime, formatDuration, formatLocalDate } from "@/lib/time/format";
 import type { TimeZone } from "@/lib/time/time-zone";
 import type { QueueEntry } from "@/server/shell";
 
 export function TaskQueue({ entries, timeZone }: { entries: QueueEntry[]; timeZone: TimeZone }) {
+  const clock = useClockFormat();
   return entries.length === 0 ? (
     <p className="flex items-center gap-2 rounded-lg border border-dashed px-3 py-4 text-sm text-muted-foreground">
       <CircleCheck className="size-4" />
@@ -29,7 +31,7 @@ export function TaskQueue({ entries, timeZone }: { entries: QueueEntry[]; timeZo
               )}
             </span>
             <span className="text-xs text-muted-foreground tabular-nums">
-              {formatDuration(remainingMin)} left · due {formatDateTime(deadline, timeZone)}
+              {formatDuration(remainingMin)} left · due {formatDateTime(deadline, timeZone, clock)}
             </span>
           </Link>
         </li>

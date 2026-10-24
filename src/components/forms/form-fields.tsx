@@ -8,7 +8,9 @@ import { Field, FieldDescription, FieldError, FieldLabel, FieldLegend, FieldSet 
 import { Input } from "@/components/ui/input";
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 import { type Segment, SegmentedControl } from "@/components/controls/segmented-control";
+import { useClockFormat } from "@/components/time/clock-format";
 import { SLOT_MIN } from "@/lib/placements";
+import { type ClockFormat, fromReading, type Period, toReading } from "@/lib/time/clock";
 import { formatDuration } from "@/lib/time/format";
 import { fromTimeInputValue, MINUTES_PER_DAY, toTimeInputValue } from "@/lib/time/time-of-day";
 
@@ -155,35 +157,69 @@ export function FormInput({
   );
 }
 
-/** Hours and minutes as typed into two boxes, digits only. */
+/** Hours and minutes as typed into two boxes, digits only, and the period of a time on a 12-hour clock. */
 interface Clock {
   hours: string;
   minutes: string;
+  period?: Period;
 }
 
 const NO_CLOCK: Clock = { hours: "", minutes: "" };
 
-/** `minutes` as a clock; `padded` writes both parts with two digits, as in a time of day. */
-function clockOf(minutes: number | null, padded = false): Clock {
-  if (minutes === null) return NO_CLOCK;
-  const pad = (part: number) => (padded ? String(part).padStart(2, "0") : String(part));
-  return { hours: pad(Math.floor(minutes / 60)), minutes: pad(minutes % 60) };
+/** How boxes holding a number of minutes read and write it; `toMinutes` is `null` when they hold none. */
+interface ClockConversion {
+  toClock: (minutes: number) => Clock;
+  toMinutes: (clock: Clock) => number | null;
 }
 
-/** The minutes `clock` holds, a missing box counting as 0; `null` when both are empty. */
-function minutesOf({ hours, minutes }: Clock): number | null {
-  return hours === "" && minutes === "" ? null : Number(hours || 0) * 60 + Number(minutes || 0);
+/** A duration: any number of hours, each box written without padding and a missing one counting as 0. */
+const DURATION: ClockConversion = {
+  toClock: (minutes) => ({ hours: String(Math.floor(minutes / 60)), minutes: String(minutes % 60) }),
+  toMinutes: ({ hours, minutes }) =>
+    hours === "" && minutes === "" ? null : Number(hours || 0) * 60 + Number(minutes || 0),
+};
+
+/** The minute of the day `clock` reads, a missing box counting as midnight's hour or 0 minutes. */
+function minuteOfDayOf({ hours, minutes, period }: Clock): number | null {
+  if (hours === "" && minutes === "") return null;
+  return fromReading({
+    hours: hours === "" ? (period ? 12 : 0) : Number(hours),
+    minutes: Number(minutes || 0),
+    period,
+  });
 }
+
+/** A time of day on `format`'s clock: 24-hour hours padded to two digits, 12-hour ones not. */
+function timeOfDay(format: ClockFormat): ClockConversion {
+  return {
+    toClock: (minuteOfDay) => {
+      const { hours, minutes, period } = toReading(minuteOfDay, format);
+      const pad = (part: number) => String(part).padStart(2, "0");
+      return { hours: period ? String(hours) : pad(hours), minutes: pad(minutes), period };
+    },
+    toMinutes: minuteOfDayOf,
+  };
+}
+
+/** An empty time on `format`'s clock; one on a 12-hour clock starts in the morning. */
+const noTime = (format: ClockFormat): Clock => (format === "12h" ? { ...NO_CLOCK, period: "AM" } : NO_CLOCK);
+
+const PERIODS: readonly Segment<Period>[] = [
+  { value: "AM", label: "AM" },
+  { value: "PM", label: "PM" },
+];
 
 /**
- * Two boxes for hours and minutes, labelled `label` hours and minutes, that take only digits. The arrow keys step
- * the hours by one and the minutes by `SLOT_MIN`, carrying over, between 0 and `maxMinutes`.
+ * Two boxes for hours and minutes, labelled `label` hours and minutes, that take only digits, and an AM/PM choice when
+ * `clock` has a period. The arrow keys step the hours by one and the minutes by `SLOT_MIN`, carrying over, between 0
+ * and `maxMinutes`.
  */
 function ClockBoxes({
   id,
   label,
   clock,
   onChange,
+  conversion,
   maxMinutes,
   separator,
   invalid,
@@ -193,24 +229,25 @@ function ClockBoxes({
   label: string;
   clock: Clock;
   onChange: (clock: Clock) => void;
+  conversion: ClockConversion;
   maxMinutes: number;
   /** Shown between the boxes, like ":" for a time; otherwise each box is followed by "h" or "m". */
   separator?: string;
   invalid: boolean;
-  placeholder?: Clock;
+  placeholder?: Pick<Clock, "hours" | "minutes">;
 }) {
   const step = (by: number) => (event: React.KeyboardEvent) => {
     if (event.key !== "ArrowUp" && event.key !== "ArrowDown") return;
     event.preventDefault();
-    const total = (minutesOf(clock) ?? 0) + (event.key === "ArrowUp" ? by : -by);
-    onChange(clockOf(Math.min(Math.max(total, 0), maxMinutes), !!separator));
+    const total = (conversion.toMinutes(clock) ?? 0) + (event.key === "ArrowUp" ? by : -by);
+    onChange(conversion.toClock(Math.min(Math.max(total, 0), maxMinutes)));
   };
-  // Leaving both boxes writes the time out in full, such as 90 minutes as 1h 30m.
+  // Leaving the boxes writes the time out in full, such as 90 minutes as 1h 30m.
   const tidy = () => {
-    const minutes = minutesOf(clock);
-    if (minutes !== null && minutes <= maxMinutes) onChange(clockOf(minutes, !!separator));
+    const minutes = conversion.toMinutes(clock);
+    if (minutes !== null && minutes <= maxMinutes) onChange(conversion.toClock(minutes));
   };
-  const box = (part: keyof Clock, by: number) => (
+  const box = (part: "hours" | "minutes", by: number) => (
     <Input
       id={part === "hours" ? id : undefined}
       aria-label={`${label} ${part}`}
@@ -235,6 +272,15 @@ function ClockBoxes({
       <span aria-hidden>{separator ?? "h"}</span>
       {box("minutes", SLOT_MIN)}
       {!separator && <span aria-hidden>m</span>}
+      {clock.period && (
+        <SegmentedControl
+          label={`${label} AM or PM`}
+          options={PERIODS}
+          value={clock.period}
+          onChange={(period) => onChange({ ...clock, period })}
+          className="flex gap-0 p-px"
+        />
+      )}
     </div>
   );
 }
@@ -243,9 +289,9 @@ function ClockBoxes({
 export function FormDurationInput({ name, label, description, presets = [] }: FieldProps & { presets?: number[] }) {
   const { values, errors, clearErrors } = use(FormStateContext);
   const [clock, setClock] = useState(() =>
-    /^\d+$/.test(values[name] ?? "") ? clockOf(Number(values[name])) : NO_CLOCK,
+    /^\d+$/.test(values[name] ?? "") ? DURATION.toClock(Number(values[name])) : NO_CLOCK,
   );
-  const minutes = minutesOf(clock);
+  const minutes = DURATION.toMinutes(clock);
   const change = (next: Clock) => {
     clearErrors(name);
     setClock(next);
@@ -258,6 +304,7 @@ export function FormDurationInput({ name, label, description, presets = [] }: Fi
         label={label}
         clock={clock}
         onChange={change}
+        conversion={DURATION}
         maxMinutes={Infinity}
         invalid={!!errors[name]}
       />
@@ -265,7 +312,13 @@ export function FormDurationInput({ name, label, description, presets = [] }: Fi
       {presets.length > 0 && (
         <div className="flex flex-wrap gap-1">
           {presets.map((preset) => (
-            <Button key={preset} type="button" variant="outline" size="xs" onClick={() => change(clockOf(preset))}>
+            <Button
+              key={preset}
+              type="button"
+              variant="outline"
+              size="xs"
+              onClick={() => change(DURATION.toClock(preset))}
+            >
               {formatDuration(preset)}
             </Button>
           ))}
@@ -275,16 +328,38 @@ export function FormDurationInput({ name, label, description, presets = [] }: Fi
   );
 }
 
-/** "HH:mm" for `clock`, or what was typed when it isn't a time of day, for the server to reject. */
+const isTimeValue = (value: string) => /^\d{2}:\d{2}$/.test(value);
+
+/**
+ * The 24-hour "HH:mm" the server takes for `clock`, whatever clock it was typed on, or what was typed when no clock
+ * reads it, for the server to reject.
+ */
 function timeValue(clock: Clock): string {
-  const minutes = minutesOf(clock);
-  if (minutes === null) return "";
-  const valid = Number(clock.hours || 0) < 24 && Number(clock.minutes || 0) < 60;
-  return valid ? toTimeInputValue(minutes) : `${clock.hours}:${clock.minutes}`;
+  if (clock.hours === "" && clock.minutes === "") return "";
+  const minuteOfDay = minuteOfDayOf(clock);
+  if (minuteOfDay !== null) return toTimeInputValue(minuteOfDay);
+  return `${clock.hours}:${clock.minutes}${clock.period ? ` ${clock.period}` : ""}`;
 }
 
-const clockOfTime = (value: string | undefined): Clock =>
-  value && /^\d{2}:\d{2}$/.test(value) ? clockOf(fromTimeInputValue(value), true) : NO_CLOCK;
+/** `value`, a 24-hour "HH:mm" or empty, as typed on `format`'s clock. */
+const clockOfTime = (value: string, format: ClockFormat): Clock =>
+  isTimeValue(value) ? timeOfDay(format).toClock(fromTimeInputValue(value)) : noTime(format);
+
+/** Hours and minutes of a time of day, on the account's clock. */
+function TimeBoxes(
+  props: Pick<React.ComponentProps<typeof ClockBoxes>, "id" | "label" | "clock" | "onChange" | "invalid">,
+) {
+  const format = useClockFormat();
+  return (
+    <ClockBoxes
+      {...props}
+      conversion={timeOfDay(format)}
+      maxMinutes={MINUTES_PER_DAY - SLOT_MIN}
+      separator=":"
+      placeholder={{ hours: "--", minutes: "--" }}
+    />
+  );
+}
 
 /** A time of day in hours and minutes, submitted as "HH:mm"; `value` and `onChange` let the form link it to others. */
 export function FormTimeInput({
@@ -295,13 +370,14 @@ export function FormTimeInput({
   onChange,
 }: FieldProps & { value: string; onChange: (value: string) => void }) {
   const { errors, clearErrors } = use(FormStateContext);
-  const [clock, setClock] = useState(() => clockOfTime(value));
+  const format = useClockFormat();
+  const [clock, setClock] = useState(() => clockOfTime(value, format));
   // Follows a `value` set from outside, such as an end moved with its start.
-  if (value !== timeValue(clock) && clockOfTime(value) !== NO_CLOCK) setClock(clockOfTime(value));
+  if (isTimeValue(value) && value !== timeValue(clock)) setClock(clockOfTime(value, format));
 
   return (
     <FormField name={name} label={label} description={description}>
-      <ClockBoxes
+      <TimeBoxes
         id={name}
         label={label}
         clock={clock}
@@ -310,10 +386,7 @@ export function FormTimeInput({
           setClock(next);
           onChange(timeValue(next));
         }}
-        maxMinutes={MINUTES_PER_DAY - SLOT_MIN}
-        separator=":"
         invalid={!!errors[name]}
-        placeholder={{ hours: "--", minutes: "--" }}
       />
       <input type="hidden" name={name} value={timeValue(clock)} />
     </FormField>
@@ -332,9 +405,10 @@ export function FormDateTimeInput({
   clearable = false,
 }: FieldProps & { placeholder?: string; clearable?: boolean }) {
   const { values, errors, clearErrors } = use(FormStateContext);
+  const format = useClockFormat();
   const [initial] = useState(values[name] ?? "");
   const [date, setDate] = useState(initial.slice(0, 10));
-  const [clock, setClock] = useState(() => clockOfTime(initial.slice(11, 16)));
+  const [clock, setClock] = useState(() => clockOfTime(initial.slice(11, 16), format));
   const time = timeValue(clock);
   const empty = !date && !time;
   const invalid = !!errors[name];
@@ -362,7 +436,7 @@ export function FormDateTimeInput({
             </span>
           )}
         </div>
-        <ClockBoxes
+        <TimeBoxes
           id={`${name}-time`}
           label={label}
           clock={clock}
@@ -370,10 +444,7 @@ export function FormDateTimeInput({
             clearErrors(name);
             setClock(next);
           }}
-          maxMinutes={MINUTES_PER_DAY - SLOT_MIN}
-          separator=":"
           invalid={invalid}
-          placeholder={{ hours: "--", minutes: "--" }}
         />
         {clearable && (
           <Button
@@ -385,7 +456,7 @@ export function FormDateTimeInput({
             onClick={() => {
               clearErrors(name);
               setDate("");
-              setClock(NO_CLOCK);
+              setClock(noTime(format));
             }}
           >
             <X />

@@ -3,11 +3,13 @@
 import { useRef, useState } from "react";
 import { DowntimeBands } from "@/components/schedule/downtime-bands";
 import { HourAxis } from "@/components/schedule/hour-axis";
+import { useClockFormat } from "@/components/time/clock-format";
 import { hourLines, timeScale } from "@/components/schedule/time-scale";
 import { WEEKDAYS, type Weekday } from "@/lib/recurrence";
+import { formatTimeOfDayRange } from "@/lib/time/clock";
 import { DAY_STEP_MIN, DAY_STEPS, fromSteps, toSteps } from "@/lib/time/day-steps";
 import { WEEKDAY_NAMES } from "@/lib/time/format";
-import { toTimeInputValue, type WeeklyRanges } from "@/lib/time/time-of-day";
+import type { WeeklyRanges } from "@/lib/time/time-of-day";
 
 /** The whole day, small enough to fit a phone screen, so painting never has to scroll. */
 const SCALE = timeScale(0, 24, 24);
@@ -66,6 +68,7 @@ export function WeekPainter({
   fieldName: (weekday: Weekday) => string;
   painted: string;
 }) {
+  const clock = useClockFormat();
   const [steps, setSteps] = useState(() => initial.map(toSteps));
   const [stroke, setStroke] = useState<Stroke | null>(null);
   const shown = stroke ? applyStroke(steps, stroke) : steps;
@@ -154,9 +157,7 @@ export function WeekPainter({
               )}
               <span className="sr-only">
                 {ranges.length > 0
-                  ? ranges
-                      .map((range) => `${toTimeInputValue(range.startMinute)}–${toTimeInputValue(range.endMinute)}`)
-                      .join(", ")
+                  ? ranges.map((range) => formatTimeOfDayRange(range.startMinute, range.endMinute, clock)).join(", ")
                   : "None"}
               </span>
               <input type="hidden" name={fieldName(WEEKDAYS[index])} value={day.map(Number).join("")} />
@@ -165,7 +166,7 @@ export function WeekPainter({
         })}
       </div>
       <p aria-live="polite" className="sr-only">
-        {`${WEEKDAY_NAMES[cursor.day]} ${toTimeInputValue(cursor.step * DAY_STEP_MIN)}–${toTimeInputValue((cursor.step + 1) * DAY_STEP_MIN)}, ${cursorPainted ? painted : "free"}`}
+        {`${WEEKDAY_NAMES[cursor.day]} ${formatTimeOfDayRange(cursor.step * DAY_STEP_MIN, (cursor.step + 1) * DAY_STEP_MIN, clock)}, ${cursorPainted ? painted : "free"}`}
       </p>
     </>
   );

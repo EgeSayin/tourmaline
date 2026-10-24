@@ -11,6 +11,8 @@ import { ReviewList } from "@/components/schedule/review-list";
 import { TaskQueue } from "@/components/schedule/task-queue";
 import { type AppPage, AppShell, NAV_PAGES } from "@/components/shell/app-shell";
 import { AreaBoundary } from "@/components/shell/area-boundary";
+import { ClockFormatProvider } from "@/components/time/clock-format";
+import type { ClockFormat } from "@/lib/time/clock";
 import type { Shell } from "@/server/shell";
 
 type List = "review" | "queue";
@@ -28,15 +30,28 @@ interface ShellState {
 
 const ShellContext = createContext<ShellState | null>(null);
 
-/** Holds `shell` and what the shell around every page shows, so it stays as it is when the page changes. */
-export function WorkspaceProvider({ shell, children }: { shell: Shell; children: React.ReactNode }) {
+/**
+ * Holds `shell` and what the shell around every page shows, so it stays as it is when the page changes, and the clock
+ * times are shown on.
+ */
+export function WorkspaceProvider({
+  shell,
+  clockFormat,
+  children,
+}: {
+  shell: Shell;
+  clockFormat: ClockFormat;
+  children: React.ReactNode;
+}) {
   const [phoneView, setPhoneView] = useState<"main" | "lists">("main");
   const [list, setList] = useState<List>(shell.review.length > 0 ? "review" : "queue");
   return (
     <BlockPanelProvider timeZone={shell.timeZone} review={shell.review}>
       <ShellContext value={{ shell, phoneView, setPhoneView, list, setList }}>
         <CategoryVisibilityProvider saved={shell.categoryVisibility}>
-          <main>{children}</main>
+          <ClockFormatProvider value={clockFormat}>
+            <main>{children}</main>
+          </ClockFormatProvider>
         </CategoryVisibilityProvider>
       </ShellContext>
     </BlockPanelProvider>

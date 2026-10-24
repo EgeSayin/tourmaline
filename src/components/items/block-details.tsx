@@ -5,6 +5,7 @@ import { describeRecurrence } from "@/lib/recurrence";
 import { formatDateTime, formatDuration } from "@/lib/time/format";
 import type { TimeZone } from "@/lib/time/time-zone";
 import { CategoryDot } from "@/components/categories/category-dot";
+import { useClockFormat } from "@/components/time/clock-format";
 import { PRIORITY_LABELS } from "./priority";
 
 /** What matters most about a block's item, or its occurrence, at a glance. */
@@ -17,12 +18,13 @@ export function BlockDetails({
   categories: Category[];
   timeZone: TimeZone;
 }) {
+  const clock = useClockFormat();
   const item = target.occurrence?.own ?? target.item;
   const category = categories.find((candidate) => candidate.id === item.categoryId);
   const rows: [string, React.ReactNode][] = isTask(item)
     ? [
         ["Duration", formatDuration(item.durationMin)],
-        ["Due", formatDateTime(item.deadline, timeZone)],
+        ["Due", formatDateTime(item.deadline, timeZone, clock)],
         ["Priority", PRIORITY_LABELS[item.priority]],
       ]
     : item.location

@@ -1,10 +1,11 @@
 import { connection } from "next/server";
 import { AccountSettings } from "@/components/settings/account-settings";
+import { ClockFormatForm } from "@/components/settings/clock-format-form";
 import { DemoReset } from "@/components/settings/demo-reset";
 import { TimeZoneForm } from "@/components/settings/time-zone-form";
 import { WeekSettingsForm } from "@/components/settings/week-settings-form";
 import { Workspace } from "@/components/workspace/workspace";
-import { loadSettings } from "@/server/db/settings-repository";
+import { loadClockFormat, loadSettings } from "@/server/db/settings-repository";
 import { currentAccount, DEMO_MODE, readWorkspace } from "@/server/workspaces/current-workspace";
 import { loadSignUpState } from "@/server/accounts/sign-up-state";
 import { GUEST_IDLE_DAYS } from "@/server/workspaces/guest-limits";
@@ -12,8 +13,9 @@ import { timeZoneOptions } from "@/server/settings/time-zone-options";
 
 export default async function Settings() {
   await connection();
-  const { settings, timeZones } = await readWorkspace(async (tx, now) => ({
+  const { settings, clockFormat, timeZones } = await readWorkspace(async (tx, now) => ({
     settings: await loadSettings(tx),
+    clockFormat: await loadClockFormat(tx),
     timeZones: timeZoneOptions(now),
   }));
   const account = await currentAccount();
@@ -25,6 +27,7 @@ export default async function Settings() {
         <>
           <h1 className="text-lg font-semibold tracking-tight">Settings</h1>
           <TimeZoneForm key={settings.timeZone} timeZone={settings.timeZone} options={timeZones} />
+          <ClockFormatForm saved={clockFormat !== null} />
           <WeekSettingsForm downtime={settings.downtime} />
           {DEMO_MODE && <DemoReset idleDays={GUEST_IDLE_DAYS} />}
           {account && (

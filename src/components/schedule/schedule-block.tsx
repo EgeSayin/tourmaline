@@ -3,6 +3,7 @@
 import { Pin } from "lucide-react";
 import { useCategoryVisibility } from "@/components/categories/category-visibility";
 import { PLACEMENT_STATE_LABELS } from "@/components/items/placement-state";
+import { useClockFormat } from "@/components/time/clock-format";
 import type { CalendarBlock, Laid } from "@/lib/calendar-blocks";
 import { isShown } from "@/lib/categories";
 import { formatTimeRange } from "@/lib/time/format";
@@ -22,6 +23,7 @@ export function ScheduleBlock({
   onSelect: () => void;
 }) {
   const [visibility] = useCategoryVisibility();
+  const clock = useClockFormat();
   const filteredOut = !isShown(block.target.item.categoryId, visibility);
   const fill = blockFill(block.color);
   const top = scale.top(block.startMinute);
@@ -33,7 +35,7 @@ export function ScheduleBlock({
     block.style === "displaced" && "displaced",
     block.conflict && "conflict",
   ].filter(Boolean);
-  const label = `${block.title} ${formatTimeRange(block.start, block.end, timeZone)}${notes.length > 0 ? ` (${notes.join(", ")})` : ""}`;
+  const label = `${block.title} ${formatTimeRange(block.start, block.end, timeZone, clock)}${notes.length > 0 ? ` (${notes.join(", ")})` : ""}`;
 
   return (
     <div

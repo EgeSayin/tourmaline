@@ -2,6 +2,7 @@
 
 import { CircleCheck } from "lucide-react";
 import { PlacementActions } from "@/components/items/placement-actions";
+import { useClockFormat } from "@/components/time/clock-format";
 import { formatLocalWeekday, formatTimeRange } from "@/lib/time/format";
 import { toLocal } from "@/lib/time/local-time";
 import type { TimeZone } from "@/lib/time/time-zone";
@@ -10,6 +11,7 @@ import { useBlockPanel } from "./block-panel-state";
 
 export function ReviewList({ entries, timeZone }: { entries: ReviewEntry[]; timeZone: TimeZone }) {
   const { open } = useBlockPanel();
+  const clock = useClockFormat();
 
   return entries.length === 0 ? (
     <p className="flex items-center gap-2 rounded-lg border border-dashed px-3 py-4 text-sm text-muted-foreground">
@@ -32,7 +34,7 @@ export function ReviewList({ entries, timeZone }: { entries: ReviewEntry[]; time
             >
               <span className="font-medium">{title}</span>
               <span className="text-xs text-muted-foreground tabular-nums">
-                {formatLocalWeekday(toLocal(start, timeZone).date)} {formatTimeRange(start, end, timeZone)}
+                {formatLocalWeekday(toLocal(start, timeZone).date)} {formatTimeRange(start, end, timeZone, clock)}
               </span>
             </button>
             <PlacementActions placement={placement} />

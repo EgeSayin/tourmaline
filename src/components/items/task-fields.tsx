@@ -11,6 +11,7 @@ import {
   useFormValue,
 } from "@/components/forms/form-fields";
 import { TimeRangeSlider } from "@/components/forms/time-range-slider";
+import { useClockFormat } from "@/components/time/clock-format";
 import { Button } from "@/components/ui/button";
 import { FieldDescription, FieldError, FieldLegend, FieldSet } from "@/components/ui/field";
 import {
@@ -24,8 +25,9 @@ import {
 } from "@/lib/item-form";
 import { SPREAD_STRATEGIES, type SpreadStrategy } from "@/lib/items";
 import { DEFAULT_MAX_CHUNK_MIN, DEFAULT_MIN_CHUNK_MIN } from "@/lib/settings";
+import { formatTimeOfDayRange } from "@/lib/time/clock";
 import { formatDuration } from "@/lib/time/format";
-import { toTimeInputValue } from "@/lib/time/time-of-day";
+import { cn } from "@/lib/utils";
 
 const SPREAD_LABELS = {
   asap: "Early",
@@ -88,6 +90,7 @@ export function TimeOfDayField() {
   const [range, setRange] = useState<[number, number] | null>(start && end ? [Number(start), Number(end)] : null);
   const messages = useFormErrors("timeOfDay");
   const clearErrors = useClearFormErrors("timeOfDay");
+  const clock = useClockFormat();
   const pick = (next: [number, number] | null) => {
     clearErrors();
     setRange(next);
@@ -117,8 +120,8 @@ export function TimeOfDayField() {
         <>
           <div className="flex items-center gap-3">
             <TimeRangeSlider value={range} onValueChange={pick} />
-            <span className="w-24 shrink-0 text-right text-sm tabular-nums">
-              {toTimeInputValue(range[0])}–{toTimeInputValue(range[1])}
+            <span className={cn("shrink-0 text-right text-sm tabular-nums", clock === "24h" ? "w-24" : "w-36")}>
+              {formatTimeOfDayRange(range[0], range[1], clock)}
             </span>
           </div>
           <FormChoice

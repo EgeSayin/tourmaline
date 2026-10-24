@@ -1,3 +1,5 @@
+import { type ClockFormat, formatTimeOfDay, formatTimeOfDayRange } from "@/lib/time/clock";
+import { toLocal } from "@/lib/time/local-time";
 import type { TimeZone } from "@/lib/time/time-zone";
 
 const formatters = new Map<string, Intl.DateTimeFormat>();
@@ -10,13 +12,12 @@ export function formatter(options: Intl.DateTimeFormatOptions): Intl.DateTimeFor
   return cached;
 }
 
-const time = (timeZone: TimeZone) => formatter({ timeZone, hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
 const day = (timeZone: TimeZone) => formatter({ timeZone, weekday: "short", month: "short", day: "numeric" });
 /** A `YYYY-MM-DD` local date as a `Date` at noon UTC, so formatting it in UTC shows that date. */
 const noon = (date: string) => new Date(`${date}T12:00:00Z`);
 
-export function formatTimeRange(start: Date, end: Date, timeZone: TimeZone): string {
-  return `${time(timeZone).format(start)}–${time(timeZone).format(end)}`;
+export function formatTimeRange(start: Date, end: Date, timeZone: TimeZone, clock: ClockFormat): string {
+  return formatTimeOfDayRange(toLocal(start, timeZone).minuteOfDay, toLocal(end, timeZone).minuteOfDay, clock);
 }
 
 export const WEEKDAY_NAMES = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] as const;
@@ -41,9 +42,9 @@ export function formatLocalDateRange(first: string, last: string): string {
   );
 }
 
-/** Its local weekday, date and 24-hour time, e.g. "Wed, Oct 7, 21:00", joined by hand: Safari joins them with "at". */
-export function formatDateTime(date: Date, timeZone: TimeZone): string {
-  return `${day(timeZone).format(date)}, ${time(timeZone).format(date)}`;
+/** Its local weekday, date and time, e.g. "Wed, Oct 7, 21:00", joined by hand: Safari joins them with "at". */
+export function formatDateTime(date: Date, timeZone: TimeZone, clock: ClockFormat): string {
+  return `${day(timeZone).format(date)}, ${formatTimeOfDay(toLocal(date, timeZone).minuteOfDay, clock)}`;
 }
 
 export function formatDuration(minutes: number): string {

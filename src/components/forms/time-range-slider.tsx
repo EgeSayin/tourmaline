@@ -1,7 +1,9 @@
 "use client";
 
 import { Slider } from "@base-ui/react/slider";
-import { MINUTES_PER_DAY, toTimeInputValue } from "@/lib/time/time-of-day";
+import { useClockFormat } from "@/components/time/clock-format";
+import { formatTimeOfDay } from "@/lib/time/clock";
+import { MINUTES_PER_DAY } from "@/lib/time/time-of-day";
 
 const STEP_MIN = 15;
 const THUMB_LABELS = ["From", "Until"];
@@ -14,6 +16,7 @@ export function TimeRangeSlider({
   value: [number, number];
   onValueChange: (value: [number, number]) => void;
 }) {
+  const clock = useClockFormat();
   return (
     <Slider.Root
       value={value}
@@ -34,7 +37,7 @@ export function TimeRangeSlider({
             key={label}
             index={index}
             getAriaLabel={() => label}
-            getAriaValueText={(_, minute) => toTimeInputValue(minute)}
+            getAriaValueText={(_, minute) => formatTimeOfDay(minute, clock)}
             className="relative block size-4 shrink-0 rounded-full border border-ring bg-white ring-ring/50 transition-[color,box-shadow] select-none after:absolute after:-inset-2 hover:ring-3 focus-visible:ring-3 focus-visible:outline-hidden active:ring-3"
           />
         ))}

@@ -2,8 +2,9 @@
 
 import { changeWorkspace } from "@/server/workspaces/current-workspace";
 import { type FormState, formFields } from "@/lib/form-state";
+import { isClockFormat } from "@/lib/time/clock";
 import { isTimeZone } from "@/lib/time/time-zone";
-import { loadSettings, moveToTimeZone, saveDowntime } from "@/server/db/settings-repository";
+import { loadSettings, moveToTimeZone, saveClockFormat, saveDowntime } from "@/server/db/settings-repository";
 import { parseWeekSettings } from "./parse-week-settings";
 
 export async function saveWeekSettingsAction(_previous: FormState, formData: FormData): Promise<FormState> {
@@ -23,5 +24,14 @@ export async function saveTimeZoneAction(_previous: FormState, formData: FormDat
   await changeWorkspace(async (tx) => {
     if ((await loadSettings(tx)).timeZone !== timeZone) await moveToTimeZone(tx, timeZone);
   });
+  return { status: "saved" };
+}
+
+export async function saveClockFormatAction(_previous: FormState, formData: FormData): Promise<FormState> {
+  const fields = formFields(formData);
+  const clockFormat = fields.clockFormat;
+  if (!isClockFormat(clockFormat)) return { status: "invalid", errors: { clockFormat: ["Pick a clock"] }, fields };
+
+  await changeWorkspace((tx) => saveClockFormat(tx, clockFormat), { replan: false });
   return { status: "saved" };
 }

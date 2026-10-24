@@ -1,4 +1,5 @@
 import type { CalendarBlock } from "@/lib/calendar-blocks";
+import { useClockFormat } from "@/components/time/clock-format";
 import { formatLocalDate, formatTimeRange } from "@/lib/time/format";
 import { toLocal } from "@/lib/time/local-time";
 import type { TimeZone } from "@/lib/time/time-zone";
@@ -11,9 +12,10 @@ export function BlockSummary({
   block: Pick<CalendarBlock, "start" | "end" | "placement">;
   timeZone: TimeZone;
 }) {
+  const clock = useClockFormat();
   return (
     <p className="text-sm tabular-nums">
-      {formatLocalDate(toLocal(start, timeZone).date)} · {formatTimeRange(start, end, timeZone)}
+      {formatLocalDate(toLocal(start, timeZone).date)} · {formatTimeRange(start, end, timeZone, clock)}
       {placement && (
         <span className="text-muted-foreground">
           {" "}
