@@ -2,7 +2,7 @@
 
 import { FormChoice, FormDateTimeInput, FormInput, FormStateProvider } from "@/components/forms/form-fields";
 import { Button } from "@/components/ui/button";
-import { FieldError, FieldGroup } from "@/components/ui/field";
+import { FieldDescription, FieldError, FieldGroup } from "@/components/ui/field";
 import type { Category } from "@/lib/categories";
 import { itemToFormValues } from "@/lib/item-form";
 import { isFixed, isTask, type Item } from "@/lib/items";
@@ -16,10 +16,13 @@ import { DurationField } from "./task-fields";
 
 const FIXED_FIELDS = ["title", "category", "location", "date", "startTime", "endTime"];
 const TASK_FIELDS = ["title", "category", "priority", "durationMin", "deadline"];
+/** What differs by day, left to the full editor. */
+const PER_DAY_FIELDS = ["startTime", "endTime", "durationMin"];
 
 /**
  * The fields of `item` most often changed; the rest are submitted as they are, so it saves like the full editor, from
- * `item`'s first date on. A repeating task has no due date to show: each occurrence's comes from its rule.
+ * `item`'s first date on. A repeating task has no due date to show: each occurrence's comes from its rule. Times or a
+ * duration that differ by day are only in the full editor.
  */
 export function QuickItemForm({
   item,
@@ -35,7 +38,16 @@ export function QuickItemForm({
   const initial = itemToFormValues(item, timeZone);
   const { values, errors, pending, onSubmit } = useFormAction(updateItemAction.bind(null, item.id), initial, onDone);
   const fixed = isFixed(item);
-  const shown = fixed ? FIXED_FIELDS : TASK_FIELDS.filter((name) => name !== "deadline" || !item.recurrence);
+  const perDay = (fixed ? item.dayTimes : item.dayDurations) !== null;
+  const shown = (fixed ? FIXED_FIELDS : TASK_FIELDS).filter(
+    (name) => (name !== "deadline" || !item.recurrence) && !(perDay && PER_DAY_FIELDS.includes(name)),
+  );
+  const perDayNote = perDay && (
+    <FieldDescription>
+      {fixed ? "Its times differ by day" : "Its duration differs by day"}: change {fixed ? "them" : "it"} with Open
+      task.
+    </FieldDescription>
+  );
   // A rule a hidden field breaks, such as a time of day the new duration no longer fits.
   const hiddenErrors = Object.entries(errors).flatMap(([name, messages]) => (shown.includes(name) ? [] : messages!));
 
@@ -51,12 +63,23 @@ export function QuickItemForm({
           {fixed ? (
             <>
               <FormInput name="location" label="Location (optional)" />
-              <FixedTimeFields repeats={item.recurrence !== null} />
+              {perDay ? (
+                <>
+                  <FormInput name="date" label="First date" type="date" placeholder="Not set" />
+                  {perDayNote}
+                </>
+              ) : (
+                <FixedTimeFields repeats={item.recurrence !== null} />
+              )}
             </>
           ) : (
             <>
               <FormChoice name="priority" label="Priority" options={PRIORITY_OPTIONS} defaultValue="normal" />
-              <DurationField repeat={item.recurrence?.frequency} upTo={isTask(item) && item.upTo} />
+              {perDay ? (
+                perDayNote
+              ) : (
+                <DurationField repeat={item.recurrence?.frequency} upTo={isTask(item) && item.upTo} />
+              )}
               {!item.recurrence && <FormDateTimeInput name="deadline" label="Due" />}
             </>
           )}

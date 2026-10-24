@@ -1,10 +1,19 @@
 import { addMinutes, minutesBetween } from "@/lib/time/duration";
-import { isFixed, isTask, type Item, itemSpan, type NewItem, type NewTask, withSpan } from "@/lib/items";
-import { occurrenceId, type Recurrence } from "@/lib/recurrence";
+import {
+  dayTimeLengthMin,
+  isFixed,
+  isTask,
+  type Item,
+  itemSpan,
+  type NewItem,
+  type NewTask,
+  withSpan,
+} from "@/lib/items";
+import { occurrenceId, type Recurrence, type Weekday } from "@/lib/recurrence";
 import type { TimeZone } from "@/lib/time/time-zone";
 import { earlier, type Interval } from "@/lib/time/interval";
 import { MINUTES_PER_DAY } from "@/lib/time/time-of-day";
-import { localDate, startOfDay, toDate, zoned } from "@/server/time/temporal";
+import { atLocalTime, localDate, startOfDay, toDate, zoned } from "@/server/time/temporal";
 
 /**
  * Local dates in `[from, to)` on which a series starting on `first` occurs, in order. Nothing occurs before
@@ -44,7 +53,7 @@ export function occurrenceDates(
 /**
  * The occurrences of `item` that overlap `range`, in order, each with its occurrence id and times; a one-off item
  * as it is. Occurrences keep the first one's local start time; fixed ones also keep its length, so a clock change
- * moves their end instead of inverting them. A recurring task's window runs from its earliest
+ * moves their end instead of inverting them; a weekday with its own times or duration takes those. A recurring task's window runs from its earliest
  * start to the same time on the date the rule next occurs, even past `until` or a skipped date, or only to the end of
  * its period if that's earlier and it's `withinPeriod`; it's done if its occurrence state says so. A changed
  * occurrence has its own times instead, wherever they fall, so the result is sorted by start.
@@ -57,6 +66,15 @@ export function expandOccurrences<T extends Item>(item: T, range: Interval, time
   const startOn = (date: Temporal.PlainDate) => toDate(firstStart.add({ days: first.until(date).days }));
 
   const lengthMin = isFixed(item) ? minutesBetween(item.start, item.end) : 0;
+  const spanOn = (date: Temporal.PlainDate): Interval => {
+    const time = isFixed(item) ? item.dayTimes?.[date.dayOfWeek as Weekday] : undefined;
+    if (!time) {
+      const start = startOn(date);
+      return { start, end: addMinutes(start, lengthMin) };
+    }
+    const start = atLocalTime(date, time.startMinute, timeZone);
+    return { start, end: addMinutes(start, dayTimeLengthMin(time)) };
+  };
   const periodDays = daysPerPeriod(item.recurrence);
   // Plus a day: around a clock change, an occurrence under a day long can end two local dates after it starts.
   const spanDays = isFixed(item) ? Math.ceil(lengthMin / MINUTES_PER_DAY) + 1 : periodDays;
@@ -76,15 +94,17 @@ export function expandOccurrences<T extends Item>(item: T, range: Interval, time
     const day = date.toString();
     if (!occurs(day) || item.changes[day]) continue;
 
-    const start = startOn(date);
-    const end = isFixed(item)
-      ? addMinutes(start, lengthMin)
-      : withinPeriod
-        ? earlier(startOn(dates[i + 1]), startOfDay(periodEnd(item.recurrence, first, date), timeZone))
-        : startOn(dates[i + 1]);
-    if (start >= range.end || end <= range.start) continue;
+    const span = isFixed(item)
+      ? spanOn(date)
+      : {
+          start: startOn(date),
+          end: withinPeriod
+            ? earlier(startOn(dates[i + 1]), startOfDay(periodEnd(item.recurrence, first, date), timeZone))
+            : startOn(dates[i + 1]),
+        };
+    if (span.start >= range.end || span.end <= range.start) continue;
 
-    occurrences.push(occurrenceOf(item, day, { start, end }));
+    occurrences.push(occurrenceOf(item, day, span));
   }
   for (const [day, change] of Object.entries(item.changes)) {
     if (!occurs(day) || change.start >= range.end || change.end <= range.start) continue;
@@ -96,7 +116,13 @@ export function expandOccurrences<T extends Item>(item: T, range: Interval, time
 
 function occurrenceOf<T extends Item>(item: T, day: string, span: Interval): T {
   const occurrence = { ...withSpan(item, span), id: occurrenceId(item.id, day) };
-  return isTask(occurrence) ? { ...occurrence, done: item.occurrences[day] === "done" } : occurrence;
+  if (!isTask(occurrence)) return occurrence;
+  const weekday = Temporal.PlainDate.from(day).dayOfWeek as Weekday;
+  return {
+    ...occurrence,
+    durationMin: occurrence.dayDurations?.[weekday] ?? occurrence.durationMin,
+    done: item.occurrences[day] === "done",
+  };
 }
 
 /** Whether series `item` has an occurrence that goes by local date `date`, skipped or not. */

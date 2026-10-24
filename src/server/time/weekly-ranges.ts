@@ -1,8 +1,8 @@
 import type { Interval, IntervalSet } from "@/lib/time/interval";
 import { clipIntervals, mergeIntervals } from "@/lib/time/interval";
-import { MINUTES_PER_DAY, type WeeklyRanges } from "@/lib/time/time-of-day";
+import type { WeeklyRanges } from "@/lib/time/time-of-day";
 import type { TimeZone } from "@/lib/time/time-zone";
-import { localDate, startOfDay, toDate } from "@/server/time/temporal";
+import { atLocalTime, localDate } from "@/server/time/temporal";
 
 /** The exact times within `range` that `weekly`'s local ranges cover, joined across midnight. */
 export function weeklyIntervals(range: Interval, weekly: WeeklyRanges, timeZone: TimeZone): IntervalSet {
@@ -19,10 +19,4 @@ export function weeklyIntervals(range: Interval, weekly: WeeklyRanges, timeZone:
     }
   }
   return mergeIntervals(clipIntervals(intervals, range));
-}
-
-function atLocalTime(day: Temporal.PlainDate, minuteOfDay: number, timeZone: TimeZone): Date {
-  if (minuteOfDay === MINUTES_PER_DAY) return startOfDay(day.add({ days: 1 }), timeZone);
-  const plainTime = new Temporal.PlainTime(Math.floor(minuteOfDay / 60), minuteOfDay % 60);
-  return toDate(day.toZonedDateTime({ timeZone, plainTime }));
 }

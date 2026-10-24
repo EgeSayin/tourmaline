@@ -88,6 +88,47 @@ test.describe("recurring items", () => {
     await expect(tomorrows).toHaveCount(0);
   });
 
+  test("gives each day of a weekly fixed item its own times", async ({ page }, testInfo) => {
+    const title = `E2E seminar (${testInfo.project.name})`;
+    const [todaySlot, tomorrowSlot] = [earlySlot(testInfo, 6), earlySlot(testInfo, 7)];
+    const [today, tomorrow] = [weekdayLabel(0), weekdayLabel(1)];
+    const inDay = (days: number, label: string) =>
+      page.getByRole("group", { name: dateLabel(days) }).getByRole("button", { name: `${title} ${label}` });
+
+    const form = await openAddItemForm(page);
+    await form.getByRole("radio", { name: "At a set time" }).click();
+    await form.getByLabel("Title").fill(title);
+    await form.getByLabel("How often").selectOption("weekly");
+    await form.getByRole("button", { name: today, exact: true }).click();
+    await expect(form.getByRole("radio", { name: "Different each day" })).toBeHidden();
+    await form.getByRole("button", { name: tomorrow, exact: true }).click();
+    await form.getByRole("radio", { name: "Different each day" }).click();
+    await expect(form.getByLabel("Starts hours", { exact: true })).toHaveCount(0);
+    await form.getByLabel("First date", { exact: true }).fill(String(localDate(0)));
+    await fillTime(form, `${today} starts`, todaySlot.start);
+    await fillTime(form, `${today} ends`, todaySlot.end);
+    await fillTime(form, `${tomorrow} starts`, tomorrowSlot.start);
+    await fillTime(form, `${tomorrow} ends`, tomorrowSlot.end);
+    await form.getByLabel("Until", { exact: true }).fill(String(localDate(1)));
+    await form.getByRole("button", { name: "Add item" }).click();
+    await expect(form).toBeHidden();
+
+    // Each day is opened by its own date: on desktop, today and tomorrow can fall in different weeks.
+    await page.goto(`/?date=${localDate(0)}`);
+    await expect(inDay(0, todaySlot.label)).toBeVisible();
+    await page.goto(`/?date=${localDate(1)}`);
+    await expect(inDay(1, tomorrowSlot.label)).toBeVisible();
+    await expect(inDay(1, todaySlot.label)).toHaveCount(0);
+
+    await inDay(1, tomorrowSlot.label).click();
+    await openTaskLink(page, testInfo).click();
+    const editor = itemEditor(page);
+    await editor.getByRole("radio", { name: "This and later ones" }).click();
+    await expect(editor.getByRole("radio", { name: "Different each day" })).toHaveAttribute("aria-checked", "true");
+    await expectTime(editor, `${today} starts`, todaySlot.start);
+    await expectTime(editor, `${tomorrow} ends`, tomorrowSlot.end);
+  });
+
   test("takes only what fits of a repeating task, never queueing it, and stops it after a total", async ({
     page,
   }, testInfo) => {

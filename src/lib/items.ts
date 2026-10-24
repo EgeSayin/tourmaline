@@ -1,5 +1,6 @@
-import type { OccurrenceChanges, Occurrences, Recurrence } from "./recurrence";
+import type { ByWeekday, OccurrenceChanges, Occurrences, Recurrence } from "./recurrence";
 import { addMinutes } from "./time/duration";
+import { MINUTES_PER_DAY } from "./time/time-of-day";
 import type { Interval } from "./time/interval";
 import type { DayRange } from "./time/time-of-day";
 
@@ -25,10 +26,25 @@ interface BaseItem {
   categoryId: string | null;
 }
 
+/**
+ * A fixed occurrence's local start and end, in minutes after midnight; an end at or before the start is on the next
+ * day.
+ */
+export interface DayTime {
+  startMinute: number;
+  endMinute: number;
+}
+
+/** How long an occurrence at `time` lasts on the clock. */
+export const dayTimeLengthMin = ({ startMinute, endMinute }: DayTime) =>
+  (endMinute - startMinute + MINUTES_PER_DAY) % MINUTES_PER_DAY;
+
 export interface FixedItem extends BaseItem {
   timing: "fixed";
   start: Date;
   end: Date;
+  /** For a weekly series, each of its weekdays' own times in place of `start`'s and `end`'s, or `null`. */
+  dayTimes: ByWeekday<DayTime> | null;
   location: string | null;
   bufferBeforeMin: number;
   bufferAfterMin: number;
@@ -52,6 +68,8 @@ export interface TimeOfDay extends DayRange {
 export interface Task extends BaseItem {
   timing: "flexible";
   durationMin: number;
+  /** For a weekly series, each of its weekdays' own duration in place of `durationMin`, or `null`. */
+  dayDurations: ByWeekday<number> | null;
   earliestStart: Date;
   /** For a recurring task, the first occurrence's; each occurrence's window ends where the rule next occurs. */
   deadline: Date;

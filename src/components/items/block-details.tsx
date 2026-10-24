@@ -1,7 +1,8 @@
 import type { EditTarget } from "@/lib/calendar-blocks";
 import type { Category } from "@/lib/categories";
-import { isTask } from "@/lib/items";
-import { describeRecurrence } from "@/lib/recurrence";
+import { type Item, isTask } from "@/lib/items";
+import { type ByWeekday, describeRecurrence } from "@/lib/recurrence";
+import { type ClockFormat, formatTimeOfDayRange } from "@/lib/time/clock";
 import { formatDateTime, formatDuration } from "@/lib/time/format";
 import type { TimeZone } from "@/lib/time/time-zone";
 import { CategoryDot } from "@/components/categories/category-dot";
@@ -45,7 +46,7 @@ export function BlockDetails({
       </span>,
     ]);
   }
-  if (item.recurrence) rows.push(["Repeats", describeRecurrence(item.recurrence)]);
+  if (item.recurrence) rows.push(["Repeats", describeRecurrence(item.recurrence, dayDetails(item, clock))]);
   if (target.occurrence?.changed) rows.push(["This one", "Changed from the series"]);
 
   return (
@@ -60,4 +61,15 @@ export function BlockDetails({
       </dl>
     )
   );
+}
+
+/** Each weekday's own times or duration, to follow its day in the series' description. */
+function dayDetails(item: Item, clock: ClockFormat): ByWeekday<string> {
+  const details = isTask(item)
+    ? Object.entries(item.dayDurations ?? {}).map(([day, minutes]) => [day, formatDuration(minutes)])
+    : Object.entries(item.dayTimes ?? {}).map(([day, time]) => [
+        day,
+        formatTimeOfDayRange(time.startMinute, time.endMinute, clock),
+      ]);
+  return Object.fromEntries(details);
 }

@@ -1,5 +1,6 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
+import { type Item, itemSpan } from "@/lib/items";
 import { type Occurrences, type Recurrence, WEEKDAYS } from "@/lib/recurrence";
 import {
   expandOccurrences,
@@ -138,6 +139,39 @@ describe("expandOccurrences", () => {
     };
     expect(expandOccurrences(backup, utc("2026-03-08T05:00", "2026-03-09T04:00"), tz)).toEqual([
       { ...backup, ...utc("2026-03-08T07:30", "2026-03-08T08:00"), id: "Backup@2026-03-08" },
+    ]);
+  });
+
+  it("gives a weekday with its own times or duration those, across a clock change, unless the occurrence is changed", () => {
+    // Tuesdays 13:00–14:00 and Thursdays 14:00–15:00 local; clocks go back on Sun Nov 1.
+    const lecture = {
+      ...fixed("Lecture", utc("2026-10-27T17:00", "2026-10-27T18:00")),
+      recurrence: { frequency: "weekly", interval: 1, weekdays: [2, 4], until: null } satisfies Recurrence,
+      dayTimes: { 2: { startMinute: 13 * 60, endMinute: 14 * 60 }, 4: { startMinute: 14 * 60, endMinute: 15 * 60 } },
+      changes: { "2026-11-05": { ...utc("2026-11-06T15:00", "2026-11-06T16:00"), durationMin: null } },
+    };
+    const spans = (items: Item[]) => items.map((item) => [item.id, itemSpan(item)]);
+    expect(spans(expandOccurrences(lecture, utc("2026-10-26T04:00", "2026-11-07T05:00"), tz))).toEqual([
+      ["Lecture@2026-10-27", utc("2026-10-27T17:00", "2026-10-27T18:00")],
+      ["Lecture@2026-10-29", utc("2026-10-29T18:00", "2026-10-29T19:00")],
+      ["Lecture@2026-11-03", utc("2026-11-03T18:00", "2026-11-03T19:00")],
+      ["Lecture@2026-11-05", utc("2026-11-06T15:00", "2026-11-06T16:00")],
+    ]);
+
+    const reading = {
+      ...flexible("Reading", 60, utc("2026-10-27T13:00", "2026-10-29T13:00")),
+      recurrence: lecture.recurrence,
+      dayDurations: { 2: 60, 4: 120 },
+      changes: { "2026-11-03": { ...utc("2026-11-03T14:00", "2026-11-05T14:00"), durationMin: 30 } },
+    };
+    const durations = expandOccurrences(reading, utc("2026-10-26T04:00", "2026-11-05T05:00"), tz).map((task) => [
+      task.id,
+      task.durationMin,
+    ]);
+    expect(durations).toEqual([
+      ["Reading@2026-10-27", 60],
+      ["Reading@2026-10-29", 120],
+      ["Reading@2026-11-03", 30],
     ]);
   });
 

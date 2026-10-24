@@ -21,11 +21,11 @@ import {
 import { USERNAME_PATTERN } from "@/lib/accounts";
 import { CATEGORY_COLOR_PATTERN } from "@/lib/categories";
 import type { Downtime } from "@/lib/downtime";
-import { PRIORITIES, SPREAD_STRATEGIES } from "@/lib/items";
+import { type DayTime, PRIORITIES, SPREAD_STRATEGIES } from "@/lib/items";
 import { PLACEMENT_STATUSES, SLOT_MIN } from "@/lib/placements";
 import { CLOCK_FORMATS } from "@/lib/time/clock";
 import { MINUTES_PER_DAY } from "@/lib/time/time-of-day";
-import { OCCURRENCE_STATES, type Recurrence } from "@/lib/recurrence";
+import { type ByWeekday, OCCURRENCE_STATES, type Recurrence } from "@/lib/recurrence";
 import { DEFAULT_SETTINGS } from "@/lib/settings";
 import type { TimeZone } from "@/lib/time/time-zone";
 
@@ -197,6 +197,7 @@ export const fixedItems = pgTable(
     ...itemColumns(),
     startAt: timestamptz("start_at").notNull(),
     endAt: timestamptz("end_at").notNull(),
+    dayTimes: jsonb("day_times").$type<ByWeekday<DayTime>>(),
     location: text("location"),
     bufferBeforeMin: integer("buffer_before_min").notNull(),
     bufferAfterMin: integer("buffer_after_min").notNull(),
@@ -204,6 +205,10 @@ export const fixedItems = pgTable(
   (t) => [
     ...itemConstraints("fixed_items", t),
     check("fixed_items_times", sql`${t.startAt} < ${t.endAt}`),
+    check(
+      "fixed_items_day_times",
+      sql`${t.dayTimes} is null or ${t.recurrence}->>'frequency' is not distinct from 'weekly'`,
+    ),
     check("fixed_items_buffers", sql`${t.bufferBeforeMin} >= 0 and ${t.bufferAfterMin} >= 0`),
   ],
 );
@@ -213,6 +218,7 @@ export const tasks = pgTable(
   {
     ...itemColumns(),
     durationMin: integer("duration_min").notNull(),
+    dayDurations: jsonb("day_durations").$type<ByWeekday<number>>(),
     earliestStart: timestamptz("earliest_start").notNull(),
     deadline: timestamptz("deadline").notNull(),
     splitMinChunkMin: integer("split_min_chunk_min"),
@@ -231,6 +237,10 @@ export const tasks = pgTable(
   (t) => [
     ...itemConstraints("tasks", t),
     check("tasks_window", sql`${t.earliestStart} < ${t.deadline}`),
+    check(
+      "tasks_day_durations",
+      sql`${t.dayDurations} is null or ${t.recurrence}->>'frequency' is not distinct from 'weekly'`,
+    ),
     check("tasks_within_period", sql`not ${t.withinPeriod} or ${t.recurrence} is not null`),
     check("tasks_up_to", sql`not ${t.upTo} or ${t.withinPeriod}`),
     check(

@@ -1,10 +1,31 @@
 import type { Item } from "./items";
+import type { ByWeekday, Weekday } from "./recurrence";
 import { toDateTimeInputValue } from "@/lib/time/local-time";
+import { toTimeInputValue } from "@/lib/time/time-of-day";
 import type { TimeZone } from "@/lib/time/time-zone";
 
 export const REPEAT_OPTIONS = ["none", "daily", "weekly"] as const;
 
 export type Repeat = (typeof REPEAT_OPTIONS)[number];
+
+/** Whether a weekly item's times, or a task's duration, are the same on each of its days or each day's own. */
+export const PER_DAY_OPTIONS = ["same", "each"] as const;
+
+export type PerDay = (typeof PER_DAY_OPTIONS)[number];
+
+/** Only a weekly item on more than one day can have its own times or duration per day. */
+export const offersPerDay = (repeat: Repeat, weekdays: readonly unknown[]) =>
+  repeat === "weekly" && weekdays.length > 1;
+
+/** The form field holding field `name`'s value for one weekday, when each day has its own. */
+export const dayField = (name: string, day: Weekday) => `${name}-${day}`;
+
+/** `values` as form fields, one per weekday, each under `dayField(name, day)`. */
+function dayFields<T>(name: string, values: ByWeekday<T> | null, toValue: (value: T) => string) {
+  return Object.fromEntries(
+    Object.entries(values ?? {}).map(([day, value]) => [dayField(name, Number(day) as Weekday), toValue(value as T)]),
+  );
+}
 
 /** Until when a repeating task's occurrence may be planned: up to the next one, or only within its own period. */
 export const CATCH_UP_OPTIONS = ["later", "in-period"] as const;
@@ -38,6 +59,7 @@ export function itemToFormValues(item: Item, timeZone: TimeZone): Record<string,
     weekdays: recurrence?.frequency === "weekly" ? recurrence.weekdays.join(",") : "",
     until: recurrence?.until ?? "",
     category: item.categoryId ?? "",
+    perDay: (item.timing === "fixed" ? item.dayTimes : item.dayDurations) ? "each" : "same",
   };
 
   if (item.timing === "fixed") {
@@ -46,6 +68,8 @@ export function itemToFormValues(item: Item, timeZone: TimeZone): Record<string,
       date: local(item.start).slice(0, 10),
       startTime: local(item.start).slice(11, 16),
       endTime: local(item.end).slice(11, 16),
+      ...dayFields("startTime", item.dayTimes, (time) => toTimeInputValue(time.startMinute)),
+      ...dayFields("endTime", item.dayTimes, (time) => toTimeInputValue(time.endMinute)),
       location: item.location ?? "",
       bufferBeforeMin: String(item.bufferBeforeMin),
       bufferAfterMin: String(item.bufferAfterMin),
@@ -54,6 +78,7 @@ export function itemToFormValues(item: Item, timeZone: TimeZone): Record<string,
   return {
     ...shared,
     durationMin: String(item.durationMin),
+    ...dayFields("durationMin", item.dayDurations, String),
     earliestStart: local(item.earliestStart),
     deadline: recurrence ? "" : local(item.deadline),
     blocks: item.split ? "split" : "one",

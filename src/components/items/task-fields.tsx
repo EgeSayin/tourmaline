@@ -21,14 +21,16 @@ import {
   BLOCKS_OPTIONS,
   CATCH_UP_OPTIONS,
   type CatchUp,
+  dayField,
   type Repeat,
   TIME_OF_DAY_RULES,
   type TimeOfDayRule,
 } from "@/lib/item-form";
 import { SPREAD_STRATEGIES, type SpreadStrategy } from "@/lib/items";
+import type { Weekday } from "@/lib/recurrence";
 import { DEFAULT_CHUNK_BREAK_MIN, DEFAULT_MAX_CHUNK_MIN, DEFAULT_MIN_CHUNK_MIN } from "@/lib/settings";
 import { formatTimeOfDayRange } from "@/lib/time/clock";
-import { formatDuration } from "@/lib/time/format";
+import { formatDuration, WEEKDAY_NAMES } from "@/lib/time/format";
 import { cn } from "@/lib/utils";
 
 const SPREAD_LABELS = {
@@ -46,14 +48,39 @@ const AMOUNT_LABELS = { all: "Its full time", fits: "Only spare time" } satisfie
 
 const periodOf = (repeat: Repeat) => (repeat === "daily" ? "day" : "week");
 
-/** A task's length: for a repeating one that gets only spare time, the most it gets each period. */
-export function DurationField({ repeat = "none", upTo = false }: { repeat?: Repeat; upTo?: boolean }) {
+/**
+ * A task's length: for a repeating one that gets only spare time, the most it gets each period. With `days`, each of
+ * those weekdays has its own.
+ */
+export function DurationField({
+  repeat = "none",
+  upTo = false,
+  days = null,
+}: {
+  repeat?: Repeat;
+  upTo?: boolean;
+  days?: Weekday[] | null;
+}) {
+  if (!days) {
+    return (
+      <FormDurationInput
+        name="durationMin"
+        label={upTo ? `At most per ${periodOf(repeat)}` : "Duration"}
+        presets={DURATION_PRESETS}
+      />
+    );
+  }
   return (
-    <FormDurationInput
-      name="durationMin"
-      label={upTo ? `At most per ${periodOf(repeat)}` : "Duration"}
-      presets={DURATION_PRESETS}
-    />
+    <div className="grid grid-cols-2 gap-4">
+      {days.map((day) => (
+        <FormDurationInput
+          key={day}
+          name={dayField("durationMin", day)}
+          label={`${upTo ? "At most on" : "On"} ${WEEKDAY_NAMES[day - 1]}`}
+          presets={DURATION_PRESETS}
+        />
+      ))}
+    </div>
   );
 }
 

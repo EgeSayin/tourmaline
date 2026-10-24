@@ -35,6 +35,7 @@ describe("parseItemForm", () => {
         categoryId: null,
         start: new Date("2026-10-05T15:00Z"), // 11:00 EDT
         end: new Date("2026-10-05T16:15Z"),
+        dayTimes: null,
         location: null,
         bufferBeforeMin: 15,
         bufferAfterMin: 0,
@@ -75,6 +76,7 @@ describe("parseItemForm", () => {
         recurrence: null,
         categoryId: null,
         durationMin: 120,
+        dayDurations: null,
         earliestStart: new Date("2026-10-31T13:00Z"), // 09:00 EDT
         deadline: new Date("2026-11-02T22:00Z"), // 17:00 EST, after clocks go back
         split: { minChunkMin: 30, maxChunkMin: 60, breakMin: 30 },
@@ -238,6 +240,80 @@ describe("parseItemForm", () => {
     ).toMatchObject({ ok: true, item: { upTo: false, withinPeriod: false, totalMin: null } });
   });
 
+  it("parses times and durations per day only for a weekly item on more than one day, each day's errors apart", () => {
+    const lecture = {
+      timing: "fixed",
+      title: "Lecture",
+      date: "2026-10-08", // Thu
+      repeat: "weekly",
+      weekdays: "2,4",
+      perDay: "each",
+      "startTime-2": "13:00",
+      "endTime-2": "14:00",
+      "startTime-4": "14:00",
+      "endTime-4": "15:00",
+    };
+    const dayTimes = {
+      2: { startMinute: 13 * 60, endMinute: 14 * 60 },
+      4: { startMinute: 14 * 60, endMinute: 15 * 60 },
+    };
+    // Its own times are its first date's, or its first day's when that date isn't one of its days.
+    expect(parseItemForm(lecture, tz, now)).toMatchObject({
+      ok: true,
+      item: { dayTimes, start: new Date("2026-10-08T18:00Z"), end: new Date("2026-10-08T19:00Z") },
+    });
+    expect(parseItemForm({ ...lecture, date: "2026-10-07" }, tz, now)).toMatchObject({
+      ok: true,
+      item: { dayTimes, start: new Date("2026-10-07T17:00Z"), end: new Date("2026-10-07T18:00Z") },
+    });
+    // On one day only, its times are the item's own.
+    expect(parseItemForm({ ...lecture, weekdays: "2", startTime: "09:00", endTime: "10:00" }, tz, now)).toMatchObject({
+      ok: true,
+      item: { dayTimes: null, start: new Date("2026-10-08T13:00Z") },
+    });
+    expect(parseItemForm({ ...lecture, title: "", "startTime-4": "", "endTime-2": "13:00" }, tz, now)).toEqual({
+      ok: false,
+      errors: {
+        title: [expect.any(String)],
+        "endTime-2": ["End must differ from start"],
+        "startTime-4": ["Enter a time"],
+      },
+    });
+
+    const reading = {
+      timing: "flexible",
+      title: "Reading",
+      earliestStart: "2026-10-08T09:00",
+      repeat: "weekly",
+      weekdays: "2,4",
+      perDay: "each",
+      "durationMin-2": "60",
+      "durationMin-4": "120",
+    };
+    expect(parseItemForm(reading, tz, now)).toMatchObject({
+      ok: true,
+      item: { durationMin: 120, dayDurations: { 2: 60, 4: 120 } },
+    });
+    expect(parseItemForm({ ...reading, "durationMin-2": "" }, tz, now)).toEqual({
+      ok: false,
+      errors: { "durationMin-2": ["Enter a duration"] },
+    });
+    // Each day's blocks must fit the hours it must keep to.
+    expect(
+      parseItemForm(
+        {
+          ...reading,
+          earliestStart: "2026-10-06T09:00",
+          timeOfDayStart: "540",
+          timeOfDayEnd: "600",
+          timeOfDayRule: "must",
+        },
+        tz,
+        now,
+      ),
+    ).toEqual({ ok: false, errors: { timeOfDay: ["Its blocks are longer than these hours"] } });
+  });
+
   it("reports invalid repeat rules", () => {
     const lecture = { timing: "fixed", title: "Lecture", date: "2026-10-05", startTime: "11:00", endTime: "12:15" };
     expect(parseItemForm({ ...lecture, repeat: "weekly", weekdays: "", interval: "0" }, tz, now)).toEqual({
@@ -346,6 +422,19 @@ describe("parseItemForm", () => {
       totalMin: 300 * 60,
     };
 
+    const lectureByDay = {
+      ...weeklyLecture,
+      dayTimes: {
+        1: { startMinute: 11 * 60, endMinute: 12 * 60 + 15 },
+        3: { startMinute: 13 * 60, endMinute: 14 * 60 },
+      },
+    };
+    const readingByDay = {
+      ...flexible("Reading", 60, { start: new Date("2026-10-06T13:00Z"), end: new Date("2026-10-08T13:00Z") }),
+      recurrence: { frequency: "weekly", interval: 1, weekdays: [2, 4], until: null } satisfies Recurrence,
+      dayDurations: { 2: 60, 4: 120 },
+    };
+
     const dailyLunch = {
       ...flexible("Lunch", 45, { start: new Date("2026-10-05T15:30Z"), end: new Date("2026-10-06T04:00Z") }),
       recurrence: { frequency: "daily", interval: 1, until: null } satisfies Recurrence,
@@ -361,6 +450,8 @@ describe("parseItemForm", () => {
       dailyGym,
       dailyLunch,
       weeklyProject,
+      lectureByDay,
+      readingByDay,
     ]) {
       const parsed = parseItemForm(itemToFormValues({ id, occurrences, changes, ...item }, tz), tz, now);
       const { done: _, ...fields } = { done: false, ...item };

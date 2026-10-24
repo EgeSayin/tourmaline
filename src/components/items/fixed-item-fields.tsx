@@ -3,17 +3,68 @@
 import { useState } from "react";
 import { FormDurationInput, FormInput, FormTimeInput, useFormValue } from "@/components/forms/form-fields";
 import { FieldDescription } from "@/components/ui/field";
+import { dayField } from "@/lib/item-form";
+import type { Weekday } from "@/lib/recurrence";
+import { WEEKDAY_NAMES } from "@/lib/time/format";
 import { fromTimeInputValue, MINUTES_PER_DAY, toTimeInputValue } from "@/lib/time/time-of-day";
 
 const BUFFER_PRESETS = [10, 15, 30];
 
-/** A fixed item's date and times; a repeating item's date is its first. */
-export function FixedTimeFields({ repeats = false }: { repeats?: boolean }) {
-  const [start, setStart] = useState(useFormValue("startTime") ?? "");
-  const [end, setEnd] = useState(useFormValue("endTime") ?? "");
+/**
+ * A fixed item's date and times; a repeating item's date is its first. With `days`, each of those weekdays has its
+ * own times.
+ */
+export function FixedTimeFields({ repeats = false, days = null }: { repeats?: boolean; days?: Weekday[] | null }) {
+  return (
+    <>
+      <FormInput name="date" label={repeats ? "First date" : "Date"} type="date" placeholder="Not set" />
+      {days ? (
+        <>
+          {days.map((day) => {
+            const name = WEEKDAY_NAMES[day - 1];
+            return (
+              <StartEndFields
+                key={day}
+                startName={dayField("startTime", day)}
+                endName={dayField("endTime", day)}
+                startLabel={`${name} starts`}
+                endLabel={`${name} ends`}
+              />
+            );
+          })}
+          <FieldDescription>An end before the start means the next day.</FieldDescription>
+        </>
+      ) : (
+        <StartEndFields
+          startName="startTime"
+          endName="endTime"
+          startLabel="Starts"
+          endLabel="Ends"
+          endDescription="Before the start means the next day."
+        />
+      )}
+    </>
+  );
+}
+
+/** A start and end time; moving the start moves the end with it, keeping the length. */
+function StartEndFields({
+  startName,
+  endName,
+  startLabel,
+  endLabel,
+  endDescription,
+}: {
+  startName: string;
+  endName: string;
+  startLabel: string;
+  endLabel: string;
+  endDescription?: string;
+}) {
+  const [start, setStart] = useState(useFormValue(startName) ?? "");
+  const [end, setEnd] = useState(useFormValue(endName) ?? "");
   const isTime = (value: string) => TIME.test(value);
 
-  // Moving the start moves the end with it, keeping the length.
   const moveStart = (next: string) => {
     if (isTime(start) && isTime(next) && isTime(end)) {
       const shift = fromTimeInputValue(next) - fromTimeInputValue(start);
@@ -23,19 +74,10 @@ export function FixedTimeFields({ repeats = false }: { repeats?: boolean }) {
   };
 
   return (
-    <>
-      <FormInput name="date" label={repeats ? "First date" : "Date"} type="date" placeholder="Not set" />
-      <div className="flex flex-wrap gap-4">
-        <FormTimeInput name="startTime" label="Starts" value={start} onChange={moveStart} />
-        <FormTimeInput
-          name="endTime"
-          label="Ends"
-          value={end}
-          onChange={setEnd}
-          description="Before the start means the next day."
-        />
-      </div>
-    </>
+    <div className="flex flex-wrap gap-4">
+      <FormTimeInput name={startName} label={startLabel} value={start} onChange={moveStart} />
+      <FormTimeInput name={endName} label={endLabel} value={end} onChange={setEnd} description={endDescription} />
+    </div>
   );
 }
 

@@ -6,10 +6,11 @@ import { DeleteButton } from "@/components/forms/delete-button";
 import { FormChoice, FormInput, FormSection, FormStateProvider } from "@/components/forms/form-fields";
 import { Button } from "@/components/ui/button";
 import { FieldGroup } from "@/components/ui/field";
-import { type Amount, itemToFormValues, type Repeat } from "@/lib/item-form";
+import { type Amount, itemToFormValues, offersPerDay, type PerDay, type Repeat } from "@/lib/item-form";
 import type { Category } from "@/lib/categories";
 import { isTask, type Item } from "@/lib/items";
 import { PRIORITY_OPTIONS } from "./priority";
+import type { Weekday } from "@/lib/recurrence";
 import type { TimeZone } from "@/lib/time/time-zone";
 import { useFormAction } from "@/hooks/use-form-action";
 import { createItemAction, deleteItemAction, updateItemAction } from "@/server/items/actions";
@@ -39,6 +40,13 @@ export function ItemForm({
   const [repeat, setRepeat] = useState<Repeat>(item?.recurrence?.frequency ?? "none");
   const [amount, setAmount] = useState<Amount>(item && isTask(item) && item.upTo ? "fits" : "all");
   const upTo = repeat !== "none" && amount === "fits";
+  const [weekdays, setWeekdays] = useState<Weekday[]>(
+    item?.recurrence?.frequency === "weekly" ? item.recurrence.weekdays : [],
+  );
+  const [perDay, setPerDay] = useState<PerDay>(
+    item && (isTask(item) ? item.dayDurations : item.dayTimes) ? "each" : "same",
+  );
+  const days = offersPerDay(repeat, weekdays) && perDay === "each" ? weekdays : null;
 
   return (
     <form onSubmit={onSubmit} className="flex flex-col gap-6">
@@ -63,18 +71,26 @@ export function ItemForm({
           {timing === "fixed" && <FormInput name="location" label="Location (optional)" />}
           {/* Before "When", whose fields depend on it; it keeps its place as the kind changes, so what's entered stays. */}
           <FormSection title="Repeat">
-            <RepeatFields repeat={repeat} onRepeatChange={setRepeat} total={timing === "flexible"} />
+            <RepeatFields
+              timing={timing}
+              repeat={repeat}
+              onRepeatChange={setRepeat}
+              weekdays={weekdays}
+              onWeekdaysChange={setWeekdays}
+              perDay={perDay}
+              onPerDayChange={setPerDay}
+            />
           </FormSection>
           <FormSection title="When">
             {timing === "fixed" ? (
               <>
-                <FixedTimeFields repeats={repeat !== "none"} />
+                <FixedTimeFields repeats={repeat !== "none"} days={days} />
                 <BufferFields />
               </>
             ) : (
               <>
                 {repeat !== "none" && <AmountField repeat={repeat} amount={amount} onAmountChange={setAmount} />}
-                <DurationField repeat={repeat} upTo={upTo} />
+                <DurationField repeat={repeat} upTo={upTo} days={days} />
                 <TaskWindowFields repeat={repeat} upTo={upTo} />
                 <TimeOfDayField />
               </>

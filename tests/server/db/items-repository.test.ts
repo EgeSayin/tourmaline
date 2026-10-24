@@ -14,6 +14,11 @@ const lecture: NewFixedItem = {
   categoryId: null,
   start: new Date("2026-10-05T15:00:00Z"),
   end: new Date("2026-10-05T16:15:00Z"),
+  // Mondays as its start and end have it, Wednesdays an hour later.
+  dayTimes: {
+    1: { startMinute: 11 * 60, endMinute: 12 * 60 + 15 },
+    3: { startMinute: 12 * 60, endMinute: 13 * 60 + 15 },
+  },
   location: "Science Hall 101",
   bufferBeforeMin: 15,
   bufferAfterMin: 10,
@@ -26,6 +31,7 @@ const essay: NewTask = {
   recurrence: null,
   categoryId: null,
   durationMin: 120,
+  dayDurations: null,
   earliestStart: new Date("2026-10-05T04:00:00Z"),
   deadline: new Date("2026-10-09T21:00:00Z"),
   split: { minChunkMin: 30, maxChunkMin: 90, breakMin: 30 },
@@ -125,7 +131,7 @@ describe("items repository", () => {
     });
   });
 
-  it("rejects task durations, chunk sizes and breaks off the 5-minute grid, a negative break, and a one-off task kept within a period", async ({
+  it("rejects task durations, chunk sizes and breaks off the 5-minute grid, a negative break, and a one-off task kept within a period or with durations per day", async ({
     tx,
   }) => {
     const invalid: NewItem[] = [
@@ -135,12 +141,16 @@ describe("items repository", () => {
       { ...essay, split: { minChunkMin: 30, maxChunkMin: 90, breakMin: 32 } },
       { ...essay, split: { minChunkMin: 30, maxChunkMin: 90, breakMin: -5 } },
       { ...essay, withinPeriod: true },
+      { ...essay, dayDurations: { 1: 60 } },
     ];
     for (const item of invalid) {
       await expect(savepoint(tx, (inner) => insertItem(inner, item))).rejects.toThrow();
     }
     await expect(insertItem(tx, essay)).resolves.toBeTypeOf("string");
-    const weekly = { ...essay, recurrence: lecture.recurrence, withinPeriod: true };
-    expect(await loadItem(tx, await insertItem(tx, weekly))).toMatchObject({ withinPeriod: true });
+    const weekly = { ...essay, recurrence: lecture.recurrence, withinPeriod: true, dayDurations: { 1: 120, 3: 60 } };
+    expect(await loadItem(tx, await insertItem(tx, weekly))).toMatchObject({
+      withinPeriod: true,
+      dayDurations: { 1: 120, 3: 60 },
+    });
   });
 });

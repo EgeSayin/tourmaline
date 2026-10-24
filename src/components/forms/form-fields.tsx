@@ -547,21 +547,23 @@ export function FormToggleGroup({
   name,
   label,
   options,
+  onValueChange,
 }: {
   name: string;
   label: string;
   options: readonly { value: string; label: string }[];
+  /** Called with the picked values, in the order of `options`. */
+  onValueChange?: (values: string[]) => void;
 }) {
   const { values, errors, clearErrors } = use(FormStateContext);
   const [picked, setPicked] = useState(() => new Set(values[name]?.split(",").filter(Boolean)));
   const messages = errors[name];
   const toggle = (value: string) => {
     clearErrors(name);
-    setPicked((current) => {
-      const next = new Set(current);
-      if (!next.delete(value)) next.add(value);
-      return next;
-    });
+    const next = new Set(picked);
+    if (!next.delete(value)) next.add(value);
+    setPicked(next);
+    onValueChange?.(options.filter((option) => next.has(option.value)).map((option) => option.value));
   };
 
   return (

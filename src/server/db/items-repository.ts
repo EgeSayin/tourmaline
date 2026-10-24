@@ -179,15 +179,17 @@ const categoryInWorkspace = (tx: WorkspaceTx, id: string) =>
   sql<string>`(select ${categories.id} from ${categories} where ${and(ownedBy(tx, categories), eq(categories.id, id))})`;
 
 function fixedRow(tx: WorkspaceTx, item: NewFixedItem) {
-  const { start, end, location, bufferBeforeMin, bufferAfterMin } = item;
-  return { ...sharedRow(tx, item), startAt: start, endAt: end, location, bufferBeforeMin, bufferAfterMin };
+  const { start, end, dayTimes, location, bufferBeforeMin, bufferAfterMin } = item;
+  return { ...sharedRow(tx, item), startAt: start, endAt: end, dayTimes, location, bufferBeforeMin, bufferAfterMin };
 }
 
 function taskRow(tx: WorkspaceTx, item: NewTask) {
-  const { durationMin, earliestStart, deadline, split, spread, withinPeriod, upTo, totalMin, timeOfDay } = item;
+  const { durationMin, dayDurations, earliestStart, deadline, split, spread, withinPeriod, upTo, totalMin, timeOfDay } =
+    item;
   return {
     ...sharedRow(tx, item),
     durationMin,
+    dayDurations,
     earliestStart,
     deadline,
     splitMinChunkMin: split?.minChunkMin ?? null,
@@ -206,7 +208,7 @@ function taskRow(tx: WorkspaceTx, item: NewTask) {
 type History = { occurrences: Occurrences; changes: OccurrenceChanges };
 
 function toFixedItem(row: typeof fixedItems.$inferSelect, { occurrences, changes }: History): FixedItem {
-  const { id, title, priority, recurrence, categoryId, location, bufferBeforeMin, bufferAfterMin } = row;
+  const { id, title, priority, recurrence, categoryId, dayTimes, location, bufferBeforeMin, bufferAfterMin } = row;
   return {
     id,
     title,
@@ -218,6 +220,7 @@ function toFixedItem(row: typeof fixedItems.$inferSelect, { occurrences, changes
     categoryId,
     start: row.startAt,
     end: row.endAt,
+    dayTimes,
     location,
     bufferBeforeMin,
     bufferAfterMin,
@@ -225,7 +228,7 @@ function toFixedItem(row: typeof fixedItems.$inferSelect, { occurrences, changes
 }
 
 function toTask(row: typeof tasks.$inferSelect, { occurrences, changes }: History): Task {
-  const { id, title, priority, recurrence, categoryId, durationMin, earliestStart, deadline } = row;
+  const { id, title, priority, recurrence, categoryId, durationMin, dayDurations, earliestStart, deadline } = row;
   return {
     id,
     title,
@@ -236,6 +239,7 @@ function toTask(row: typeof tasks.$inferSelect, { occurrences, changes }: Histor
     changes,
     categoryId,
     durationMin,
+    dayDurations,
     earliestStart,
     deadline,
     split:

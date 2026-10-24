@@ -1,7 +1,17 @@
 import { z } from "zod";
 import type { FormErrors } from "@/lib/form-state";
-import { AMOUNT_OPTIONS, BLOCKS_OPTIONS, CATCH_UP_OPTIONS, REPEAT_OPTIONS, TIME_OF_DAY_RULES } from "@/lib/item-form";
 import {
+  AMOUNT_OPTIONS,
+  BLOCKS_OPTIONS,
+  CATCH_UP_OPTIONS,
+  dayField,
+  offersPerDay,
+  PER_DAY_OPTIONS,
+  REPEAT_OPTIONS,
+  TIME_OF_DAY_RULES,
+} from "@/lib/item-form";
+import {
+  type DayTime,
   isFixed,
   type Item,
   type NewItem,
@@ -12,12 +22,12 @@ import {
 } from "@/lib/items";
 import { SLOT_MIN } from "@/lib/placements";
 import { DEFAULT_CHUNK_BREAK_MIN, DEFAULT_MAX_CHUNK_MIN, DEFAULT_MIN_CHUNK_MIN } from "@/lib/settings";
-import { type OccurrenceChange, type Recurrence, WEEKDAYS } from "@/lib/recurrence";
+import { type ByWeekday, type OccurrenceChange, type Recurrence, type Weekday, WEEKDAYS } from "@/lib/recurrence";
 import { minutesBetween } from "@/lib/time/duration";
-import { MINUTES_PER_DAY } from "@/lib/time/time-of-day";
+import { fromTimeInputValue, MINUTES_PER_DAY } from "@/lib/time/time-of-day";
 import type { TimeZone } from "@/lib/time/time-zone";
 import { firstOccurrence, withFirstDeadline } from "@/server/recurrence";
-import { toDate } from "@/server/time/temporal";
+import { atLocalTime, toDate } from "@/server/time/temporal";
 import { hoursOf } from "@/server/scheduler/preferences";
 
 const emptyToUndefined = (value: unknown) => (value === "" || value === null ? undefined : value);
@@ -55,6 +65,7 @@ const shared = {
   interval: z.preprocess(toNumber, z.number({ error: "Enter a whole number" }).int().min(1).max(99).default(1)),
   weekdays: z.preprocess((value) => value ?? "", weekdayList),
   until: z.preprocess(emptyToUndefined, z.iso.date({ error: "Enter a date" }).optional()),
+  perDay: z.preprocess(emptyToUndefined, z.enum(PER_DAY_OPTIONS).default("same")),
   category: z.preprocess(emptyToUndefined, z.uuid("Pick a category").optional()),
 };
 
@@ -72,20 +83,16 @@ const fixedForm = z
     ...shared,
     timing: z.literal("fixed"),
     date: z.iso.date({ error: "Enter a date" }),
-    startTime: localTime,
-    endTime: localTime,
     location: z.preprocess(emptyToUndefined, z.string().trim().max(200).optional()),
     bufferBeforeMin: z.preprocess(toNumber, minutes(0).default(0)),
     bufferAfterMin: z.preprocess(toNumber, minutes(0).default(0)),
   })
-  .refine((form) => form.startTime !== form.endTime, { path: ["endTime"], message: "End must differ from start" })
   .refine(weekdaysChosen.check, weekdaysChosen.params);
 
 const flexibleForm = z
   .object({
     ...shared,
     timing: z.literal("flexible"),
-    durationMin: z.preprocess(toNumber, taskMinutes),
     earliestStart: z.preprocess(emptyToUndefined, localDateTime.optional()),
     deadline: z.preprocess(emptyToUndefined, localDateTime.optional()),
     blocks: z.preprocess(emptyToUndefined, z.enum(BLOCKS_OPTIONS).default("one")),
@@ -126,6 +133,71 @@ const flexibleForm = z
 
 const itemFormSchema = z.discriminatedUnion("timing", [fixedForm, flexibleForm]);
 
+const dayTimeForm = z
+  .object({ startTime: localTime, endTime: localTime })
+  .refine((form) => form.startTime !== form.endTime, { path: ["endTime"], message: "End must differ from start" })
+  .transform((form): DayTime => ({
+    startMinute: fromTimeInputValue(form.startTime),
+    endMinute: fromTimeInputValue(form.endTime),
+  }));
+
+const durationForm = z
+  .object({ durationMin: z.preprocess(toNumber, taskMinutes) })
+  .transform((form) => form.durationMin);
+
+type Parsed<T> = { ok: true; value: T } | { ok: false; errors: FormErrors };
+
+/** A fixed item's times or a task's duration as parsed: `byDay` when each day has its own, `value` the first day's. */
+type Timing<T> = { ok: true; value: T; byDay: ByWeekday<T> | null };
+
+/**
+ * A fixed item's times or a task's duration: from their own fields, or with `days`, each day's from its own (see
+ * `dayField`), with errors under those fields' names.
+ */
+function parseTiming<T>(
+  schema: z.ZodType<T>,
+  names: string[],
+  fields: Record<string, unknown>,
+  days: Weekday[] | null,
+): Timing<T> | { ok: false; errors: FormErrors } {
+  if (!days) {
+    const parsed = parsePart(schema, fields);
+    return parsed.ok ? { ...parsed, byDay: null } : parsed;
+  }
+  const byDay: ByWeekday<T> = {};
+  let errors: FormErrors = {};
+  for (const day of days) {
+    const parsed = parsePart(schema, Object.fromEntries(names.map((name) => [name, fields[dayField(name, day)]])));
+    if (parsed.ok) byDay[day] = parsed.value;
+    else {
+      const renamed = Object.entries(parsed.errors).map(([name, messages]) => [dayField(name, day), messages]);
+      errors = { ...errors, ...Object.fromEntries(renamed) };
+    }
+  }
+  return Object.keys(errors).length > 0 ? { ok: false, errors } : { ok: true, value: byDay[days[0]]!, byDay };
+}
+
+function parsePart<T>(schema: z.ZodType<T>, fields: Record<string, unknown>): Parsed<T> {
+  const parsed = schema.safeParse(fields);
+  return parsed.success
+    ? { ok: true, value: parsed.data }
+    : { ok: false, errors: z.flattenError(parsed.error).fieldErrors };
+}
+
+/** A per-day value on the first date's weekday, or the first day's if the series' first date isn't one of its days. */
+const onFirstDate = <T>(date: Temporal.PlainDate, { value, byDay }: { value: T; byDay: ByWeekday<T> | null }) =>
+  byDay?.[date.dayOfWeek as Weekday] ?? value;
+
+/** The days of a submitted weekly rule that have their own times or duration, or `null`; read even if it's invalid. */
+function perDayOf(fields: Record<string, unknown>): Weekday[] | null {
+  const parsed = z
+    .object({ repeat: shared.repeat, weekdays: shared.weekdays, perDay: shared.perDay })
+    .safeParse(fields);
+  if (!parsed.success) return null;
+  const { repeat, weekdays, perDay } = parsed.data;
+  return offersPerDay(repeat, weekdays) && perDay === "each" ? weekdays : null;
+}
+
 export type ParsedItemForm = { ok: true; item: NewItem } | { ok: false; errors: FormErrors };
 
 /**
@@ -134,11 +206,25 @@ export type ParsedItemForm = { ok: true; item: NewItem } | { ok: false; errors: 
  * A one-off flexible task without an earliest start starts at `now`, and its deadline must be after `now`.
  * A recurring item must occur at least once; a recurring task is due when its first occurrence's window ends. Only a
  * recurring task can be kept within its period, take only what fits, or stop after a total. A task that must be placed in its time of day has to fit there: each
- * of its blocks within the hours, and a one-off one in those hours before it's due.
+ * of its blocks within the hours, and a one-off one in those hours before it's due. A weekly item on more than one day
+ * may have its own times, or a task its own duration, for each day; its own are then its first date's.
  */
 export function parseItemForm(fields: Record<string, unknown>, timeZone: TimeZone, now: Date): ParsedItemForm {
   const parsed = itemFormSchema.safeParse(fields);
-  if (!parsed.success) return { ok: false, errors: z.flattenError(parsed.error).fieldErrors };
+  const days = perDayOf(fields);
+  const timing =
+    fields.timing === "fixed"
+      ? parseTiming(dayTimeForm, ["startTime", "endTime"], fields, days)
+      : parseTiming(durationForm, ["durationMin"], fields, days);
+  if (!parsed.success || !timing.ok) {
+    return {
+      ok: false,
+      errors: {
+        ...(parsed.success ? {} : z.flattenError(parsed.error).fieldErrors),
+        ...(timing.ok ? {} : timing.errors),
+      },
+    };
+  }
 
   const form = parsed.data;
   const at = (local: string) => toDate(Temporal.PlainDateTime.from(local).toZonedDateTime(timeZone));
@@ -152,21 +238,25 @@ export function parseItemForm(fields: Record<string, unknown>, timeZone: TimeZon
   const neverOccurs: ParsedItemForm = { ok: false, errors: { until: ["The series ends before it first occurs"] } };
 
   if (form.timing === "fixed") {
-    const endsNextDay = form.endTime < form.startTime;
+    const fixedTiming = timing as Timing<DayTime>;
+    const date = Temporal.PlainDate.from(form.date);
+    const time = onFirstDate(date, fixedTiming);
     const item: NewItem = {
       title: form.title,
       priority: form.priority,
       timing: "fixed",
       recurrence,
       categoryId: form.category ?? null,
-      start: at(`${form.date}T${form.startTime}`),
-      end: at(`${endsNextDay ? Temporal.PlainDate.from(form.date).add({ days: 1 }) : form.date}T${form.endTime}`),
+      start: atLocalTime(date, time.startMinute, timeZone),
+      end: atLocalTime(time.endMinute > time.startMinute ? date : date.add({ days: 1 }), time.endMinute, timeZone),
+      dayTimes: fixedTiming.byDay,
       location: form.location ?? null,
       bufferBeforeMin: form.bufferBeforeMin,
       bufferAfterMin: form.bufferAfterMin,
     };
     return recurrence && !firstOccurrence(item, timeZone) ? neverOccurs : { ok: true, item };
   }
+  const taskTiming = timing as Timing<number>;
 
   const timeOfDay: TimeOfDay | null =
     form.timeOfDayStart === undefined || form.timeOfDayEnd === undefined
@@ -178,7 +268,10 @@ export function parseItemForm(fields: Record<string, unknown>, timeZone: TimeZon
     timing: "flexible" as const,
     recurrence,
     categoryId: form.category ?? null,
-    durationMin: form.durationMin,
+    durationMin: form.earliestStart
+      ? onFirstDate(Temporal.PlainDate.from(form.earliestStart.slice(0, 10)), taskTiming)
+      : taskTiming.value,
+    dayDurations: taskTiming.byDay,
     split:
       form.blocks === "split"
         ? {
@@ -194,8 +287,10 @@ export function parseItemForm(fields: Record<string, unknown>, timeZone: TimeZon
     totalMin: recurrence ? (form.totalMin ?? null) : null,
     timeOfDay,
   };
-  const blockMin = Math.min(task.split?.minChunkMin ?? task.durationMin, task.durationMin);
-  if (timeOfDay?.must && blockMin > timeOfDay.endMinute - timeOfDay.startMinute) {
+  const blockMinOf = (durationMin: number) => Math.min(task.split?.minChunkMin ?? durationMin, durationMin);
+  const blockMin = blockMinOf(task.durationMin);
+  const longestBlockMin = Math.max(...Object.values(task.dayDurations ?? {}).map(blockMinOf), blockMin);
+  if (timeOfDay?.must && longestBlockMin > timeOfDay.endMinute - timeOfDay.startMinute) {
     return { ok: false, errors: { timeOfDay: ["Its blocks are longer than these hours"] } };
   }
   const earliestStart = form.earliestStart ? at(form.earliestStart) : now;
