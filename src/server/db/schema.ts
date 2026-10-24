@@ -217,6 +217,7 @@ export const tasks = pgTable(
     deadline: timestamptz("deadline").notNull(),
     splitMinChunkMin: integer("split_min_chunk_min"),
     splitMaxChunkMin: integer("split_max_chunk_min"),
+    splitBreakMin: integer("split_break_min"),
     spread: spreadEnum("spread").notNull(),
     withinPeriod: boolean("within_period").notNull().default(false),
     upTo: boolean("up_to").notNull().default(false),
@@ -243,7 +244,7 @@ export const tasks = pgTable(
     check("tasks_duration", sql`${t.durationMin} > 0 and ${t.durationMin} % ${slotMin} = 0`),
     check(
       "tasks_split",
-      sql`(${t.splitMinChunkMin} is null) = (${t.splitMaxChunkMin} is null) and (${t.splitMinChunkMin} is null or (${t.splitMinChunkMin} between 1 and ${t.splitMaxChunkMin} and ${t.splitMinChunkMin} % ${slotMin} = 0 and ${t.splitMaxChunkMin} % ${slotMin} = 0))`,
+      sql`(${t.splitMinChunkMin} is null) = (${t.splitMaxChunkMin} is null) and (${t.splitMinChunkMin} is null) = (${t.splitBreakMin} is null) and (${t.splitMinChunkMin} is null or (${t.splitMinChunkMin} between 1 and ${t.splitMaxChunkMin} and ${t.splitMinChunkMin} % ${slotMin} = 0 and ${t.splitMaxChunkMin} % ${slotMin} = 0 and ${t.splitBreakMin} >= 0 and ${t.splitBreakMin} % ${slotMin} = 0))`,
     ),
   ],
 );

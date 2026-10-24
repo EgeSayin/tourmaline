@@ -192,6 +192,7 @@ function taskRow(tx: WorkspaceTx, item: NewTask) {
     deadline,
     splitMinChunkMin: split?.minChunkMin ?? null,
     splitMaxChunkMin: split?.maxChunkMin ?? null,
+    splitBreakMin: split?.breakMin ?? null,
     spread,
     withinPeriod,
     upTo,
@@ -238,9 +239,9 @@ function toTask(row: typeof tasks.$inferSelect, { occurrences, changes }: Histor
     earliestStart,
     deadline,
     split:
-      row.splitMinChunkMin === null || row.splitMaxChunkMin === null
+      row.splitMinChunkMin === null || row.splitMaxChunkMin === null || row.splitBreakMin === null
         ? null
-        : { minChunkMin: row.splitMinChunkMin, maxChunkMin: row.splitMaxChunkMin },
+        : { minChunkMin: row.splitMinChunkMin, maxChunkMin: row.splitMaxChunkMin, breakMin: row.splitBreakMin },
     spread: row.spread,
     withinPeriod: row.withinPeriod,
     upTo: row.upTo,

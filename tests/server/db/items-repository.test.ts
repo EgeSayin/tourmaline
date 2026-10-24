@@ -28,7 +28,7 @@ const essay: NewTask = {
   durationMin: 120,
   earliestStart: new Date("2026-10-05T04:00:00Z"),
   deadline: new Date("2026-10-09T21:00:00Z"),
-  split: { minChunkMin: 30, maxChunkMin: 90 },
+  split: { minChunkMin: 30, maxChunkMin: 90, breakMin: 30 },
   spread: "just-in-time",
   withinPeriod: false,
   upTo: false,
@@ -125,13 +125,15 @@ describe("items repository", () => {
     });
   });
 
-  it("rejects task durations and chunk sizes off the 5-minute grid, and a one-off task kept within a period", async ({
+  it("rejects task durations, chunk sizes and breaks off the 5-minute grid, a negative break, and a one-off task kept within a period", async ({
     tx,
   }) => {
     const invalid: NewItem[] = [
       { ...essay, durationMin: 62 },
-      { ...essay, split: { minChunkMin: 32, maxChunkMin: 90 } },
-      { ...essay, split: { minChunkMin: 30, maxChunkMin: 92 } },
+      { ...essay, split: { minChunkMin: 32, maxChunkMin: 90, breakMin: 30 } },
+      { ...essay, split: { minChunkMin: 30, maxChunkMin: 92, breakMin: 30 } },
+      { ...essay, split: { minChunkMin: 30, maxChunkMin: 90, breakMin: 32 } },
+      { ...essay, split: { minChunkMin: 30, maxChunkMin: 90, breakMin: -5 } },
       { ...essay, withinPeriod: true },
     ];
     for (const item of invalid) {

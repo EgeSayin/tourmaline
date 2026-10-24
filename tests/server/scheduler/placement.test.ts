@@ -1,8 +1,8 @@
 import { nightly } from "@/lib/downtime";
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
-import type { ChunkSizes, SpreadStrategy } from "@/lib/items";
-import { CHUNK_BREAK_MIN, type SchedulerSettings } from "@/lib/settings";
+import type { Split, SpreadStrategy } from "@/lib/items";
+import type { SchedulerSettings } from "@/lib/settings";
 import { minutesBetween } from "@/lib/time/duration";
 import { intersectIntervals, mergeIntervals, subtractIntervals } from "@/lib/time/interval";
 import { freeTimeMap } from "@/server/scheduler/free-time";
@@ -89,9 +89,9 @@ describe("placeTasks", () => {
     const day = iv("00:00", "23:59");
     const free = freeTimeMap(day, [fixed("Seminar", iv("12:00", "13:00"))], settings);
     const tasks = [
-      { ...flexible("Thesis", 150, day), split: { minChunkMin: 30, maxChunkMin: 60 } },
+      { ...flexible("Thesis", 150, day), split: { minChunkMin: 30, maxChunkMin: 60, breakMin: 30 } },
       // Would fit 10:00–12:00 as one block, but not as two hours with a break between.
-      { ...flexible("Revision", 120, iv("10:00", "13:00")), split: { minChunkMin: 60, maxChunkMin: 60 } },
+      { ...flexible("Revision", 120, iv("10:00", "13:00")), split: { minChunkMin: 60, maxChunkMin: 60, breakMin: 30 } },
     ];
 
     const { placements, unplaced } = placeTasks(
@@ -113,7 +113,7 @@ describe("placeTasks", () => {
       downtime: nightly(22 * 60, 10 * 60),
     };
     const threeDays = utc("2026-10-05T00:00", "2026-10-08T00:00"); // free 10:00–22:00 each day
-    const task = (id: string, durationMin: number, spread: SpreadStrategy, split: ChunkSizes | null = null) => ({
+    const task = (id: string, durationMin: number, spread: SpreadStrategy, split: Split | null = null) => ({
       ...flexible(id, durationMin, threeDays),
       spread,
       split,
@@ -122,7 +122,7 @@ describe("placeTasks", () => {
       task("Essay", 60, "even"),
       task("Practice", 60, "just-in-time"),
       task("Reading", 60, "asap"),
-      task("Thesis", 180, "even", { minChunkMin: 60, maxChunkMin: 60 }), // the most pressure, so placed first
+      task("Thesis", 180, "even", { minChunkMin: 60, maxChunkMin: 60, breakMin: 30 }), // the most pressure, so placed first
     ];
 
     const { placements } = placeTasks(
@@ -188,7 +188,9 @@ describe("placeTasks", () => {
               expect(chunk.start >= task.earliestStart && chunk.end <= task.deadline).toBe(true);
               expect(inRequiredHours(task, chunk)).toBe(true);
               expect(subtractIntervals([chunk], free)).toEqual([]);
-              if (i > 0) expect(minutesBetween(chunks[i - 1].end, chunk.start)).toBeGreaterThanOrEqual(CHUNK_BREAK_MIN);
+              if (i > 0) {
+                expect(minutesBetween(chunks[i - 1].end, chunk.start)).toBeGreaterThanOrEqual(task.split!.breakMin);
+              }
             }
           }
 

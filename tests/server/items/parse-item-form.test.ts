@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { itemToFormValues } from "@/lib/item-form";
 import type { Recurrence } from "@/lib/recurrence";
-import { DEFAULT_MAX_CHUNK_MIN, DEFAULT_MIN_CHUNK_MIN } from "@/lib/settings";
+import { DEFAULT_CHUNK_BREAK_MIN, DEFAULT_MAX_CHUNK_MIN, DEFAULT_MIN_CHUNK_MIN } from "@/lib/settings";
 import { parseItemForm } from "@/server/items/parse-item-form";
 import { fixed, flexible } from "../../support/items";
 
@@ -77,7 +77,7 @@ describe("parseItemForm", () => {
         durationMin: 120,
         earliestStart: new Date("2026-10-31T13:00Z"), // 09:00 EDT
         deadline: new Date("2026-11-02T22:00Z"), // 17:00 EST, after clocks go back
-        split: { minChunkMin: 30, maxChunkMin: 60 },
+        split: { minChunkMin: 30, maxChunkMin: 60, breakMin: 30 },
         spread: "just-in-time",
         withinPeriod: false,
         upTo: false,
@@ -135,7 +135,24 @@ describe("parseItemForm", () => {
     }
     expect(parseItemForm({ ...dueTomorrow, blocks: "split" }, tz, now)).toMatchObject({
       ok: true,
-      item: { split: { minChunkMin: DEFAULT_MIN_CHUNK_MIN, maxChunkMin: DEFAULT_MAX_CHUNK_MIN } },
+      item: {
+        split: {
+          minChunkMin: DEFAULT_MIN_CHUNK_MIN,
+          maxChunkMin: DEFAULT_MAX_CHUNK_MIN,
+          breakMin: DEFAULT_CHUNK_BREAK_MIN,
+        },
+      },
+    });
+    // Its own least time between blocks, which may be none.
+    for (const breakMin of [0, 120]) {
+      expect(parseItemForm({ ...dueTomorrow, blocks: "split", breakMin: String(breakMin) }, tz, now)).toMatchObject({
+        ok: true,
+        item: { split: { breakMin } },
+      });
+    }
+    expect(parseItemForm({ ...dueTomorrow, blocks: "split", breakMin: "7" }, tz, now)).toEqual({
+      ok: false,
+      errors: { breakMin: ["Use multiples of 5 minutes"] },
     });
 
     for (const earliestStart of ["", "2026-10-04T09:00"]) {
@@ -304,7 +321,7 @@ describe("parseItemForm", () => {
     };
     const essay = {
       ...flexible("Essay", 120, { start: new Date("2026-10-31T13:00Z"), end: new Date("2026-11-02T22:00Z") }, "high"),
-      split: { minChunkMin: 30, maxChunkMin: 60 },
+      split: { minChunkMin: 30, maxChunkMin: 60, breakMin: 30 },
       spread: "even" as const,
       timeOfDay: { startMinute: 18 * 60, endMinute: 22 * 60, must: false },
     };
@@ -322,7 +339,7 @@ describe("parseItemForm", () => {
     const weeklyProject = {
       ...flexible("Game", 6 * 60, { start: new Date("2026-10-05T04:00Z"), end: new Date("2026-10-12T04:00Z") }),
       recurrence: { frequency: "weekly", interval: 1, weekdays: [1], until: null } satisfies Recurrence,
-      split: { minChunkMin: 120, maxChunkMin: 120 },
+      split: { minChunkMin: 120, maxChunkMin: 120, breakMin: 30 },
       spread: "even" as const,
       withinPeriod: true,
       upTo: true,

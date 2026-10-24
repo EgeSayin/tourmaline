@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import { minutesBetween } from "@/lib/time/duration";
 import { PRIORITIES, type Task } from "@/lib/items";
 import { isPending, PLACEMENT_STATUSES, type Placement } from "@/lib/placements";
-import { CHUNK_BREAK_MIN, type SchedulerSettings } from "@/lib/settings";
+import type { SchedulerSettings } from "@/lib/settings";
 import { freeTimeMap } from "@/server/scheduler/free-time";
 import { intersectIntervals, subtractIntervals } from "@/lib/time/interval";
 import { replan } from "@/server/scheduler/replan";
@@ -268,7 +268,7 @@ describe("replan", () => {
     // The project needs almost all of it, so its pressure is the higher, and placed first it takes 08:30–09:25.
     const project = {
       ...flexible("Project", 145, utc("2026-10-05T08:00", "2026-10-05T13:15"), "mandatory"),
-      split: { minChunkMin: 45, maxChunkMin: 60 },
+      split: { minChunkMin: 45, maxChunkMin: 60, breakMin: 30 },
     };
     const email = flexible("Email", 5, utc("2026-10-05T08:00", "2026-10-05T09:00"), "mandatory");
     const planned = (taskId: string, times: { start: Date; end: Date }): Placement => ({
@@ -372,7 +372,7 @@ describe("replan", () => {
     };
     const thesis = {
       ...flexible("Thesis", 90, utc("2026-10-05T10:00", "2026-10-05T22:00")),
-      split: { minChunkMin: 30, maxChunkMin: 45 },
+      split: { minChunkMin: 30, maxChunkMin: 45, breakMin: 30 },
     };
     const done: Placement = {
       taskId: "Thesis",
@@ -435,7 +435,7 @@ describe("replan", () => {
               minutesBetween(other.end, placement.start),
               minutesBetween(placement.end, other.start),
             );
-            expect(apart).toBeGreaterThanOrEqual(CHUNK_BREAK_MIN);
+            expect(apart).toBeGreaterThanOrEqual(tasks.find((t) => t.id === placement.taskId)!.split!.breakMin);
           }
         }
 
@@ -510,9 +510,15 @@ describe("replan", () => {
       ],
     };
     const tasks: Task[] = [
-      { ...flexible("Short blocks", 155, day("13:39", "19:30"), "high"), split: { minChunkMin: 5, maxChunkMin: 25 } },
+      {
+        ...flexible("Short blocks", 155, day("13:39", "19:30"), "high"),
+        split: { minChunkMin: 5, maxChunkMin: 25, breakMin: 30 },
+      },
       { ...flexible("Errand", 5, day("00:00", "12:00"), "mandatory"), spread: "just-in-time" },
-      { ...flexible("Long blocks", 210, day("07:56", "15:11"), "high"), split: { minChunkMin: 95, maxChunkMin: 105 } },
+      {
+        ...flexible("Long blocks", 210, day("07:56", "15:11"), "high"),
+        split: { minChunkMin: 95, maxChunkMin: 105, breakMin: 30 },
+      },
     ];
     const input = { horizon: day("00:00", "19:30"), settings, fixedItems: [], tasks };
 

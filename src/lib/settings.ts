@@ -21,8 +21,8 @@ export const RECURRENCE_LOOKAHEAD_DAYS = 28;
 export const DEFAULT_MIN_CHUNK_MIN = 30;
 export const DEFAULT_MAX_CHUNK_MIN = 2 * 60;
 
-/** The least time between two chunks of the same task, so a split task's chunks don't run together. */
-export const CHUNK_BREAK_MIN = 30;
+/** The least time between two chunks of a split task that leaves it empty, so its chunks don't run together. */
+export const DEFAULT_CHUNK_BREAK_MIN = 30;
 
 export const OCCURRENCES_SHOWN = 7;
 

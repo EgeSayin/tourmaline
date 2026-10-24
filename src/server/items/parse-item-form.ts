@@ -11,7 +11,7 @@ import {
   type TimeOfDay,
 } from "@/lib/items";
 import { SLOT_MIN } from "@/lib/placements";
-import { DEFAULT_MAX_CHUNK_MIN, DEFAULT_MIN_CHUNK_MIN } from "@/lib/settings";
+import { DEFAULT_CHUNK_BREAK_MIN, DEFAULT_MAX_CHUNK_MIN, DEFAULT_MIN_CHUNK_MIN } from "@/lib/settings";
 import { type OccurrenceChange, type Recurrence, WEEKDAYS } from "@/lib/recurrence";
 import { minutesBetween } from "@/lib/time/duration";
 import { MINUTES_PER_DAY } from "@/lib/time/time-of-day";
@@ -91,6 +91,10 @@ const flexibleForm = z
     blocks: z.preprocess(emptyToUndefined, z.enum(BLOCKS_OPTIONS).default("one")),
     minChunkMin: z.preprocess(toNumber, taskMinutes.optional()),
     maxChunkMin: z.preprocess(toNumber, taskMinutes.optional()),
+    breakMin: z.preprocess(
+      toNumber,
+      minutes(0).multipleOf(SLOT_MIN, `Use multiples of ${SLOT_MIN} minutes`).optional(),
+    ),
     spread: z.preprocess(emptyToUndefined, z.enum(SPREAD_STRATEGIES).default("asap")),
     amount: z.preprocess(emptyToUndefined, z.enum(AMOUNT_OPTIONS).default("all")),
     catchUp: z.preprocess(emptyToUndefined, z.enum(CATCH_UP_OPTIONS).default("later")),
@@ -180,6 +184,7 @@ export function parseItemForm(fields: Record<string, unknown>, timeZone: TimeZon
         ? {
             minChunkMin: form.minChunkMin ?? DEFAULT_MIN_CHUNK_MIN,
             maxChunkMin: form.maxChunkMin ?? DEFAULT_MAX_CHUNK_MIN,
+            breakMin: form.breakMin ?? DEFAULT_CHUNK_BREAK_MIN,
           }
         : null,
     spread: form.spread,

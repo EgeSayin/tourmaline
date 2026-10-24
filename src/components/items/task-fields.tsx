@@ -26,7 +26,7 @@ import {
   type TimeOfDayRule,
 } from "@/lib/item-form";
 import { SPREAD_STRATEGIES, type SpreadStrategy } from "@/lib/items";
-import { DEFAULT_MAX_CHUNK_MIN, DEFAULT_MIN_CHUNK_MIN } from "@/lib/settings";
+import { DEFAULT_CHUNK_BREAK_MIN, DEFAULT_MAX_CHUNK_MIN, DEFAULT_MIN_CHUNK_MIN } from "@/lib/settings";
 import { formatTimeOfDayRange } from "@/lib/time/clock";
 import { formatDuration } from "@/lib/time/format";
 import { cn } from "@/lib/utils";
@@ -206,6 +206,11 @@ export function TaskScheduleSection() {
             name="maxChunkMin"
             label="Longest block"
             description={`Leave empty for ${formatDuration(DEFAULT_MAX_CHUNK_MIN)}.`}
+          />
+          <FormDurationInput
+            name="breakMin"
+            label="At least between blocks"
+            description={`The least time between two of its blocks. Leave empty for ${formatDuration(DEFAULT_CHUNK_BREAK_MIN)}.`}
           />
         </div>
       )}

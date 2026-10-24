@@ -39,6 +39,11 @@ export interface ChunkSizes {
   maxChunkMin: number;
 }
 
+/** How a task is split: its chunk sizes, and the least time between two of its chunks. */
+export interface Split extends ChunkSizes {
+  breakMin: number;
+}
+
 /** The hours of the day a task's blocks go in, the same every day: only these when `must`, otherwise these if they fit. */
 export interface TimeOfDay extends DayRange {
   must: boolean;
@@ -50,7 +55,7 @@ export interface Task extends BaseItem {
   earliestStart: Date;
   /** For a recurring task, the first occurrence's; each occurrence's window ends where the rule next occurs. */
   deadline: Date;
-  split: ChunkSizes | null;
+  split: Split | null;
   spread: SpreadStrategy;
   /**
    * For a repeating task: each occurrence is due by the end of its own period, its `interval` days or weeks, when that

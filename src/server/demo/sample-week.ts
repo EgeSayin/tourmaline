@@ -1,7 +1,7 @@
 import { CATEGORY_PRESETS, type NewCategory } from "@/lib/categories";
 import type { NewFixedItem, NewTask, Priority } from "@/lib/items";
 import type { Recurrence, Weekday } from "@/lib/recurrence";
-import { DEFAULT_SETTINGS, type SchedulerSettings } from "@/lib/settings";
+import { DEFAULT_CHUNK_BREAK_MIN, DEFAULT_SETTINGS, type SchedulerSettings } from "@/lib/settings";
 import { withFirstDeadline } from "@/server/recurrence";
 import { daysFrom, weekOf } from "@/server/time/days";
 import { localDate, startOfDay, toDate } from "@/server/time/temporal";
@@ -158,7 +158,7 @@ export function sampleWeek(now: Date) {
     },
     {
       ...flexible("CS project", 8 * 60, [local(MON, "00:00"), local(lastDay, "23:00")]),
-      split: { minChunkMin: 60, maxChunkMin: 2 * 60 },
+      split: { minChunkMin: 60, maxChunkMin: 2 * 60, breakMin: DEFAULT_CHUNK_BREAK_MIN },
       spread: "even",
       categoryId: "cs",
     },

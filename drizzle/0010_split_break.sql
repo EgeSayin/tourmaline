@@ -1,0 +1,5 @@
+ALTER TABLE "tasks" DROP CONSTRAINT "tasks_split";--> statement-breakpoint
+ALTER TABLE "tasks" ADD COLUMN "split_break_min" integer;--> statement-breakpoint
+-- Split tasks keep the break every split task had until now.
+UPDATE "tasks" SET "split_break_min" = 30 WHERE "split_min_chunk_min" IS NOT NULL;--> statement-breakpoint
+ALTER TABLE "tasks" ADD CONSTRAINT "tasks_split" CHECK (("tasks"."split_min_chunk_min" is null) = ("tasks"."split_max_chunk_min" is null) and ("tasks"."split_min_chunk_min" is null) = ("tasks"."split_break_min" is null) and ("tasks"."split_min_chunk_min" is null or ("tasks"."split_min_chunk_min" between 1 and "tasks"."split_max_chunk_min" and "tasks"."split_min_chunk_min" % 5 = 0 and "tasks"."split_max_chunk_min" % 5 = 0 and "tasks"."split_break_min" >= 0 and "tasks"."split_break_min" % 5 = 0)));

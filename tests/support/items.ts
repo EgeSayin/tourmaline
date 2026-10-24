@@ -73,8 +73,8 @@ export const taskMinutesArb = (min: number, max: number) =>
   fc.integer({ min: Math.ceil(min / SLOT_MIN), max: max / SLOT_MIN }).map((slots) => slots * SLOT_MIN);
 
 export const splitArb = fc
-  .tuple(taskMinutesArb(SLOT_MIN, 120), taskMinutesArb(0, 120))
-  .map(([minChunkMin, extra]) => ({ minChunkMin, maxChunkMin: minChunkMin + extra }));
+  .tuple(taskMinutesArb(SLOT_MIN, 120), taskMinutesArb(0, 120), taskMinutesArb(0, 120))
+  .map(([minChunkMin, extra, breakMin]) => ({ minChunkMin, maxChunkMin: minChunkMin + extra, breakMin }));
 
 /** Hours on the slot grid, a hard limit or a preference. */
 export const timeOfDayArb = fc

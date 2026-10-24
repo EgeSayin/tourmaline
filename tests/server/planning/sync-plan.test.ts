@@ -213,7 +213,7 @@ describe("syncPlan", () => {
     const gameId = await insertItem(tx, {
       ...flexible("Game", 6 * 60, utc("2026-10-05T04:00", "2026-10-12T04:00")),
       recurrence: { frequency: "weekly", interval: 1, weekdays: [1], until: null },
-      split: { minChunkMin: 120, maxChunkMin: 120 },
+      split: { minChunkMin: 120, maxChunkMin: 120, breakMin: 30 },
       spread: "even",
       withinPeriod: true,
       upTo: true,

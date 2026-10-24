@@ -1,6 +1,5 @@
 import type { SpreadStrategy } from "@/lib/items";
 import type { Placement } from "@/lib/placements";
-import { CHUNK_BREAK_MIN } from "@/lib/settings";
 import { addMinutes } from "@/lib/time/duration";
 import { type Interval, type IntervalSet, intersectIntervals, subtractIntervals } from "@/lib/time/interval";
 import {
@@ -34,7 +33,7 @@ export interface PlacementResult {
  * Places each task, in `strategy`'s order, as its `spread` asks: at its earliest fit (`asap`), centred in its share of
  * the free time in its window (`even`, see `evenTargets`, falling back to `asap` when that finds no room) or at its
  * latest fit (`just-in-time`). A task goes in one block, or for a split task in chunks (see `findEarliestChunks`) at
- * least `CHUNK_BREAK_MIN` apart, also from its chunks in `placed`. It is placed whole or not at all, except for an
+ * least its split's `breakMin` apart, also from its chunks in `placed`. It is placed whole or not at all, except for an
  * `upTo` one: it gives up a shortest chunk at a time until it fits, and is never left unplaced.
  */
 export function placeTasks(
@@ -121,10 +120,10 @@ function findBlocks(
   const breaks = placed
     .filter((placement) => placement.taskId === id)
     .map((placement) => ({
-      start: addMinutes(placement.start, -CHUNK_BREAK_MIN),
-      end: addMinutes(placement.end, CHUNK_BREAK_MIN),
+      start: addMinutes(placement.start, -split.breakMin),
+      end: addMinutes(placement.end, split.breakMin),
     }));
   const open = subtractIntervals(free, breaks);
   const find = spread === "even" ? findEvenChunks : spread === "just-in-time" ? findLatestChunks : findEarliestChunks;
-  return find(open, durationMin, window, split, CHUNK_BREAK_MIN);
+  return find(open, durationMin, window, split, split.breakMin);
 }
