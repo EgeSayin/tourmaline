@@ -3,6 +3,8 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { connection } from "next/server";
 import { SiteFooter } from "@/components/shell/site-footer";
+import { buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { APP_NAME, Wordmark } from "@/components/shell/wordmark";
 import { ScreenshotCarousel } from "@/components/welcome/screenshot-carousel";
 import { StartDemoButton } from "@/components/welcome/start-demo-button";
@@ -42,25 +44,33 @@ export default async function Welcome() {
         <h1 className="font-display text-4xl leading-[1.05] font-medium tracking-tight [font-variation-settings:'SOFT'_50] sm:text-6xl">
           Your life is <em>dynamic</em>, so your schedule should be too.
         </h1>
-        <p className="max-w-2xl text-lg text-muted-foreground">
+        <p className="text-lg text-muted-foreground">
           You say what needs doing, how long it takes and by when. {APP_NAME} works out when you do it, and plans again
           whenever something changes.
         </p>
-        <form action={startDemoAction} className="flex flex-col gap-3 sm:items-start">
-          <StartDemoButton />
-          <p className="max-w-2xl text-sm text-muted-foreground">
+        <form action={startDemoAction} className="flex flex-col gap-3">
+          <div className="flex flex-col gap-2 sm:flex-row sm:justify-center">
+            <StartDemoButton />
+            <Link href="/sign-in" className={cn(buttonVariants({ variant: "outline", size: "lg" }), "sm:px-6")}>
+              Sign in
+            </Link>
+            <Link href="/sign-up" className={cn(buttonVariants({ variant: "outline", size: "lg" }), "sm:px-6")}>
+              Create account
+            </Link>
+          </div>
+          <p className="text-sm text-muted-foreground">
             You get your own copy of a sample week to change as you like. No sign-up, and nothing about you is stored.
             It is deleted after {GUEST_IDLE_DAYS} days without a visit.
           </p>
           <p className="text-sm text-muted-foreground">
-            Have an account?{" "}
-            <Link href="/sign-in" className="font-medium text-foreground underline-offset-4 hover:underline">
-              Sign in
-            </Link>{" "}
-            or{" "}
-            <Link href="/sign-up" className="font-medium text-foreground underline-offset-4 hover:underline">
-              create one
-            </Link>
+            Want your own?{" "}
+            <a
+              href="https://github.com/EgeSayin/tourmaline"
+              className="font-medium text-foreground underline-offset-4 hover:underline"
+            >
+              Self-host it
+            </a>
+            .
           </p>
         </form>
       </section>
@@ -86,7 +96,7 @@ export default async function Welcome() {
         </ol>
       </section>
 
-      <section className="max-w-2xl">
+      <section>
         <h2 className="font-display text-2xl font-medium tracking-tight">Why I built it</h2>
         <p className="mt-4 leading-relaxed text-muted-foreground">
           Growing up, &ldquo;have a planner&rdquo; was the one suggestion I always heard. However, planners never worked

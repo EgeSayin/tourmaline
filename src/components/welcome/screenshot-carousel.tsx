@@ -60,7 +60,14 @@ const SLIDES = [
     label: "Categories",
     title: "Sort it by colour",
     caption:
-      "Put items into categories, each with its own colour, and filter the calendar to one of them to see just that part of your week.",
+      "Put items into categories, each with its own colour, and hide the ones you don't need right now to see just that part of your week.",
+  },
+  {
+    id: "stats",
+    label: "Stats",
+    title: "See how your weeks went",
+    caption:
+      "Each week shows how much of the task time you planned got done or missed, and where the done time went, by category.",
   },
 ];
 
@@ -87,7 +94,7 @@ export function ScreenshotCarousel() {
   return (
     <section aria-roledescription="carousel" aria-label="What it does" className="flex flex-col gap-4">
       <div className="flex items-end justify-between gap-4">
-        <ol className="hidden flex-wrap gap-x-5 gap-y-2 md:flex">
+        <ol className="hidden flex-wrap gap-x-4 gap-y-2 md:flex">
           {SLIDES.map(({ id, label }, index) => (
             <li key={id}>
               <button
