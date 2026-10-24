@@ -57,6 +57,8 @@ export function flexible(title: string, durationMin: number, window: Interval, p
     split: null,
     spread: "asap",
     withinPeriod: false,
+    upTo: false,
+    totalMin: null,
     timeOfDay: null,
     done: false,
   };

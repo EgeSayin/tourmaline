@@ -80,6 +80,8 @@ describe("parseItemForm", () => {
         split: { minChunkMin: 30, maxChunkMin: 60 },
         spread: "just-in-time",
         withinPeriod: false,
+        upTo: false,
+        totalMin: null,
         timeOfDay: null,
       },
     });
@@ -207,6 +209,16 @@ describe("parseItemForm", () => {
     expect(
       parseItemForm({ ...gym, repeat: "none", deadline: "2026-11-02T18:00", catchUp: "in-period" }, tz, now),
     ).toMatchObject({ ok: true, item: { withinPeriod: false } });
+
+    // Taking only what fits keeps it within its day whatever the catch-up choice, and it may stop after a total; a
+    // one-off task does neither.
+    expect(parseItemForm({ ...gym, amount: "fits", catchUp: "later", totalMin: "600" }, tz, now)).toMatchObject({
+      ok: true,
+      item: { upTo: true, withinPeriod: true, totalMin: 600, deadline: new Date("2026-11-01T04:00Z") },
+    });
+    expect(
+      parseItemForm({ ...gym, repeat: "none", deadline: "2026-11-02T18:00", amount: "fits", totalMin: "600" }, tz, now),
+    ).toMatchObject({ ok: true, item: { upTo: false, withinPeriod: false, totalMin: null } });
   });
 
   it("reports invalid repeat rules", () => {
@@ -307,6 +319,16 @@ describe("parseItemForm", () => {
       timeOfDay: { startMinute: 7 * 60, endMinute: 9 * 60 + 30, must: true },
     };
 
+    const weeklyProject = {
+      ...flexible("Game", 6 * 60, { start: new Date("2026-10-05T04:00Z"), end: new Date("2026-10-12T04:00Z") }),
+      recurrence: { frequency: "weekly", interval: 1, weekdays: [1], until: null } satisfies Recurrence,
+      split: { minChunkMin: 120, maxChunkMin: 120 },
+      spread: "even" as const,
+      withinPeriod: true,
+      upTo: true,
+      totalMin: 300 * 60,
+    };
+
     const dailyLunch = {
       ...flexible("Lunch", 45, { start: new Date("2026-10-05T15:30Z"), end: new Date("2026-10-06T04:00Z") }),
       recurrence: { frequency: "daily", interval: 1, until: null } satisfies Recurrence,
@@ -315,7 +337,14 @@ describe("parseItemForm", () => {
 
     // The form leaves out what's stored apart from the item's own fields: its id, occurrence states and changes, and
     // whether it's done.
-    for (const { id, occurrences, changes, ...item } of [lecture, essay, weeklyLecture, dailyGym, dailyLunch]) {
+    for (const { id, occurrences, changes, ...item } of [
+      lecture,
+      essay,
+      weeklyLecture,
+      dailyGym,
+      dailyLunch,
+      weeklyProject,
+    ]) {
       const parsed = parseItemForm(itemToFormValues({ id, occurrences, changes, ...item }, tz), tz, now);
       const { done: _, ...fields } = { done: false, ...item };
       expect(parsed.ok && parsed.item).toEqual(fields);

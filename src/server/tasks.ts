@@ -11,12 +11,13 @@ import { type CategoryEntry, listCategories } from "@/server/categories/category
 import { loadCategories } from "@/server/db/categories-repository";
 import { loadItem, loadItems } from "@/server/db/items-repository";
 import { loadSettings } from "@/server/db/settings-repository";
-import { loadItemPlacements, loadTaskPlacements } from "@/server/db/placements-repository";
+import { loadDoneMinutes, loadItemPlacements, loadTaskPlacements } from "@/server/db/placements-repository";
 import { upcomingOccurrences } from "@/server/recurrence";
 
 /**
- * `queued`: planned, but its remaining time, or an occurrence's, doesn't fit before its deadline. `done`: marked done.
- * `past`: its deadline or end has passed. Otherwise `scheduled`.
+ * `queued`: planned, but its remaining time, or an occurrence's, doesn't fit before its deadline. `done`: marked done,
+ * or for a series with a total, its done blocks reach it. `past`: its deadline or end has passed. Otherwise
+ * `scheduled`.
  */
 export type ItemStatus = "scheduled" | "queued" | "done" | "past";
 
@@ -28,14 +29,20 @@ export interface ItemEntry {
   recurring: boolean;
   /** A task's deadline or an event's start: for a series, its next occurrence's. */
   when: Date;
+  /** For a series with a total: the minutes of its blocks done, out of the total. */
+  progress: { doneMin: number; totalMin: number } | null;
   status: ItemStatus;
   target: EditTarget;
 }
 
-/** Every item with its status, sorted by `when`; `queue` is the plan's (see `loadQueue`). */
+/**
+ * Every item with its status, sorted by `when`; `queue` is the plan's (see `loadQueue`), and `doneMin` the minutes of
+ * each item's blocks marked done.
+ */
 function listItems(
   items: Item[],
   queue: QueuedTask[],
+  doneMin: ReadonlyMap<string, number>,
   targetFor: (id: string) => EditTarget | undefined,
   now: Date,
 ): ItemEntry[] {
@@ -44,13 +51,17 @@ function listItems(
     const target = targetFor(item.id)!;
     const span = itemSpan(target.item);
     const task = isTask(item);
+    const progress =
+      task && item.totalMin !== null ? { doneMin: doneMin.get(item.id) ?? 0, totalMin: item.totalMin } : null;
+    const finished = task && (item.done || (progress !== null && progress.doneMin >= progress.totalMin));
     return {
       id: item.id,
       title: item.title,
       kind: task ? "task" : "event",
       recurring: item.recurrence !== null,
       when: task ? span.end : span.start,
-      status: task && item.done ? "done" : queued.has(item.id) ? "queued" : span.end <= now ? "past" : "scheduled",
+      progress,
+      status: finished ? "done" : queued.has(item.id) ? "queued" : span.end <= now ? "past" : "scheduled",
       target,
     };
   });
@@ -65,11 +76,17 @@ export interface ItemList {
 
 /** Every item with its status (see `listItems`), and the categories to file them under. */
 export async function loadItemList(tx: WorkspaceTx, now: Date): Promise<ItemList> {
-  const [settings, items, categories] = await Promise.all([loadSettings(tx), loadItems(tx), loadCategories(tx)]);
+  const [settings, items, categories, doneMin] = await Promise.all([
+    loadSettings(tx),
+    loadItems(tx),
+    loadCategories(tx),
+    loadDoneMinutes(tx),
+  ]);
   const { timeZone } = settings;
+  const queue = await loadQueue(tx, items, settings, now);
   return {
     timeZone,
-    items: listItems(items, await loadQueue(tx, items, settings, now), editTargets(items, now, timeZone), now),
+    items: listItems(items, queue, doneMin, editTargets(items, now, timeZone), now),
     categories: listCategories(categories, items),
   };
 }

@@ -46,35 +46,42 @@ const keepTo = (preference: Preference): Goal => ({
  * task (the one that would otherwise wait in the queue gets it); keep out of optional fixed items' time; keep to
  * preferred hours; keep saved blocks where they are. Each goal is counted per priority level, most important
  * first, so within a goal a more important task always comes first. Spread ranks below these but isn't scored: it
- * only shapes each task's own search.
+ * only shapes each task's own search. Tasks that take only what fits are scored after all of this, goal by goal again,
+ * so they only ever get what the rest leave.
  */
 const GOALS: Goal[] = [placeTasks, keepTo(outsideOptionalItems), keepTo(inPreferredHours), keepSaved];
 
 /** The preferences of `GOALS`, in their order: a task gives up the last first. */
 export const PREFERENCES = GOALS.flatMap((goal) => (goal.preference ? [goal.preference] : []));
 
-/** How far a plan misses each of `GOALS` at each priority level, goal by goal. */
+/**
+ * How far a plan misses each of `GOALS` at each priority level, goal by goal, for the tasks that must fit, then for
+ * those that take what fits.
+ */
 export type PlanScore = number[];
 
 export function scorePlan(plan: ScoredPlan): PlanScore {
-  return GOALS.flatMap((goal) => {
-    const levels = PRIORITIES.map(() => 0);
-    for (const [taskId, missed] of goal.miss(plan)) {
-      const task = plan.tasks.get(taskId);
-      if (task) levels[PRIORITIES.indexOf(task.priority)] += missed;
-    }
-    return levels;
-  });
+  const score = (upTo: boolean) =>
+    GOALS.flatMap((goal) => {
+      const levels = PRIORITIES.map(() => 0);
+      for (const [taskId, missed] of goal.miss(plan)) {
+        const task = plan.tasks.get(taskId);
+        if (task?.upTo === upTo) levels[PRIORITIES.indexOf(task.priority)] += missed;
+      }
+      return levels;
+    });
+  return [...score(false), ...score(true)];
 }
 
 /** Whether a plan scored `score` misses a goal worth moving saved blocks for: one ranked above keeping them. */
 export const worthMovingBlocks = (score: PlanScore): boolean =>
   score.slice(0, GOALS.indexOf(keepSaved) * PRIORITIES.length).some((missed) => missed > 0);
 
-/** The tasks a plan shortchanges: those missing a goal worth moving saved blocks for. */
+/** The tasks a plan shortchanges: those that must fit and miss a goal worth moving saved blocks for. */
 export function shortchanged(plan: ScoredPlan): Set<string> {
   const goals = GOALS.slice(0, GOALS.indexOf(keepSaved));
-  return new Set(goals.flatMap((goal) => goal.miss(plan).flatMap(([taskId, missed]) => (missed > 0 ? [taskId] : []))));
+  const counts = (taskId: string, missed: number) => missed > 0 && plan.tasks.get(taskId)?.upTo === false;
+  return new Set(goals.flatMap((goal) => goal.miss(plan).flatMap(([id, missed]) => (counts(id, missed) ? [id] : []))));
 }
 
 /**

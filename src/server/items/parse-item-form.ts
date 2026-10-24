@@ -1,6 +1,6 @@
 import { z } from "zod";
 import type { FormErrors } from "@/lib/form-state";
-import { BLOCKS_OPTIONS, CATCH_UP_OPTIONS, REPEAT_OPTIONS, TIME_OF_DAY_RULES } from "@/lib/item-form";
+import { AMOUNT_OPTIONS, BLOCKS_OPTIONS, CATCH_UP_OPTIONS, REPEAT_OPTIONS, TIME_OF_DAY_RULES } from "@/lib/item-form";
 import {
   isFixed,
   type Item,
@@ -92,7 +92,9 @@ const flexibleForm = z
     minChunkMin: z.preprocess(toNumber, taskMinutes.optional()),
     maxChunkMin: z.preprocess(toNumber, taskMinutes.optional()),
     spread: z.preprocess(emptyToUndefined, z.enum(SPREAD_STRATEGIES).default("asap")),
+    amount: z.preprocess(emptyToUndefined, z.enum(AMOUNT_OPTIONS).default("all")),
     catchUp: z.preprocess(emptyToUndefined, z.enum(CATCH_UP_OPTIONS).default("later")),
+    totalMin: z.preprocess(toNumber, taskMinutes.optional()),
     timeOfDayStart: z.preprocess(toNumber, dayMinute.optional()),
     timeOfDayEnd: z.preprocess(toNumber, dayMinute.optional()),
     timeOfDayRule: z.preprocess(emptyToUndefined, z.enum(TIME_OF_DAY_RULES).default("prefer")),
@@ -127,7 +129,7 @@ export type ParsedItemForm = { ok: true; item: NewItem } | { ok: false; errors: 
  * an earlier time than it starts ends the next day.
  * A one-off flexible task without an earliest start starts at `now`, and its deadline must be after `now`.
  * A recurring item must occur at least once; a recurring task is due when its first occurrence's window ends. Only a
- * recurring task can be kept within its period. A task that must be placed in its time of day has to fit there: each
+ * recurring task can be kept within its period, take only what fits, or stop after a total. A task that must be placed in its time of day has to fit there: each
  * of its blocks within the hours, and a one-off one in those hours before it's due.
  */
 export function parseItemForm(fields: Record<string, unknown>, timeZone: TimeZone, now: Date): ParsedItemForm {
@@ -181,7 +183,10 @@ export function parseItemForm(fields: Record<string, unknown>, timeZone: TimeZon
           }
         : null,
     spread: form.spread,
-    withinPeriod: recurrence !== null && form.catchUp === "in-period",
+    // Taking what fits keeps it within its period: what it doesn't get there is let go.
+    withinPeriod: recurrence !== null && (form.catchUp === "in-period" || form.amount === "fits"),
+    upTo: recurrence !== null && form.amount === "fits",
+    totalMin: recurrence ? (form.totalMin ?? null) : null,
     timeOfDay,
   };
   const blockMin = Math.min(task.split?.minChunkMin ?? task.durationMin, task.durationMin);

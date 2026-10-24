@@ -11,6 +11,11 @@ export const CATCH_UP_OPTIONS = ["later", "in-period"] as const;
 
 export type CatchUp = (typeof CATCH_UP_OPTIONS)[number];
 
+/** How much of a repeating task's duration each occurrence gets: all of it, or what fits (see `Task.upTo`). */
+export const AMOUNT_OPTIONS = ["all", "fits"] as const;
+
+export type Amount = (typeof AMOUNT_OPTIONS)[number];
+
 /** Whether a task's time of day is a hard limit or a preference. */
 export const TIME_OF_DAY_RULES = ["prefer", "must"] as const;
 
@@ -55,7 +60,9 @@ export function itemToFormValues(item: Item, timeZone: TimeZone): Record<string,
     minChunkMin: item.split ? String(item.split.minChunkMin) : "",
     maxChunkMin: item.split ? String(item.split.maxChunkMin) : "",
     spread: item.spread,
+    amount: item.upTo ? "fits" : "all",
     catchUp: item.withinPeriod ? "in-period" : "later",
+    totalMin: item.totalMin === null ? "" : String(item.totalMin),
     timeOfDayStart: item.timeOfDay ? String(item.timeOfDay.startMinute) : "",
     timeOfDayEnd: item.timeOfDay ? String(item.timeOfDay.endMinute) : "",
     timeOfDayRule: item.timeOfDay?.must ? "must" : "prefer",

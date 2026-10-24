@@ -22,6 +22,8 @@ export function pressure(task: PlanTask, free: IntervalSet): number {
 }
 
 const compare = (a: number, b: number) => (a < b ? -1 : a > b ? 1 : 0);
+/** Every order places tasks that take only what fits after the rest. */
+const fitsLast: Comparator = (a, b) => Number(a.upTo) - Number(b.upTo);
 const byPriority: Comparator = (a, b) => compare(PRIORITIES.indexOf(a.priority), PRIORITIES.indexOf(b.priority));
 const byDeadline: Comparator = (a, b) => compare(a.deadline.getTime(), b.deadline.getTime());
 const byId: Comparator = (a, b) => a.id.localeCompare(b.id);
@@ -36,14 +38,15 @@ function sortBy(tasks: PlanTask[], ...comparators: Comparator[]): PlanTask[] {
 }
 
 /** By need: pressure (highest first), then priority, then deadline, then id. */
-export const byNeed: TaskOrder = (tasks, free) => sortBy(tasks, byPressure(tasks, free), byPriority, byDeadline, byId);
+export const byNeed: TaskOrder = (tasks, free) =>
+  sortBy(tasks, fitsLast, byPressure(tasks, free), byPriority, byDeadline, byId);
 
 /** By priority, then pressure (highest first), then deadline, then id. */
 export const byUrgency: TaskOrder = (tasks, free) =>
-  sortBy(tasks, byPriority, byPressure(tasks, free), byDeadline, byId);
+  sortBy(tasks, fitsLast, byPriority, byPressure(tasks, free), byDeadline, byId);
 
 /** By priority, then deadline (earliest first), then id. */
-export const byEarliestDeadline: TaskOrder = (tasks) => sortBy(tasks, byPriority, byDeadline, byId);
+export const byEarliestDeadline: TaskOrder = (tasks) => sortBy(tasks, fitsLast, byPriority, byDeadline, byId);
 
 /** The tasks `first` holds, then the rest, each by need. */
 export const withFirst =
@@ -51,6 +54,7 @@ export const withFirst =
   (tasks, free) =>
     sortBy(
       tasks,
+      fitsLast,
       (a, b) => Number(first.has(b.id)) - Number(first.has(a.id)),
       byPressure(tasks, free),
       byPriority,

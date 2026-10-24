@@ -53,6 +53,8 @@ function flexible(
     split: null,
     spread: "asap",
     withinPeriod: false,
+    upTo: false,
+    totalMin: null,
     timeOfDay: null,
   };
 }

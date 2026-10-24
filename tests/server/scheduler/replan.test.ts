@@ -579,4 +579,40 @@ describe("replan", () => {
       }),
     );
   });
+
+  it("never leaves a task unplaced for ones that take what fits, which are never left unplaced themselves", () => {
+    const withUpToArb = scenarioArb.chain((scenario) =>
+      fc
+        .tuple(
+          fc.array(fc.boolean(), { minLength: scenario.tasks.length, maxLength: scenario.tasks.length }),
+          existingArb(scenario.tasks),
+        )
+        .map(([upTo, existing]) => ({
+          ...scenario,
+          tasks: scenario.tasks.map((task, i) => ({ ...task, upTo: upTo[i] })),
+          existing,
+        })),
+    );
+    fc.assert(
+      fc.property(withUpToArb, ({ horizon, settings, fixedItems, tasks, existing }) => {
+        const upTo = new Set(tasks.filter((task) => task.upTo).map((task) => task.id));
+        // Unplaced tasks at each priority level, most important first.
+        const unplacedByLevel = ({ unplaced }: { unplaced: Task[] }) =>
+          PRIORITIES.map((priority) => unplaced.filter((task) => task.priority === priority).length);
+
+        const all = replan({ horizon, settings, fixedItems, tasks, existing });
+        const withoutUpTo = replan({
+          horizon,
+          settings,
+          fixedItems,
+          tasks: tasks.filter((task) => !upTo.has(task.id)),
+          existing: existing.filter((p) => !upTo.has(p.taskId) || !isPending(p, horizon.start)),
+        });
+
+        expect(all.unplaced.filter((task) => upTo.has(task.id))).toEqual([]);
+        expect(unplacedByLevel(all)).toEqual(unplacedByLevel(withoutUpTo));
+      }),
+      { numRuns: 500 },
+    );
+  }, 60_000);
 });

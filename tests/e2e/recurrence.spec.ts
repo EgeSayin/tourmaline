@@ -3,6 +3,7 @@ import { WEEKDAY_NAMES } from "@/lib/time/format";
 import {
   blockPanel,
   earlySlot,
+  expectDuration,
   expectTime,
   fillDateTime,
   fillDuration,
@@ -85,6 +86,35 @@ test.describe("recurring items", () => {
     await blockActions.getByRole("button", { name: `Skip ${dateLabel(1)}` }).click();
     await expect(blockActions).toBeHidden();
     await expect(tomorrows).toHaveCount(0);
+  });
+
+  test("takes only what fits of a repeating task, never queueing it, and stops it after a total", async ({
+    page,
+  }, testInfo) => {
+    const title = `E2E side project (${testInfo.project.name})`;
+    const form = await openAddItemForm(page);
+    await form.getByLabel("Title").fill(title);
+    await form.getByLabel("How often").selectOption("daily");
+    await form.getByRole("radio", { name: "What fits" }).click();
+    // The most it gets each day, kept to its own day.
+    await fillDuration(form, "Up to", 15 * 60); // longer than any free stretch in a day
+    await expect(form.getByRole("radio", { name: "Same day only" })).toHaveCount(0);
+    await fillDuration(form, "Stop after", 300 * 60);
+    await fillDateTime(form, "Not before", localDateTime(-1, "10:00"));
+    await form.getByRole("button", { name: "Add item" }).click();
+    await expect(form).toBeHidden();
+
+    const queue = await showQueue(page, testInfo);
+    await expect(queue.getByRole("link", { name: new RegExp(RegExp.escape(title)) })).toHaveCount(0);
+
+    await page.goto("/tasks");
+    const row = page.getByRole("link", { name: new RegExp(RegExp.escape(title)) });
+    await expect(row).toContainText("0m of 300h done");
+    await row.click();
+    const editor = itemEditor(page);
+    await expect(editor.getByRole("radio", { name: "What fits" })).toHaveAttribute("aria-checked", "true");
+    await expectDuration(editor, "Up to", 15 * 60);
+    await expectDuration(editor, "Stop after", 300 * 60);
   });
 
   test("lists each occurrence of a repeating task that can't fit by its date, and opens the series to mark one done", async ({

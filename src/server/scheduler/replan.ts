@@ -59,7 +59,11 @@ export function replan({ horizon, fixedItems, tasks, existing, settings }: Repla
   };
 
   const tasksById = new Map(tasks.map((task) => [task.id, task]));
-  const priorityOf = (placement: Placement) => PRIORITIES.indexOf(tasksById.get(placement.taskId)!.priority);
+  // Tasks that take what fits rank below every priority, so their blocks are moved first.
+  const priorityOf = (placement: Placement) => {
+    const task = tasksById.get(placement.taskId)!;
+    return task.upTo ? PRIORITIES.length : PRIORITIES.indexOf(task.priority);
+  };
   let best = fill(movable, BY_URGENCY);
   for (let improved = worthMovingBlocks(best.score); improved;) {
     const base = best;
@@ -102,7 +106,7 @@ function keptVariants(
   const inTheWay = (placement: Placement) =>
     plan.shortchanged.has(placement.taskId) || wanted.some((time) => overlaps(placement, time));
   const variants = new Map([[pending.map(placementKey).join(), pending]]);
-  for (let level = PRIORITIES.length - 1; level >= 0; level--) {
+  for (let level = PRIORITIES.length; level >= 0; level--) {
     const bumped = (placement: Placement) => priorityOf(placement) >= level;
     for (const keeping of [
       pending.filter((placement) => !bumped(placement) || !inTheWay(placement)),

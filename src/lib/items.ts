@@ -57,6 +57,16 @@ export interface Task extends BaseItem {
    * comes before the next occurrence, so time it misses is never planned past it. Always `false` for a one-off task.
    */
   withinPeriod: boolean;
+  /**
+   * For a repeating task kept within its period: each occurrence takes only the time other tasks leave, up to
+   * `durationMin`, and what doesn't fit is let go, never queued. Always `false` otherwise.
+   */
+  upTo: boolean;
+  /**
+   * For a repeating task: the time after which the series stops, counting its blocks that weren't missed, or `null` to
+   * go on. Always `null` for a one-off task.
+   */
+  totalMin: number | null;
   timeOfDay: TimeOfDay | null;
   /** Marked done as a whole, so it isn't planned. An occurrence's comes from its state. */
   done: boolean;

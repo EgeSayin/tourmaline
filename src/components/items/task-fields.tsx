@@ -15,6 +15,8 @@ import { useClockFormat } from "@/components/time/clock-format";
 import { Button } from "@/components/ui/button";
 import { FieldDescription, FieldError, FieldLegend, FieldSet } from "@/components/ui/field";
 import {
+  type Amount,
+  AMOUNT_OPTIONS,
   type Blocks,
   BLOCKS_OPTIONS,
   CATCH_UP_OPTIONS,
@@ -40,16 +42,41 @@ const DURATION_PRESETS = [30, 60, 90, 120];
 const catchUpLabels = (period: string) =>
   ({ later: "Plan it later", "in-period": `Same ${period} only` }) satisfies Record<CatchUp, string>;
 
-/** A task's length. */
-export function DurationField() {
-  return <FormDurationInput name="durationMin" label="Duration" presets={DURATION_PRESETS} />;
+const AMOUNT_LABELS = { all: "All of it", fits: "What fits" } satisfies Record<Amount, string>;
+
+/** A task's length: for one that takes only what fits, the most it takes each time. */
+export function DurationField({ upTo = false }: { upTo?: boolean }) {
+  return (
+    <FormDurationInput
+      name="durationMin"
+      label={upTo ? "Up to" : "Duration"}
+      presets={DURATION_PRESETS}
+      description={upTo ? "The most it gets each time." : undefined}
+    />
+  );
+}
+
+/** How much of its duration each occurrence of a repeating task gets: all of it, or only what fits. */
+export function AmountField({ repeat, onAmountChange }: { repeat: Repeat; onAmountChange: (amount: Amount) => void }) {
+  const period = repeat === "daily" ? "day" : "week";
+  return (
+    <FormChoice
+      key={period}
+      name="amount"
+      label="Each time"
+      description={`What fits: only time your other tasks leave in its ${period}. What doesn't fit is let go, not queued.`}
+      options={AMOUNT_OPTIONS.map((value) => ({ value, label: AMOUNT_LABELS[value] }))}
+      defaultValue="all"
+      onValueChange={onAmountChange}
+    />
+  );
 }
 
 /**
- * When a task can start and by when. A repeating task isn't asked for a due date: in its place,
- * until when each occurrence may be planned.
+ * When a task can start and by when. A repeating task isn't asked for a due date: in its place, until when each
+ * occurrence may be planned, unless it takes only what fits, which keeps it to its own period.
  */
-export function TaskWindowFields({ repeat }: { repeat: Repeat }) {
+export function TaskWindowFields({ repeat, upTo = false }: { repeat: Repeat; upTo?: boolean }) {
   const period = repeat === "daily" ? "day" : "week";
   return (
     <>
@@ -62,7 +89,7 @@ export function TaskWindowFields({ repeat }: { repeat: Repeat }) {
       />
       {repeat === "none" ? (
         <FormDateTimeInput name="deadline" label="Due" placeholder="Not set" />
-      ) : (
+      ) : upTo ? null : (
         <FormChoice
           key={period}
           name="catchUp"

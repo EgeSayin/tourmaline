@@ -34,7 +34,8 @@ export interface PlacementResult {
  * Places each task, in `strategy`'s order, as its `spread` asks: at its earliest fit (`asap`), centred in its share of
  * the free time in its window (`even`, see `evenTargets`, falling back to `asap` when that finds no room) or at its
  * latest fit (`just-in-time`). A task goes in one block, or for a split task in chunks (see `findEarliestChunks`) at
- * least `CHUNK_BREAK_MIN` apart, also from its chunks in `placed`. It is placed whole or not at all.
+ * least `CHUNK_BREAK_MIN` apart, also from its chunks in `placed`. It is placed whole or not at all, except for an
+ * `upTo` one: it gives up a shortest chunk at a time until it fits, and is never left unplaced.
  */
 export function placeTasks(
   tasks: PlanTask[],
@@ -48,7 +49,7 @@ export function placeTasks(
 
   for (let queue = strategy.order(tasks, remaining); queue.length > 0;) {
     const [task, ...rest] = queue;
-    const blocks = findTaskBlocks(task, remaining, placed);
+    const blocks = task.upTo ? findMostBlocks(task, remaining, placed) : findTaskBlocks(task, remaining, placed);
     if (blocks) {
       placements.push(
         ...blocks.map((block) => ({
@@ -59,7 +60,7 @@ export function placeTasks(
         })),
       );
       remaining = subtractIntervals(remaining, blocks);
-    } else {
+    } else if (!task.upTo) {
       unplaced.push(task);
     }
     queue = strategy.reorder ? strategy.order(rest, remaining) : rest;
@@ -81,6 +82,17 @@ function findTaskBlocks(task: PlanTask, free: IntervalSet, placed: readonly Plac
       const found = findBlocks(task, spread, open, placed);
       if (found) return found;
     }
+  }
+  return null;
+}
+
+/** Blocks for as much of `task` as fits: all of it, then whole shortest chunks (none for one block), most first. */
+function findMostBlocks(task: PlanTask, free: IntervalSet, placed: readonly Placement[]): Interval[] | null {
+  const step = Math.min(task.split?.minChunkMin ?? task.durationMin, task.durationMin);
+  const shorter = Array.from({ length: Math.ceil(task.durationMin / step) - 1 }, (_, i) => (i + 1) * step).reverse();
+  for (const durationMin of [task.durationMin, ...shorter]) {
+    const found = findTaskBlocks({ ...task, durationMin }, free, placed);
+    if (found) return found;
   }
   return null;
 }

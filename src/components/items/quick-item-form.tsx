@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { FieldError, FieldGroup } from "@/components/ui/field";
 import type { Category } from "@/lib/categories";
 import { itemToFormValues } from "@/lib/item-form";
-import { isFixed, type Item } from "@/lib/items";
+import { isFixed, isTask, type Item } from "@/lib/items";
 import type { TimeZone } from "@/lib/time/time-zone";
 import { useFormAction } from "@/hooks/use-form-action";
 import { updateItemAction } from "@/server/items/actions";
@@ -56,7 +56,7 @@ export function QuickItemForm({
           ) : (
             <>
               <FormChoice name="priority" label="Priority" options={PRIORITY_OPTIONS} defaultValue="normal" />
-              <DurationField />
+              <DurationField upTo={isTask(item) && item.upTo} />
               {!item.recurrence && <FormDateTimeInput name="deadline" label="Due" />}
             </>
           )}

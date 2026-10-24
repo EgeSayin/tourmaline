@@ -6,7 +6,7 @@ import { DeleteButton } from "@/components/forms/delete-button";
 import { FormChoice, FormInput, FormSection, FormStateProvider } from "@/components/forms/form-fields";
 import { Button } from "@/components/ui/button";
 import { FieldGroup } from "@/components/ui/field";
-import { itemToFormValues, type Repeat } from "@/lib/item-form";
+import { type Amount, itemToFormValues, type Repeat } from "@/lib/item-form";
 import type { Category } from "@/lib/categories";
 import { isTask, type Item } from "@/lib/items";
 import { PRIORITY_OPTIONS } from "./priority";
@@ -15,7 +15,7 @@ import { useFormAction } from "@/hooks/use-form-action";
 import { createItemAction, deleteItemAction, updateItemAction } from "@/server/items/actions";
 import { BufferFields, FixedTimeFields } from "./fixed-item-fields";
 import { RepeatFields } from "./repeat-fields";
-import { DurationField, TaskScheduleSection, TaskWindowFields, TimeOfDayField } from "./task-fields";
+import { AmountField, DurationField, TaskScheduleSection, TaskWindowFields, TimeOfDayField } from "./task-fields";
 import { TaskDoneButton } from "./task-done-button";
 import { TimingSwitch } from "./timing-switch";
 
@@ -37,6 +37,8 @@ export function ItemForm({
     onDone,
   );
   const [repeat, setRepeat] = useState<Repeat>(item?.recurrence?.frequency ?? "none");
+  const [amount, setAmount] = useState<Amount>(item && isTask(item) && item.upTo ? "fits" : "all");
+  const upTo = repeat !== "none" && amount === "fits";
 
   return (
     <form onSubmit={onSubmit} className="flex flex-col gap-6">
@@ -61,7 +63,7 @@ export function ItemForm({
           {timing === "fixed" && <FormInput name="location" label="Location (optional)" />}
           {/* Before "When", whose fields depend on it; it keeps its place as the kind changes, so what's entered stays. */}
           <FormSection title="Repeat">
-            <RepeatFields repeat={repeat} onRepeatChange={setRepeat} />
+            <RepeatFields repeat={repeat} onRepeatChange={setRepeat} total={timing === "flexible"} />
           </FormSection>
           <FormSection title="When">
             {timing === "fixed" ? (
@@ -71,8 +73,9 @@ export function ItemForm({
               </>
             ) : (
               <>
-                <DurationField />
-                <TaskWindowFields repeat={repeat} />
+                <DurationField upTo={upTo} />
+                {repeat !== "none" && <AmountField repeat={repeat} onAmountChange={setAmount} />}
+                <TaskWindowFields repeat={repeat} upTo={upTo} />
                 <TimeOfDayField />
               </>
             )}

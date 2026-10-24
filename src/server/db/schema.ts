@@ -219,6 +219,8 @@ export const tasks = pgTable(
     splitMaxChunkMin: integer("split_max_chunk_min"),
     spread: spreadEnum("spread").notNull(),
     withinPeriod: boolean("within_period").notNull().default(false),
+    upTo: boolean("up_to").notNull().default(false),
+    totalMin: integer("total_min"),
     timeOfDayStartMin: integer("time_of_day_start_min"),
     timeOfDayEndMin: integer("time_of_day_end_min"),
     timeOfDayMust: boolean("time_of_day_must"),
@@ -229,6 +231,11 @@ export const tasks = pgTable(
     ...itemConstraints("tasks", t),
     check("tasks_window", sql`${t.earliestStart} < ${t.deadline}`),
     check("tasks_within_period", sql`not ${t.withinPeriod} or ${t.recurrence} is not null`),
+    check("tasks_up_to", sql`not ${t.upTo} or ${t.withinPeriod}`),
+    check(
+      "tasks_total",
+      sql`${t.totalMin} is null or (${t.recurrence} is not null and ${t.totalMin} > 0 and ${t.totalMin} % ${slotMin} = 0)`,
+    ),
     check(
       "tasks_time_of_day",
       sql`(${t.timeOfDayStartMin} is null) = (${t.timeOfDayEndMin} is null) and (${t.timeOfDayStartMin} is null) = (${t.timeOfDayMust} is null) and (${t.timeOfDayStartMin} is null or (0 <= ${t.timeOfDayStartMin} and ${t.timeOfDayStartMin} < ${t.timeOfDayEndMin} and ${t.timeOfDayEndMin} <= ${minutesPerDay} and ${t.timeOfDayStartMin} % ${slotMin} = 0 and ${t.timeOfDayEndMin} % ${slotMin} = 0))`,

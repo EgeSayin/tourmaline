@@ -12,6 +12,8 @@ import { loadUnplaced, syncPlan } from "@/server/planning/sync-plan";
 import { expandOccurrences } from "@/server/recurrence";
 import { dbTest as it } from "../../support/database";
 import { utc } from "../../support/intervals";
+import { minutesBetween } from "@/lib/time/duration";
+import { localDate } from "@/server/time/temporal";
 import { fixed, flexible } from "../../support/items";
 
 const settings: SchedulerSettings = {
@@ -198,6 +200,74 @@ describe("syncPlan", () => {
 
     expect(result.placements).toHaveLength(1);
     expect(await loadPlacements(tx, week)).toEqual(result.placements);
+  });
+
+  it("plans a repeating task that takes what fits up to its duration each week, after due tasks, never queued", async ({
+    tx,
+  }) => {
+    // Next Friday's trip makes the plan reach into next week.
+    await insertItem(tx, fixed("Trip", utc("2026-10-16T14:00", "2026-10-16T15:00")));
+    // Everything this week but Sunday 19:30 to 23:00, when downtime starts.
+    await insertItem(tx, fixed("Busy", utc("2026-10-07T16:00", "2026-10-11T23:30")));
+    // Weekly from Monday midnight, up to six hours in two-hour blocks.
+    const gameId = await insertItem(tx, {
+      ...flexible("Game", 6 * 60, utc("2026-10-05T04:00", "2026-10-12T04:00")),
+      recurrence: { frequency: "weekly", interval: 1, weekdays: [1], until: null },
+      split: { minChunkMin: 120, maxChunkMin: 120 },
+      spread: "even",
+      withinPeriod: true,
+      upTo: true,
+    });
+    const [thisWeek, nextWeek] = [`${gameId}@2026-10-05`, `${gameId}@2026-10-12`];
+    // Two hours done on Monday leave four for this week.
+    await insertPlacements(tx, [auto(thisWeek, utc("2026-10-05T14:00", "2026-10-05T16:00"), "done")]);
+    const planned = (result: { placements: Placement[] }, taskId: string) =>
+      result.placements.filter((p) => p.taskId === taskId && p.status === "planned");
+
+    const first = await plan(tx, wednesdayNoon);
+    expect(first.unplaced).toEqual([]);
+    // Room for one block of the two it may still take this week.
+    const thisWeeks = planned(first, thisWeek);
+    expect(thisWeeks.map((p) => minutesBetween(p.start, p.end))).toEqual([120]);
+    expect(thisWeeks[0].start >= new Date("2026-10-11T23:30Z")).toBe(true);
+    // Next week has room for far more, but gets its six hours, spread over the week.
+    const nextWeeks = planned(first, nextWeek);
+    expect(nextWeeks.map((p) => minutesBetween(p.start, p.end))).toEqual([120, 120, 120]);
+    expect(new Set(nextWeeks.map((p) => localDate(p.start, settings.timeZone).dayOfWeek)).size).toBe(3);
+
+    // A due task takes Sunday's time, and the game waits for next week without being queued.
+    const reportId = await insertItem(tx, flexible("Report", 210, utc("2026-10-05T04:00", "2026-10-12T03:00")));
+    const second = await plan(tx, wednesdayNoon);
+    expect(second.unplaced).toEqual([]);
+    expect(second.placements.filter((p) => p.taskId === reportId)).toEqual([
+      auto(reportId, utc("2026-10-11T23:30", "2026-10-12T03:00")),
+    ]);
+    expect(planned(second, thisWeek)).toEqual([]);
+    expect(planned(second, nextWeek)).toEqual(nextWeeks);
+
+    // Planning again changes nothing.
+    expect((await plan(tx, wednesdayNoon)).placements).toEqual(second.placements);
+  });
+
+  it("plans a repeating task only until its total is spent, missed time aside", async ({ tx }) => {
+    // Friday's appointment makes the plan reach Friday.
+    await insertItem(tx, fixed("Appointment", utc("2026-10-09T14:00", "2026-10-09T15:00")));
+    const novelId = await insertItem(tx, {
+      ...flexible("Novel", 60, utc("2026-10-05T04:00", "2026-10-06T04:00")),
+      recurrence: daily,
+      totalMin: 3 * 60,
+    });
+    await insertPlacements(tx, [
+      auto(`${novelId}@2026-10-05`, utc("2026-10-05T14:00", "2026-10-05T15:00"), "done"),
+      auto(`${novelId}@2026-10-06`, utc("2026-10-06T14:00", "2026-10-06T15:00"), "missed"),
+    ]);
+
+    const novels = (await plan(tx, wednesdayNoon)).placements.filter((p) => p.status === "planned");
+    // Two hours left: today's and tomorrow's, none on Friday.
+    expect(novels.map((p) => [p.taskId, minutesBetween(p.start, p.end)])).toEqual([
+      [`${novelId}@2026-10-07`, 60],
+      [`${novelId}@2026-10-08`, 60],
+    ]);
   });
 
   it(`plans recurring tasks at most ${RECURRENCE_LOOKAHEAD_DAYS} days ahead, however far the plan reaches`, async ({

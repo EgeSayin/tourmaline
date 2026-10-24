@@ -1,4 +1,4 @@
-import { FormInput, FormSelect, FormToggleGroup } from "@/components/forms/form-fields";
+import { FormDurationInput, FormInput, FormSelect, FormToggleGroup } from "@/components/forms/form-fields";
 import { type Repeat, REPEAT_OPTIONS } from "@/lib/item-form";
 import { WEEKDAYS } from "@/lib/recurrence";
 import { WEEKDAY_NAMES } from "@/lib/time/format";
@@ -10,10 +10,12 @@ const WEEKDAY_OPTIONS = WEEKDAYS.map((day) => ({ value: String(day), label: WEEK
 interface RepeatProps {
   repeat: Repeat;
   onRepeatChange: (repeat: Repeat) => void;
+  /** Whether to offer stopping after a total time, as a task can. */
+  total?: boolean;
 }
 
 /** How often an item repeats, with the rule's own fields right under it once it does. */
-export function RepeatFields({ repeat, onRepeatChange }: RepeatProps) {
+export function RepeatFields({ repeat, onRepeatChange, total = false }: RepeatProps) {
   return (
     <>
       <FormSelect
@@ -43,6 +45,13 @@ export function RepeatFields({ repeat, onRepeatChange }: RepeatProps) {
             description="Leave empty to repeat forever."
           />
         </div>
+      )}
+      {repeat !== "none" && total && (
+        <FormDurationInput
+          name="totalMin"
+          label="Stop after"
+          description="Once this much time has gone into it, counting every block that wasn't missed. Leave empty to keep going."
+        />
       )}
     </>
   );

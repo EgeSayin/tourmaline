@@ -31,6 +31,8 @@ const essay: NewTask = {
   split: { minChunkMin: 30, maxChunkMin: 90 },
   spread: "just-in-time",
   withinPeriod: false,
+  upTo: false,
+  totalMin: null,
   timeOfDay: null,
 };
 

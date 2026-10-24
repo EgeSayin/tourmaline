@@ -184,7 +184,7 @@ function fixedRow(tx: WorkspaceTx, item: NewFixedItem) {
 }
 
 function taskRow(tx: WorkspaceTx, item: NewTask) {
-  const { durationMin, earliestStart, deadline, split, spread, withinPeriod, timeOfDay } = item;
+  const { durationMin, earliestStart, deadline, split, spread, withinPeriod, upTo, totalMin, timeOfDay } = item;
   return {
     ...sharedRow(tx, item),
     durationMin,
@@ -194,6 +194,8 @@ function taskRow(tx: WorkspaceTx, item: NewTask) {
     splitMaxChunkMin: split?.maxChunkMin ?? null,
     spread,
     withinPeriod,
+    upTo,
+    totalMin,
     timeOfDayStartMin: timeOfDay?.startMinute ?? null,
     timeOfDayEndMin: timeOfDay?.endMinute ?? null,
     timeOfDayMust: timeOfDay?.must ?? null,
@@ -241,6 +243,8 @@ function toTask(row: typeof tasks.$inferSelect, { occurrences, changes }: Histor
         : { minChunkMin: row.splitMinChunkMin, maxChunkMin: row.splitMaxChunkMin },
     spread: row.spread,
     withinPeriod: row.withinPeriod,
+    upTo: row.upTo,
+    totalMin: row.totalMin,
     timeOfDay:
       row.timeOfDayStartMin === null || row.timeOfDayEndMin === null || row.timeOfDayMust === null
         ? null

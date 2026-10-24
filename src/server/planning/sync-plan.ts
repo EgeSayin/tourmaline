@@ -5,7 +5,7 @@ import { addMinutes, minutesBetween } from "@/lib/time/duration";
 import { earlier, type Interval, later } from "@/lib/time/interval";
 import { MINUTES_PER_DAY } from "@/lib/time/time-of-day";
 import type { WorkspaceTx } from "@/server/db/workspace-transaction";
-import { loadPlacementsFrom, replacePendingPlacements } from "@/server/db/placements-repository";
+import { loadItemPlacements, loadPlacementsFrom, replacePendingPlacements } from "@/server/db/placements-repository";
 import { expandOccurrences } from "@/server/recurrence";
 import { replan } from "@/server/scheduler/replan";
 
@@ -54,6 +54,7 @@ export async function loadUnplaced(
     spentMin.set(placement.taskId, (spentMin.get(placement.taskId) ?? 0) + minutes);
   }
   return tasks.flatMap((task) => {
+    if (task.upTo) return [];
     const remainingMin = task.durationMin - (spentMin.get(task.id) ?? 0);
     return remainingMin > 0 ? [{ ...task, durationMin: remainingMin }] : [];
   });
@@ -69,12 +70,15 @@ async function loadScope(tx: WorkspaceTx, items: Item[], settings: SchedulerSett
   const oneOffs = items.filter((item) => !item.recurrence && !(isTask(item) && item.done));
   const oneOffEnd = planningHorizon(now, oneOffs).end;
   const lookaheadEnd = addMinutes(now, RECURRENCE_LOOKAHEAD_DAYS * MINUTES_PER_DAY);
-  const tasks = items
-    .filter(isTask)
-    .flatMap((item) =>
-      expandOccurrences(item, { start: now, end: earlier(oneOffEnd, lookaheadEnd) }, settings.timeZone),
-    )
-    .filter((task) => !task.done);
+  const range = { start: now, end: earlier(oneOffEnd, lookaheadEnd) };
+  const expanded = await Promise.all(
+    items.filter(isTask).map(async (item) => {
+      const occurrences = expandOccurrences(item, range, settings.timeZone).filter((task) => !task.done);
+      if (item.totalMin === null) return occurrences;
+      return withinTotal(item.totalMin, occurrences, await loadItemPlacements(tx, item.id), now);
+    }),
+  );
+  const tasks = expanded.flat();
   const horizon = planningHorizon(now, [...oneOffs, ...tasks]);
 
   // Earlier placements matter as time already spent on a planned task. Not bounded by the horizon, so pending blocks
@@ -82,6 +86,23 @@ async function loadScope(tx: WorkspaceTx, items: Item[], settings: SchedulerSett
   const historyStart = tasks.reduce((start, task) => earlier(start, task.earliestStart), now);
   const existing = await loadPlacementsFrom(tx, historyStart);
   return { tasks, horizon, existing };
+}
+
+/**
+ * A series' planned `occurrences`, in order, each cut to what's left of `totalMin` after the time its other blocks in
+ * `placements` took, missed and pending ones aside; those left with none are dropped. Each occurrence's own blocks
+ * count against its own duration as it's planned.
+ */
+function withinTotal(totalMin: number, occurrences: Task[], placements: Placement[], now: Date): Task[] {
+  const planned = new Set(occurrences.map((task) => task.id));
+  let leftMin = placements
+    .filter((p) => p.status !== "missed" && !isPending(p, now) && !planned.has(p.taskId))
+    .reduce((left, p) => left - minutesBetween(p.start, p.end), totalMin);
+  return occurrences.flatMap((task) => {
+    const durationMin = Math.min(task.durationMin, leftMin);
+    leftMin -= durationMin;
+    return durationMin > 0 ? [{ ...task, durationMin }] : [];
+  });
 }
 
 function samePlacements(a: Placement[], b: Placement[]): boolean {

@@ -7,7 +7,7 @@ import { CategoryChips, useCategoryVisibility } from "@/components/categories/ca
 import { SegmentedControl } from "@/components/controls/segmented-control";
 import { useClockFormat } from "@/components/time/clock-format";
 import { type Category, isShown } from "@/lib/categories";
-import { formatDateTime } from "@/lib/time/format";
+import { formatDateTime, formatDuration } from "@/lib/time/format";
 import type { TimeZone } from "@/lib/time/time-zone";
 import { cn } from "@/lib/utils";
 import type { ItemEntry, ItemStatus } from "@/server/tasks";
@@ -82,7 +82,7 @@ export function TaskList({
 
 function TaskRow({ entry, current, timeZone }: { entry: ItemEntry; current: boolean; timeZone: TimeZone }) {
   const clock = useClockFormat();
-  const { id, title, kind, recurring, when, status } = entry;
+  const { id, title, kind, recurring, when, progress, status } = entry;
   return (
     <Link
       href={`/tasks?id=${id}`}
@@ -96,6 +96,7 @@ function TaskRow({ entry, current, timeZone }: { entry: ItemEntry; current: bool
         </span>
         <span className="text-xs text-muted-foreground tabular-nums">
           {kind === "task" ? "Task · due" : "Event ·"} {formatDateTime(when, timeZone, clock)}
+          {progress && ` · ${formatDuration(progress.doneMin)} of ${formatDuration(progress.totalMin)} done`}
         </span>
       </span>
       <span className={cn("shrink-0 rounded-full px-2 py-0.5 text-xs", STATUS_STYLES[status])}>

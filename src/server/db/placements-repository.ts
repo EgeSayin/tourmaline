@@ -1,4 +1,4 @@
-import { and, asc, eq, gt, gte, isNull, lt, lte, type SQL } from "drizzle-orm";
+import { and, asc, eq, gt, gte, isNull, lt, lte, type SQL, sql } from "drizzle-orm";
 import { isPending, type Placement, type PlacementRef } from "@/lib/placements";
 import { occurrenceId, parseOccurrenceId } from "@/lib/recurrence";
 import type { Interval } from "@/lib/time/interval";
@@ -32,6 +32,19 @@ export function loadPlacementsToReview(tx: WorkspaceTx, now: Date): Promise<Plac
 /** Every placement of a task or of any occurrence of series `itemId`, sorted by start. */
 export function loadItemPlacements(tx: WorkspaceTx, itemId: string): Promise<Placement[]> {
   return findPlacements(tx, eq(placements.itemId, itemId));
+}
+
+/** Minutes of blocks marked done, by item. */
+export async function loadDoneMinutes(tx: WorkspaceTx): Promise<Map<string, number>> {
+  const rows = await tx
+    .select({
+      itemId: placements.itemId,
+      minutes: sql<number>`sum(extract(epoch from ${placements.endAt} - ${placements.startAt}) / 60)::integer`,
+    })
+    .from(placements)
+    .where(and(ownedBy(tx, placements), eq(placements.status, "done")))
+    .groupBy(placements.itemId);
+  return new Map(rows.map((row) => [row.itemId, row.minutes]));
 }
 
 /** Every placement of a task or occurrence (by its occurrence id), sorted by start. */
