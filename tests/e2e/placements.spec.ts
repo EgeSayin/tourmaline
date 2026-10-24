@@ -6,7 +6,7 @@ test.describe("scheduled blocks", () => {
     page,
   }, testInfo) => {
     const title = `E2E flashcards (${testInfo.project.name})`;
-    // Mandatory, in a window just its length, so its block stays put when other specs' changes plan from scratch.
+    // Mandatory, in a window just its length, so its block stays put when other specs' changes plan again.
     const [from, to] = testInfo.project.name === "phone" ? ["21:30", "22:00"] : ["21:00", "21:30"];
     const form = await openAddItemForm(page);
     await form.getByLabel("Title").fill(title);

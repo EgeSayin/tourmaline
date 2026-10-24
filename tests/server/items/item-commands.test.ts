@@ -3,8 +3,7 @@ import type { NewItem } from "@/lib/items";
 import type { Placement, PlacementStatus } from "@/lib/placements";
 import { occurrenceId, type Recurrence } from "@/lib/recurrence";
 import { insertItem, loadItem, loadItems } from "@/server/db/items-repository";
-import { insertPlacements, loadPlacement, loadPlacements } from "@/server/db/placements-repository";
-import { placements } from "@/server/db/schema";
+import { insertPlacements, loadPlacements } from "@/server/db/placements-repository";
 import { changeOccurrence, editItem, removeItem, setTaskDone, skipOccurrence } from "@/server/items/item-commands";
 import { dbTest as it } from "../../support/database";
 import { utc } from "../../support/intervals";
@@ -198,25 +197,18 @@ describe("editing in place", () => {
 });
 
 describe("changes that free time", () => {
-  it("drop every pending block so tasks are placed anew, keeping pinned ones, and other changes keep them", async ({
-    tx,
-  }) => {
+  it("leave the time free and keep other tasks' blocks where they are", async ({ tx }) => {
     const essayId = await insertItem(tx, unsaved(flexible("Essay", 60, utc("2026-10-07T04:00", "2026-10-12T04:00"))));
-    const pending = {
-      taskId: essayId,
-      ...utc("2026-10-08T18:00", "2026-10-08T19:00"),
-      pinned: false,
-      status: "planned" as const,
-    };
-    const pinned = { ...pending, ...utc("2026-10-09T18:00", "2026-10-09T19:00"), pinned: true };
-    const pendingLeft = async () => (await loadPlacements(tx, week)).some((placement) => !placement.pinned);
+    const essayBlocks: Placement[] = [
+      { taskId: essayId, ...utc("2026-10-08T18:00", "2026-10-08T19:00"), pinned: false, status: "planned" },
+      { taskId: essayId, ...utc("2026-10-09T18:00", "2026-10-09T19:00"), pinned: true, status: "planned" },
+    ];
     const lectureId = await insertItem(tx, lecture);
     const gymId = await insertItem(tx, gym);
-    const changes: [string, () => Promise<unknown>, boolean][] = [
-      ["renaming", () => editItem(tx, lectureId, { ...lecture, title: "Lecture (room 2)" }, now, tz), false],
-      ["more time", () => editItem(tx, gymId, { ...gym, durationMin: 90 }, now, tz), false],
-      ["less time", () => editItem(tx, gymId, { ...gym, durationMin: 30 }, now, tz), true],
-      ["shorter", () => editItem(tx, lectureId, movedTo("2026-09-07T15:00", "2026-09-07T16:00"), now, tz), true],
+    const shorterGym = { ...utc("2026-10-08T14:00", "2026-10-09T14:00"), durationMin: 30 };
+    const changes: [string, () => Promise<unknown>][] = [
+      ["less time", () => editItem(tx, gymId, { ...gym, durationMin: 30 }, now, tz)],
+      ["shorter", () => editItem(tx, lectureId, movedTo("2026-09-07T15:00", "2026-09-07T16:00"), now, tz)],
       [
         "repeating differently",
         () =>
@@ -229,18 +221,16 @@ describe("changes that free time", () => {
             now,
             tz,
           ),
-        true,
       ],
-      ["skipping", () => skipOccurrence(tx, gymId, "2026-10-08", now), true],
-      ["removing", () => removeItem(tx, gymId, now, tz), true],
+      ["one occurrence changed", () => changeOccurrence(tx, gymId, "2026-10-08", shorterGym, now, tz)],
+      ["skipping", () => skipOccurrence(tx, gymId, "2026-10-08", now)],
+      ["removing", () => removeItem(tx, gymId, now, tz)],
     ];
 
-    for (const [change, run, frees] of changes) {
-      await insertPlacements(tx, [pending, pinned]);
+    await insertPlacements(tx, essayBlocks);
+    for (const [change, run] of changes) {
       await run();
-      expect([change, await pendingLeft()]).toEqual([change, !frees]);
-      expect(await loadPlacement(tx, pinned)).toEqual(pinned);
-      await tx.delete(placements);
+      expect([change, await loadPlacements(tx, week)]).toEqual([change, essayBlocks]);
     }
   });
 });
