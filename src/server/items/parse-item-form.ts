@@ -1,6 +1,6 @@
 import { z } from "zod";
 import type { FormErrors } from "@/lib/form-state";
-import { CATCH_UP_OPTIONS, REPEAT_OPTIONS, TIME_OF_DAY_RULES } from "@/lib/item-form";
+import { BLOCKS_OPTIONS, CATCH_UP_OPTIONS, REPEAT_OPTIONS, TIME_OF_DAY_RULES } from "@/lib/item-form";
 import {
   isFixed,
   type Item,
@@ -11,6 +11,7 @@ import {
   type TimeOfDay,
 } from "@/lib/items";
 import { SLOT_MIN } from "@/lib/placements";
+import { DEFAULT_MAX_CHUNK_MIN, DEFAULT_MIN_CHUNK_MIN } from "@/lib/settings";
 import { type OccurrenceChange, type Recurrence, WEEKDAYS } from "@/lib/recurrence";
 import { minutesBetween } from "@/lib/time/duration";
 import { MINUTES_PER_DAY } from "@/lib/time/time-of-day";
@@ -28,7 +29,7 @@ const toNumber = (value: unknown) => {
 /** Local wall-clock time as sent by `<input type="datetime-local">`, e.g. "2026-10-01T14:00". */
 const localDateTime = z.iso.datetime({ local: true, error: "Enter a date and time" });
 const localTime = z.iso.time({ precision: -1, error: "Enter a time" });
-const DURATION_ERROR = "Enter a duration, like 1h 30m";
+const DURATION_ERROR = "Enter a duration";
 const dayMinute = z
   .number({ error: "Choose hours" })
   .int()
@@ -87,6 +88,7 @@ const flexibleForm = z
     durationMin: z.preprocess(toNumber, taskMinutes),
     earliestStart: z.preprocess(emptyToUndefined, localDateTime.optional()),
     deadline: z.preprocess(emptyToUndefined, localDateTime.optional()),
+    blocks: z.preprocess(emptyToUndefined, z.enum(BLOCKS_OPTIONS).default("one")),
     minChunkMin: z.preprocess(toNumber, taskMinutes.optional()),
     maxChunkMin: z.preprocess(toNumber, taskMinutes.optional()),
     spread: z.preprocess(emptyToUndefined, z.enum(SPREAD_STRATEGIES).default("asap")),
@@ -106,18 +108,10 @@ const flexibleForm = z
     message: "Enter when each occurrence can start",
     ...evenIfInvalid,
   })
-  .refine((form) => (form.minChunkMin === undefined) === (form.maxChunkMin === undefined), {
+  .refine((form) => (form.minChunkMin ?? DEFAULT_MIN_CHUNK_MIN) <= (form.maxChunkMin ?? DEFAULT_MAX_CHUNK_MIN), {
     path: ["maxChunkMin"],
-    message: "Enter both block lengths",
-    ...evenIfInvalid,
+    message: "Longest block must be at least the shortest",
   })
-  .refine(
-    (form) => form.minChunkMin === undefined || form.maxChunkMin === undefined || form.minChunkMin <= form.maxChunkMin,
-    {
-      path: ["maxChunkMin"],
-      message: "Longest block must be at least the shortest",
-    },
-  )
   .refine(
     ({ timeOfDayStart: start, timeOfDayEnd: end }) =>
       (start === undefined && end === undefined) || (start !== undefined && end !== undefined && start < end),
@@ -180,8 +174,11 @@ export function parseItemForm(fields: Record<string, unknown>, timeZone: TimeZon
     categoryId: form.category ?? null,
     durationMin: form.durationMin,
     split:
-      form.minChunkMin !== undefined && form.maxChunkMin !== undefined
-        ? { minChunkMin: form.minChunkMin, maxChunkMin: form.maxChunkMin }
+      form.blocks === "split"
+        ? {
+            minChunkMin: form.minChunkMin ?? DEFAULT_MIN_CHUNK_MIN,
+            maxChunkMin: form.maxChunkMin ?? DEFAULT_MAX_CHUNK_MIN,
+          }
         : null,
     spread: form.spread,
     withinPeriod: recurrence !== null && form.catchUp === "in-period",

@@ -1,5 +1,14 @@
 import { expect, test } from "@playwright/test";
-import { blockPanel, itemEditor, localDate, localDateTime, openAddItemForm, openTaskLink } from "./helpers";
+import {
+  blockPanel,
+  fillDateTime,
+  fillDuration,
+  itemEditor,
+  localDate,
+  localDateTime,
+  openAddItemForm,
+  openTaskLink,
+} from "./helpers";
 
 test.describe("scheduled blocks", () => {
   test("pins and unpins a block, checks it off early and undoes that, from the calendar and from its task", async ({
@@ -11,9 +20,9 @@ test.describe("scheduled blocks", () => {
     const form = await openAddItemForm(page);
     await form.getByLabel("Title").fill(title);
     await form.getByRole("radio", { name: "Mandatory" }).click();
-    await form.getByLabel("Duration", { exact: true }).fill("30");
-    await form.getByLabel("Not before", { exact: true }).fill(localDateTime(1, from));
-    await form.getByLabel("Due").fill(localDateTime(1, to));
+    await fillDuration(form, "Duration", 30);
+    await fillDateTime(form, "Not before", localDateTime(1, from));
+    await fillDateTime(form, "Due", localDateTime(1, to));
     await form.getByRole("button", { name: "Add item" }).click();
     await expect(form).toBeHidden();
 

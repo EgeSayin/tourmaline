@@ -1,6 +1,16 @@
 import { expect, test } from "@playwright/test";
 import { toTimeInputValue } from "@/lib/time/time-of-day";
-import { addFixedItemToday, earlySlot, localDate, localDateTime, openItemForEditing } from "./helpers";
+import {
+  addFixedItemToday,
+  earlySlot,
+  expectTime,
+  fillDateTime,
+  fillDuration,
+  fillTime,
+  localDate,
+  localDateTime,
+  openItemForEditing,
+} from "./helpers";
 
 test.describe("editing items", () => {
   test("opens an item with its values and saves changes", async ({ page }, testInfo) => {
@@ -12,10 +22,10 @@ test.describe("editing items", () => {
     const panel = await openItemForEditing(page, testInfo, title);
     await expect(panel.getByLabel("Title")).toHaveValue(title);
     await expect(panel.getByLabel("Date", { exact: true })).toHaveValue(String(localDate(0)));
-    await expect(panel.getByLabel("Starts")).toHaveValue(slot.start);
+    await expectTime(panel, "Starts", slot.start);
 
     await panel.getByLabel("Title").fill(`${title} renamed`);
-    await panel.getByLabel("Ends").fill(newEnd);
+    await fillTime(panel, "Ends", newEnd);
     await panel.getByRole("button", { name: "Save changes" }).click();
 
     await expect(panel).toBeHidden();
@@ -30,8 +40,8 @@ test.describe("editing items", () => {
 
     const panel = await openItemForEditing(page, testInfo, title);
     await panel.getByRole("radio", { name: "Find time for it" }).click();
-    await panel.getByLabel("Duration", { exact: true }).fill("30");
-    await panel.getByLabel("Due").fill(localDateTime(2, "20:00"));
+    await fillDuration(panel, "Duration", 30);
+    await fillDateTime(panel, "Due", localDateTime(2, "20:00"));
     await panel.getByRole("button", { name: "Save changes" }).click();
 
     await expect(panel).toBeHidden();

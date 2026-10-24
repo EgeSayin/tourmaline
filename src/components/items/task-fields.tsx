@@ -3,17 +3,28 @@
 import { useState } from "react";
 import {
   FormChoice,
+  FormDateTimeInput,
   FormDurationInput,
-  FormInput,
   FormSection,
+  useClearFormErrors,
   useFormErrors,
   useFormValue,
 } from "@/components/forms/form-fields";
 import { TimeRangeSlider } from "@/components/forms/time-range-slider";
 import { Button } from "@/components/ui/button";
 import { FieldDescription, FieldError, FieldLegend, FieldSet } from "@/components/ui/field";
-import { CATCH_UP_OPTIONS, type CatchUp, type Repeat, TIME_OF_DAY_RULES, type TimeOfDayRule } from "@/lib/item-form";
+import {
+  type Blocks,
+  BLOCKS_OPTIONS,
+  CATCH_UP_OPTIONS,
+  type CatchUp,
+  type Repeat,
+  TIME_OF_DAY_RULES,
+  type TimeOfDayRule,
+} from "@/lib/item-form";
 import { SPREAD_STRATEGIES, type SpreadStrategy } from "@/lib/items";
+import { DEFAULT_MAX_CHUNK_MIN, DEFAULT_MIN_CHUNK_MIN } from "@/lib/settings";
+import { formatDuration } from "@/lib/time/format";
 import { toTimeInputValue } from "@/lib/time/time-of-day";
 
 const SPREAD_LABELS = {
@@ -29,7 +40,7 @@ const catchUpLabels = (period: string) =>
 
 /** A task's length, before its repeat rule. */
 export function DurationField() {
-  return <FormDurationInput name="durationMin" label="Duration" placeholder="1h 30m" presets={DURATION_PRESETS} />;
+  return <FormDurationInput name="durationMin" label="Duration" presets={DURATION_PRESETS} />;
 }
 
 /**
@@ -40,16 +51,15 @@ export function TaskWindowFields({ repeat }: { repeat: Repeat }) {
   const period = repeat === "daily" ? "day" : "week";
   return (
     <>
-      <FormInput
+      <FormDateTimeInput
         name="earliestStart"
         clearable
         label="Not before"
-        type="datetime-local"
         placeholder={repeat === "none" ? "Now" : "Not set"}
         description={repeat === "none" ? "Leave empty to start now." : "When the first one can start."}
       />
       {repeat === "none" ? (
-        <FormInput name="deadline" label="Due" type="datetime-local" placeholder="Not set" />
+        <FormDateTimeInput name="deadline" label="Due" placeholder="Not set" />
       ) : (
         <FormChoice
           key={period}
@@ -77,6 +87,11 @@ export function TimeOfDayField() {
   const [start, end] = [useFormValue("timeOfDayStart"), useFormValue("timeOfDayEnd")];
   const [range, setRange] = useState<[number, number] | null>(start && end ? [Number(start), Number(end)] : null);
   const messages = useFormErrors("timeOfDay");
+  const clearErrors = useClearFormErrors("timeOfDay");
+  const pick = (next: [number, number] | null) => {
+    clearErrors();
+    setRange(next);
+  };
   const isRange = (other: [number, number] | null) => other?.[0] === range?.[0] && other?.[1] === range?.[1];
 
   return (
@@ -92,7 +107,7 @@ export function TimeOfDayField() {
             size="sm"
             variant={isRange(preset.range) ? "default" : "outline"}
             aria-pressed={isRange(preset.range)}
-            onClick={() => setRange(preset.range)}
+            onClick={() => pick(preset.range)}
           >
             {preset.label}
           </Button>
@@ -101,7 +116,7 @@ export function TimeOfDayField() {
       {range && (
         <>
           <div className="flex items-center gap-3">
-            <TimeRangeSlider value={range} onValueChange={setRange} />
+            <TimeRangeSlider value={range} onValueChange={pick} />
             <span className="w-24 shrink-0 text-right text-sm tabular-nums">
               {toTimeInputValue(range[0])}–{toTimeInputValue(range[1])}
             </span>
@@ -121,25 +136,32 @@ export function TimeOfDayField() {
   );
 }
 
+const BLOCKS_LABELS = { one: "One block", split: "Split it up" } satisfies Record<Blocks, string>;
+
 export function TaskScheduleSection() {
-  const chunkSizes = [useFormValue("minChunkMin"), useFormValue("maxChunkMin")];
-  const [split, setSplit] = useState(chunkSizes.some(Boolean));
+  const [split, setSplit] = useState(useFormValue("blocks") === "split");
 
   return (
     <FormSection title="How to schedule">
       <FormChoice
+        name="blocks"
         label="Blocks"
-        options={[
-          { value: "one", label: "One block" },
-          { value: "split", label: "Split it up" },
-        ]}
-        defaultValue={split ? "split" : "one"}
+        options={BLOCKS_OPTIONS.map((value) => ({ value, label: BLOCKS_LABELS[value] }))}
+        defaultValue="one"
         onValueChange={(value) => setSplit(value === "split")}
       />
       {split && (
         <div className="grid grid-cols-2 gap-4">
-          <FormDurationInput name="minChunkMin" label="Shortest block" placeholder="30m" />
-          <FormDurationInput name="maxChunkMin" label="Longest block" placeholder="1h" />
+          <FormDurationInput
+            name="minChunkMin"
+            label="Shortest block"
+            description={`Leave empty for ${formatDuration(DEFAULT_MIN_CHUNK_MIN)}.`}
+          />
+          <FormDurationInput
+            name="maxChunkMin"
+            label="Longest block"
+            description={`Leave empty for ${formatDuration(DEFAULT_MAX_CHUNK_MIN)}.`}
+          />
         </div>
       )}
       <FormChoice

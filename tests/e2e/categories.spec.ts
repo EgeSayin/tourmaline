@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { itemEditor, localDateTime, openAddItemForm } from "./helpers";
+import { fillDateTime, fillDuration, itemEditor, localDateTime, openAddItemForm } from "./helpers";
 
 test.describe("categories", () => {
   test("adds a category, refuses a taken name, renames it and gives it a custom colour, files an item under it, and deletes it", async ({
@@ -39,8 +39,8 @@ test.describe("categories", () => {
     const form = await openAddItemForm(page);
     await form.getByLabel("Title").fill(item);
     await form.getByLabel("Category").selectOption({ label: `${name} renamed` });
-    await form.getByLabel("Duration", { exact: true }).fill("30");
-    await form.getByLabel("Due").fill(localDateTime(2, "20:00"));
+    await fillDuration(form, "Duration", 30);
+    await fillDateTime(form, "Due", localDateTime(2, "20:00"));
     await form.getByRole("button", { name: "Add item" }).click();
     await expect(form).toBeHidden();
     await page

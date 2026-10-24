@@ -1,6 +1,6 @@
 "use client";
 
-import { FormChoice, FormInput, FormStateProvider } from "@/components/forms/form-fields";
+import { FormChoice, FormDateTimeInput, FormInput, FormStateProvider } from "@/components/forms/form-fields";
 import { Button } from "@/components/ui/button";
 import { FieldError, FieldGroup } from "@/components/ui/field";
 import type { Category } from "@/lib/categories";
@@ -55,7 +55,7 @@ export function QuickItemForm({
           ) : (
             <>
               <DurationField />
-              {!item.recurrence && <FormInput name="deadline" label="Due" type="datetime-local" />}
+              {!item.recurrence && <FormDateTimeInput name="deadline" label="Due" />}
               <FormChoice name="priority" label="Priority" options={PRIORITY_OPTIONS} defaultValue="normal" />
             </>
           )}

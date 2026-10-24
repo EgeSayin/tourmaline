@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { SegmentedControl } from "@/components/controls/segmented-control";
 import { DeleteButton } from "@/components/forms/delete-button";
-import { FormInput, FormStateProvider } from "@/components/forms/form-fields";
+import { FormInput, FormStateProvider, useClearFormErrors, useFormErrors } from "@/components/forms/form-fields";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { FieldError, FieldGroup, FieldLegend, FieldSet } from "@/components/ui/field";
 import {
@@ -37,8 +37,6 @@ export function CategoryEditor({ category }: { category: CategoryEntry | null })
     close,
   );
   const [color, setColor] = useState<CategoryColor>(isColor(values.color) ? values.color : NEW_CATEGORY_COLOR);
-  const presets = Object.entries(CATEGORY_PRESETS);
-  const isCustom = !presets.some(([, value]) => value === color);
   const title = category ? "Edit category" : "New category";
 
   return (
@@ -53,42 +51,7 @@ export function CategoryEditor({ category }: { category: CategoryEntry | null })
         <FormStateProvider values={values} errors={errors}>
           <FieldGroup>
             <FormInput name="name" label="Name" autoFocus={!category} maxLength={CATEGORY_NAME_MAX} />
-            <FieldSet data-invalid={errors.color ? true : undefined} className="gap-2">
-              <FieldLegend variant="label">Colour</FieldLegend>
-              <input type="hidden" name="color" value={color} />
-              <SegmentedControl
-                label="Colour"
-                value={isCustom ? undefined : color}
-                onChange={setColor}
-                options={presets.map(([label, value]) => ({
-                  value,
-                  label,
-                  content: <CategoryDot color={value} className="size-6" />,
-                }))}
-                className="flex flex-wrap items-center gap-2"
-                optionClassName={cn(SWATCH_RING, "aria-checked:ring-2 aria-checked:ring-ring")}
-              >
-                <label className={cn(SWATCH_RING, "relative has-focus-visible:ring-2", isCustom && "ring-2")}>
-                  {isCustom ? (
-                    <CategoryDot color={color} className="size-6" />
-                  ) : (
-                    <span
-                      aria-hidden
-                      className="block size-6 rounded-full bg-[conic-gradient(#ef4444,#facc15,#22c55e,#3b82f6,#a855f7,#ef4444)]"
-                    />
-                  )}
-                  {/* Invisible over the swatch: browsers draw the input itself in their own shape. */}
-                  <input
-                    type="color"
-                    aria-label="Custom colour"
-                    value={color}
-                    onChange={(event) => setColor(event.target.value.toLowerCase())}
-                    className="absolute inset-0 size-full cursor-pointer opacity-0"
-                  />
-                </label>
-              </SegmentedControl>
-              <FieldError errors={errors.color?.map((message) => ({ message }))} />
-            </FieldSet>
+            <ColorField color={color} onChange={setColor} />
           </FieldGroup>
         </FormStateProvider>
 
@@ -106,5 +69,55 @@ export function CategoryEditor({ category }: { category: CategoryEntry | null })
         )}
       </form>
     </aside>
+  );
+}
+
+function ColorField({ color, onChange }: { color: CategoryColor; onChange: (color: CategoryColor) => void }) {
+  const messages = useFormErrors("color");
+  const clearErrors = useClearFormErrors("color");
+  const presets = Object.entries(CATEGORY_PRESETS);
+  const isCustom = !presets.some(([, value]) => value === color);
+  const change = (next: CategoryColor) => {
+    clearErrors();
+    onChange(next);
+  };
+
+  return (
+    <FieldSet data-invalid={messages ? true : undefined} className="gap-2">
+      <FieldLegend variant="label">Colour</FieldLegend>
+      <input type="hidden" name="color" value={color} />
+      <SegmentedControl
+        label="Colour"
+        value={isCustom ? undefined : color}
+        onChange={change}
+        options={presets.map(([label, value]) => ({
+          value,
+          label,
+          content: <CategoryDot color={value} className="size-6" />,
+        }))}
+        className="flex flex-wrap items-center gap-2"
+        optionClassName={cn(SWATCH_RING, "aria-checked:ring-2 aria-checked:ring-ring")}
+      >
+        <label className={cn(SWATCH_RING, "relative has-focus-visible:ring-2", isCustom && "ring-2")}>
+          {isCustom ? (
+            <CategoryDot color={color} className="size-6" />
+          ) : (
+            <span
+              aria-hidden
+              className="block size-6 rounded-full bg-[conic-gradient(#ef4444,#facc15,#22c55e,#3b82f6,#a855f7,#ef4444)]"
+            />
+          )}
+          {/* Invisible over the swatch: browsers draw the input itself in their own shape. */}
+          <input
+            type="color"
+            aria-label="Custom colour"
+            value={color}
+            onChange={(event) => change(event.target.value.toLowerCase())}
+            className="absolute inset-0 size-full cursor-pointer opacity-0"
+          />
+        </label>
+      </SegmentedControl>
+      <FieldError errors={messages?.map((message) => ({ message }))} />
+    </FieldSet>
   );
 }

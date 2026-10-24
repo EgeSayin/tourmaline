@@ -8,8 +8,9 @@ import { Field, FieldDescription, FieldError, FieldLabel, FieldLegend, FieldSet 
 import { Input } from "@/components/ui/input";
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 import { type Segment, SegmentedControl } from "@/components/controls/segmented-control";
-import { parseDuration } from "@/lib/time/duration";
+import { SLOT_MIN } from "@/lib/placements";
 import { formatDuration } from "@/lib/time/format";
+import { fromTimeInputValue, MINUTES_PER_DAY, toTimeInputValue } from "@/lib/time/time-of-day";
 
 interface FieldValues {
   /** Submitted values, used as defaults so a failed submission doesn't clear the form. */
@@ -17,7 +18,12 @@ interface FieldValues {
   errors: Partial<Record<string, string[]>>;
 }
 
-const FormStateContext = createContext<FieldValues>({ values: {}, errors: {} });
+interface FormState extends FieldValues {
+  /** Hides `name`'s errors once it changes, until the next submission. */
+  clearErrors: (name: string) => void;
+}
+
+const FormStateContext = createContext<FormState>({ values: {}, errors: {}, clearErrors: () => {} });
 
 export function useFormValue(name: string): string | undefined {
   return use(FormStateContext).values[name];
@@ -27,8 +33,20 @@ export function useFormErrors(name: string): string[] | undefined {
   return use(FormStateContext).errors[name];
 }
 
-export function FormStateProvider({ children, ...state }: FieldValues & { children: React.ReactNode }) {
-  return <FormStateContext value={state}>{children}</FormStateContext>;
+/** Call when the field `name` changes, so the errors of its last submission stop showing. */
+export function useClearFormErrors(name: string): () => void {
+  const { clearErrors } = use(FormStateContext);
+  return () => clearErrors(name);
+}
+
+export function FormStateProvider({ children, values, errors }: FieldValues & { children: React.ReactNode }) {
+  const [edited, setEdited] = useState({ errors, names: new Set<string>() });
+  if (edited.errors !== errors) setEdited({ errors, names: new Set() });
+  const shown = Object.fromEntries(Object.entries(errors).filter(([name]) => !edited.names.has(name)));
+  const clearErrors = (name: string) => {
+    if (errors[name] && !edited.names.has(name)) setEdited({ errors, names: new Set(edited.names).add(name) });
+  };
+  return <FormStateContext value={{ values, errors: shown, clearErrors }}>{children}</FormStateContext>;
 }
 
 export function FormSection({ title, children }: { title: string; children: React.ReactNode }) {
@@ -78,7 +96,7 @@ export function FormInput({
   onInput,
   ...props
 }: FieldProps & { clearable?: boolean } & React.ComponentProps<"input">) {
-  const { values, errors } = use(FormStateContext);
+  const { values, errors, clearErrors } = use(FormStateContext);
   // The input keeps what was typed after a failed submission; changing its default then would only warn.
   const [initialValue] = useState(values[name]);
   const [empty, setEmpty] = useState(!initialValue);
@@ -96,6 +114,7 @@ export function FormInput({
         data-empty={empty ? true : undefined}
         onInput={(event) => {
           setEmpty(!event.currentTarget.value);
+          clearErrors(name);
           onInput?.(event);
         }}
         className={cn("peer", hint ? "not-focus:text-transparent" : "data-empty:text-muted-foreground", className)}
@@ -123,6 +142,7 @@ export function FormInput({
             onClick={() => {
               ref.current!.value = "";
               setEmpty(true);
+              clearErrors(name);
             }}
           >
             <X />
@@ -135,53 +155,244 @@ export function FormInput({
   );
 }
 
+/** Hours and minutes as typed into two boxes, digits only. */
+interface Clock {
+  hours: string;
+  minutes: string;
+}
+
+const NO_CLOCK: Clock = { hours: "", minutes: "" };
+
+/** `minutes` as a clock; `padded` writes both parts with two digits, as in a time of day. */
+function clockOf(minutes: number | null, padded = false): Clock {
+  if (minutes === null) return NO_CLOCK;
+  const pad = (part: number) => (padded ? String(part).padStart(2, "0") : String(part));
+  return { hours: pad(Math.floor(minutes / 60)), minutes: pad(minutes % 60) };
+}
+
+/** The minutes `clock` holds, a missing box counting as 0; `null` when both are empty. */
+function minutesOf({ hours, minutes }: Clock): number | null {
+  return hours === "" && minutes === "" ? null : Number(hours || 0) * 60 + Number(minutes || 0);
+}
+
 /**
- * Takes a duration as text, such as "1h 30m" or "90", and submits it in minutes; text that isn't a duration is
- * submitted as is, for the server to reject. `presets` are minutes offered as buttons.
+ * Two boxes for hours and minutes, labelled `label` hours and minutes, that take only digits. The arrow keys step
+ * the hours by one and the minutes by `SLOT_MIN`, carrying over, between 0 and `maxMinutes`.
  */
-export function FormDurationInput({
-  name,
+function ClockBoxes({
+  id,
   label,
-  description,
-  placeholder,
-  presets = [],
-  className,
-}: FieldProps & { placeholder?: string; presets?: number[]; className?: string }) {
-  const { values, errors } = use(FormStateContext);
-  const [text, setText] = useState(() => {
-    const value = values[name] ?? "";
-    return /^\d+$/.test(value) ? formatDuration(Number(value)) : value;
-  });
-  const minutes = parseDuration(text);
+  clock,
+  onChange,
+  maxMinutes,
+  separator,
+  invalid,
+  placeholder = NO_CLOCK,
+}: {
+  id: string;
+  label: string;
+  clock: Clock;
+  onChange: (clock: Clock) => void;
+  maxMinutes: number;
+  /** Shown between the boxes, like ":" for a time; otherwise each box is followed by "h" or "m". */
+  separator?: string;
+  invalid: boolean;
+  placeholder?: Clock;
+}) {
+  const step = (by: number) => (event: React.KeyboardEvent) => {
+    if (event.key !== "ArrowUp" && event.key !== "ArrowDown") return;
+    event.preventDefault();
+    const total = (minutesOf(clock) ?? 0) + (event.key === "ArrowUp" ? by : -by);
+    onChange(clockOf(Math.min(Math.max(total, 0), maxMinutes), !!separator));
+  };
+  // Leaving both boxes writes the time out in full, such as 90 minutes as 1h 30m.
+  const tidy = () => {
+    const minutes = minutesOf(clock);
+    if (minutes !== null && minutes <= maxMinutes) onChange(clockOf(minutes, !!separator));
+  };
+  const box = (part: keyof Clock, by: number) => (
+    <Input
+      id={part === "hours" ? id : undefined}
+      aria-label={`${label} ${part}`}
+      inputMode="numeric"
+      autoComplete="off"
+      value={clock[part]}
+      placeholder={placeholder[part]}
+      aria-invalid={invalid || undefined}
+      onChange={(event) => onChange({ ...clock, [part]: event.target.value.replace(/\D/g, "").slice(0, 3) })}
+      onKeyDown={step(by)}
+      onFocus={(event) => event.currentTarget.select()}
+      className="w-14 text-right tabular-nums"
+    />
+  );
+
+  return (
+    <div
+      className="flex items-center gap-1.5 text-sm text-muted-foreground"
+      onBlur={(event) => !event.currentTarget.contains(event.relatedTarget) && tidy()}
+    >
+      {box("hours", 60)}
+      <span aria-hidden>{separator ?? "h"}</span>
+      {box("minutes", SLOT_MIN)}
+      {!separator && <span aria-hidden>m</span>}
+    </div>
+  );
+}
+
+/** A duration in hours and minutes, submitted in minutes. `presets` are minutes offered as buttons. */
+export function FormDurationInput({ name, label, description, presets = [] }: FieldProps & { presets?: number[] }) {
+  const { values, errors, clearErrors } = use(FormStateContext);
+  const [clock, setClock] = useState(() =>
+    /^\d+$/.test(values[name] ?? "") ? clockOf(Number(values[name])) : NO_CLOCK,
+  );
+  const minutes = minutesOf(clock);
+  const change = (next: Clock) => {
+    clearErrors(name);
+    setClock(next);
+  };
 
   return (
     <FormField name={name} label={label} description={description}>
-      <Input
+      <ClockBoxes
         id={name}
-        value={text}
-        placeholder={placeholder}
-        autoComplete="off"
-        aria-invalid={errors[name] ? true : undefined}
-        onChange={(event) => setText(event.target.value)}
-        onBlur={() => minutes !== null && setText(formatDuration(minutes))}
-        className={className}
+        label={label}
+        clock={clock}
+        onChange={change}
+        maxMinutes={Infinity}
+        invalid={!!errors[name]}
       />
-      <input type="hidden" name={name} value={minutes ?? text} />
+      <input type="hidden" name={name} value={minutes ?? ""} />
       {presets.length > 0 && (
         <div className="flex flex-wrap gap-1">
           {presets.map((preset) => (
-            <Button
-              key={preset}
-              type="button"
-              variant="outline"
-              size="xs"
-              onClick={() => setText(formatDuration(preset))}
-            >
+            <Button key={preset} type="button" variant="outline" size="xs" onClick={() => change(clockOf(preset))}>
               {formatDuration(preset)}
             </Button>
           ))}
         </div>
       )}
+    </FormField>
+  );
+}
+
+/** "HH:mm" for `clock`, or what was typed when it isn't a time of day, for the server to reject. */
+function timeValue(clock: Clock): string {
+  const minutes = minutesOf(clock);
+  if (minutes === null) return "";
+  const valid = Number(clock.hours || 0) < 24 && Number(clock.minutes || 0) < 60;
+  return valid ? toTimeInputValue(minutes) : `${clock.hours}:${clock.minutes}`;
+}
+
+const clockOfTime = (value: string | undefined): Clock =>
+  value && /^\d{2}:\d{2}$/.test(value) ? clockOf(fromTimeInputValue(value), true) : NO_CLOCK;
+
+/** A time of day in hours and minutes, submitted as "HH:mm"; `value` and `onChange` let the form link it to others. */
+export function FormTimeInput({
+  name,
+  label,
+  description,
+  value,
+  onChange,
+}: FieldProps & { value: string; onChange: (value: string) => void }) {
+  const { errors, clearErrors } = use(FormStateContext);
+  const [clock, setClock] = useState(() => clockOfTime(value));
+  // Follows a `value` set from outside, such as an end moved with its start.
+  if (value !== timeValue(clock) && clockOfTime(value) !== NO_CLOCK) setClock(clockOfTime(value));
+
+  return (
+    <FormField name={name} label={label} description={description}>
+      <ClockBoxes
+        id={name}
+        label={label}
+        clock={clock}
+        onChange={(next) => {
+          clearErrors(name);
+          setClock(next);
+          onChange(timeValue(next));
+        }}
+        maxMinutes={MINUTES_PER_DAY - SLOT_MIN}
+        separator=":"
+        invalid={!!errors[name]}
+        placeholder={{ hours: "--", minutes: "--" }}
+      />
+      <input type="hidden" name={name} value={timeValue(clock)} />
+    </FormField>
+  );
+}
+
+/**
+ * A date and a time, submitted together as "YYYY-MM-DDTHH:mm": the date in the browser's own date picker, the time
+ * in hours and minutes. `clearable` adds a button that empties both.
+ */
+export function FormDateTimeInput({
+  name,
+  label,
+  description,
+  placeholder,
+  clearable = false,
+}: FieldProps & { placeholder?: string; clearable?: boolean }) {
+  const { values, errors, clearErrors } = use(FormStateContext);
+  const [initial] = useState(values[name] ?? "");
+  const [date, setDate] = useState(initial.slice(0, 10));
+  const [clock, setClock] = useState(() => clockOfTime(initial.slice(11, 16)));
+  const time = timeValue(clock);
+  const empty = !date && !time;
+  const invalid = !!errors[name];
+
+  return (
+    <FormField name={name} label={label} description={description}>
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="relative min-w-0 flex-1 basis-36">
+          <Input
+            id={name}
+            type="date"
+            aria-label={`${label} date`}
+            value={date}
+            aria-invalid={invalid || undefined}
+            onChange={(event) => {
+              clearErrors(name);
+              setDate(event.target.value);
+            }}
+            // WebKit shows today in an empty date input: hidden behind the placeholder, or at least muted.
+            className={cn("peer", !date && (placeholder ? "not-focus:text-transparent" : "text-muted-foreground"))}
+          />
+          {!date && placeholder && (
+            <span className="pointer-events-none absolute inset-y-0 left-2.5 flex items-center text-sm text-muted-foreground peer-focus:hidden">
+              {placeholder}
+            </span>
+          )}
+        </div>
+        <ClockBoxes
+          id={`${name}-time`}
+          label={label}
+          clock={clock}
+          onChange={(next) => {
+            clearErrors(name);
+            setClock(next);
+          }}
+          maxMinutes={MINUTES_PER_DAY - SLOT_MIN}
+          separator=":"
+          invalid={invalid}
+          placeholder={{ hours: "--", minutes: "--" }}
+        />
+        {clearable && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            aria-label={`Clear ${label}`}
+            disabled={empty}
+            onClick={() => {
+              clearErrors(name);
+              setDate("");
+              setClock(NO_CLOCK);
+            }}
+          >
+            <X />
+          </Button>
+        )}
+      </div>
+      <input type="hidden" name={name} value={empty ? "" : `${date}T${time}`} />
     </FormField>
   );
 }
@@ -238,14 +449,17 @@ export function FormSelect({
   defaultValue: string;
   onValueChange?: (value: string) => void;
 }) {
-  const { values } = use(FormStateContext);
+  const { values, clearErrors } = use(FormStateContext);
   return (
     <FormField name={name} label={label}>
       <NativeSelect
         id={name}
         name={name}
         defaultValue={values[name] ?? defaultValue}
-        onChange={(event) => onValueChange?.(event.target.value)}
+        onChange={(event) => {
+          clearErrors(name);
+          onValueChange?.(event.target.value);
+        }}
       >
         {options.map((option) => (
           <NativeSelectOption key={option.value} value={option.value}>
@@ -267,15 +481,17 @@ export function FormToggleGroup({
   label: string;
   options: readonly { value: string; label: string }[];
 }) {
-  const { values, errors } = use(FormStateContext);
+  const { values, errors, clearErrors } = use(FormStateContext);
   const [picked, setPicked] = useState(() => new Set(values[name]?.split(",").filter(Boolean)));
   const messages = errors[name];
-  const toggle = (value: string) =>
+  const toggle = (value: string) => {
+    clearErrors(name);
     setPicked((current) => {
       const next = new Set(current);
       if (!next.delete(value)) next.add(value);
       return next;
     });
+  };
 
   return (
     <FieldSet data-invalid={messages ? true : undefined} className="gap-0">

@@ -1,4 +1,4 @@
-import { expect, type Page, type TestInfo } from "@playwright/test";
+import { expect, type Locator, type Page, type TestInfo } from "@playwright/test";
 import { toTimeInputValue } from "@/lib/time/time-of-day";
 
 /** The account the specs sign in as; global setup seeds it with the sample week. */
@@ -65,8 +65,8 @@ export async function addFixedItemToday(
   await form.getByRole("radio", { name: "At a set time" }).click();
   await form.getByLabel("Title").fill(title);
   await form.getByLabel("Date", { exact: true }).fill(String(localDate(0)));
-  await form.getByLabel("Starts").fill(slot.start);
-  await form.getByLabel("Ends").fill(slot.end);
+  await fillTime(form, "Starts", slot.start);
+  await fillTime(form, "Ends", slot.end);
   await form.getByRole("button", { name: "Add item" }).click();
   await expect(form).toBeHidden();
   await page.goto("/");
@@ -93,4 +93,34 @@ export async function showQueue(page: Page, testInfo: TestInfo) {
     .getByRole("radio", { name: /^Queue/ })
     .click();
   return page.getByRole("region", { name: "Task queue" });
+}
+
+/** Types `minutes` into the hours and minutes boxes of the duration field `label`. */
+export async function fillDuration(scope: Locator, label: string, minutes: number) {
+  await scope.getByLabel(`${label} hours`).fill(String(Math.floor(minutes / 60)));
+  await scope.getByLabel(`${label} minutes`).fill(String(minutes % 60));
+}
+
+export async function expectDuration(scope: Locator, label: string, minutes: number) {
+  await expect(scope.getByLabel(`${label} hours`)).toHaveValue(String(Math.floor(minutes / 60)));
+  await expect(scope.getByLabel(`${label} minutes`)).toHaveValue(String(minutes % 60));
+}
+
+/** Types `time`, like "09:30", into the hours and minutes boxes of the time field `label`. */
+export async function fillTime(scope: Locator, label: string, time: string) {
+  const [hours, minutes] = time.split(":");
+  await scope.getByLabel(`${label} hours`).fill(hours);
+  await scope.getByLabel(`${label} minutes`).fill(minutes);
+}
+
+export async function expectTime(scope: Locator, label: string, time: string) {
+  const [hours, minutes] = time.split(":");
+  await expect(scope.getByLabel(`${label} hours`)).toHaveValue(hours);
+  await expect(scope.getByLabel(`${label} minutes`)).toHaveValue(minutes);
+}
+
+/** Fills the date and time field `label` with `dateTime`, like "2026-10-08T20:00". */
+export async function fillDateTime(scope: Locator, label: string, dateTime: string) {
+  await scope.getByLabel(`${label} date`).fill(dateTime.slice(0, 10));
+  await fillTime(scope, label, dateTime.slice(11, 16));
 }

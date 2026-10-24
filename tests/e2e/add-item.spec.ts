@@ -1,15 +1,22 @@
 import { expect, test } from "@playwright/test";
-import { addFixedItemToday, earlySlot, localDateTime, openAddItemForm } from "./helpers";
+import { addFixedItemToday, earlySlot, fillDateTime, fillDuration, localDateTime, openAddItemForm } from "./helpers";
 
 test.describe("adding items", () => {
-  test("shows field errors when required fields are missing", async ({ page }) => {
+  test("shows field errors when required fields are missing, until each field changes", async ({ page }) => {
     const form = await openAddItemForm(page);
 
     await form.getByRole("button", { name: "Add item" }).click();
 
     await expect(form.getByText("Enter a title")).toBeVisible();
-    await expect(form.getByText("Enter a duration, like 1h 30m")).toBeVisible();
+    await expect(form.getByText("Enter a duration")).toBeVisible();
     await expect(form.getByText("Enter a date and time")).toBeVisible();
+
+    // A field shows its error until it changes, not until the next save.
+    await form.getByLabel("Title").fill("E2E corrected");
+    await expect(form.getByText("Enter a title")).toBeHidden();
+    await expect(form.getByText("Enter a duration")).toBeVisible();
+    await fillDuration(form, "Duration", 30);
+    await expect(form.getByText("Enter a duration")).toBeHidden();
   });
 
   test("schedules a new flexible task, with an optional time cleared again", async ({ page }, testInfo) => {
@@ -18,14 +25,15 @@ test.describe("adding items", () => {
     const clearNotBefore = form.getByRole("button", { name: "Clear Not before" });
 
     await expect(clearNotBefore).toBeDisabled();
-    await form.getByLabel("Not before", { exact: true }).fill(localDateTime(1, "09:00"));
+    await fillDateTime(form, "Not before", localDateTime(1, "09:00"));
     await clearNotBefore.click();
-    await expect(form.getByLabel("Not before", { exact: true })).toHaveValue("");
+    await expect(form.getByLabel("Not before date")).toHaveValue("");
+    await expect(form.getByLabel("Not before hours")).toHaveValue("");
     await expect(clearNotBefore).toBeDisabled();
 
     await form.getByLabel("Title").fill(title);
-    await form.getByLabel("Duration", { exact: true }).fill("60");
-    await form.getByLabel("Due").fill(localDateTime(2, "20:00"));
+    await fillDuration(form, "Duration", 60);
+    await fillDateTime(form, "Due", localDateTime(2, "20:00"));
     await form.getByRole("button", { name: "Add item" }).click();
 
     await expect(form).toBeHidden();
@@ -36,8 +44,8 @@ test.describe("adding items", () => {
   test("keeps a task to a time of day picked from a preset and the slider", async ({ page }, testInfo) => {
     const form = await openAddItemForm(page);
     await form.getByLabel("Title").fill(`E2E practice (${testInfo.project.name})`);
-    await form.getByLabel("Duration", { exact: true }).fill("5h");
-    await form.getByLabel("Due").fill(localDateTime(3, "23:00"));
+    await fillDuration(form, "Duration", 5 * 60);
+    await fillDateTime(form, "Due", localDateTime(3, "23:00"));
     await expect(form.getByRole("button", { name: "Any time" })).toHaveAttribute("aria-pressed", "true");
 
     await form.getByRole("button", { name: "Evening" }).click();
@@ -51,7 +59,7 @@ test.describe("adding items", () => {
     await form.getByRole("button", { name: "Add item" }).click();
     await expect(form.getByText("Its blocks are longer than these hours")).toBeVisible();
 
-    await form.getByLabel("Duration", { exact: true }).fill("1h");
+    await fillDuration(form, "Duration", 60);
     await form.getByRole("button", { name: "Add item" }).click();
     await expect(form).toBeHidden();
   });

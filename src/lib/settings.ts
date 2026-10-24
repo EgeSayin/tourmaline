@@ -17,6 +17,10 @@ export const DEFAULT_SETTINGS: SchedulerSettings = {
 /** How far ahead recurring tasks are planned at most, so a far-off deadline doesn't plan months of occurrences. */
 export const RECURRENCE_LOOKAHEAD_DAYS = 28;
 
+/** The shortest and longest chunk of a split task that leaves them empty. */
+export const DEFAULT_MIN_CHUNK_MIN = 30;
+export const DEFAULT_MAX_CHUNK_MIN = 2 * 60;
+
 /** The least time between two chunks of the same task, so a split task's chunks don't run together. */
 export const CHUNK_BREAK_MIN = 30;
 

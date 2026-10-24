@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { localDateTime, openAddItemForm } from "./helpers";
+import { fillDateTime, fillDuration, localDateTime, openAddItemForm } from "./helpers";
 
 test.describe("errors", () => {
   test("shows a page that isn't there as not found, with a way back", async ({ page }) => {
@@ -13,8 +13,8 @@ test.describe("errors", () => {
     const title = `E2E unsaved (${testInfo.project.name})`;
     const form = await openAddItemForm(page);
     await form.getByLabel("Title").fill(title);
-    await form.getByLabel("Duration", { exact: true }).fill("30");
-    await form.getByLabel("Due").fill(localDateTime(2, "20:00"));
+    await fillDuration(form, "Duration", 30);
+    await fillDateTime(form, "Due", localDateTime(2, "20:00"));
 
     // Server actions are POSTs naming the action in a header; dropping them is a failed save.
     await page.route("**/*", (route) =>

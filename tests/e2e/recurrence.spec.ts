@@ -3,6 +3,10 @@ import { WEEKDAY_NAMES } from "@/lib/time/format";
 import {
   blockPanel,
   earlySlot,
+  expectTime,
+  fillDateTime,
+  fillDuration,
+  fillTime,
   itemEditor,
   localDate,
   localDateTime,
@@ -28,8 +32,8 @@ test.describe("recurring items", () => {
     await form.getByRole("radio", { name: "At a set time" }).click();
     await form.getByLabel("Title").fill(title);
     await form.getByLabel("Date", { exact: true }).fill(String(localDate(-1)));
-    await form.getByLabel("Starts").fill(slot.start);
-    await form.getByLabel("Ends").fill(slot.end);
+    await fillTime(form, "Starts", slot.start);
+    await fillTime(form, "Ends", slot.end);
     await form.getByLabel("How often").selectOption("weekly");
     await form.getByRole("button", { name: "Add item" }).click();
     await expect(form.getByText("Choose at least one day")).toBeVisible();
@@ -56,7 +60,7 @@ test.describe("recurring items", () => {
     const panel = itemEditor(page);
     await panel.getByRole("radio", { name: "This and later ones" }).click();
     await expect(panel.getByLabel("Date", { exact: true })).toHaveValue(String(localDate(0)));
-    await expect(panel.getByLabel("Starts")).toHaveValue(slot.start);
+    await expectTime(panel, "Starts", slot.start);
     await expect(panel.getByLabel("How often")).toHaveValue("weekly");
     await expect(panel.getByLabel("Until", { exact: true })).toHaveValue(String(localDate(1)));
     await expect(panel.getByRole("button", { name: weekdayLabel(0), exact: true })).toHaveAttribute(
@@ -89,12 +93,12 @@ test.describe("recurring items", () => {
     const title = `E2E night shift (${testInfo.project.name})`;
     const form = await openAddItemForm(page);
     await form.getByLabel("Title").fill(title);
-    await form.getByLabel("Duration", { exact: true }).fill(String(15 * 60)); // longer than any free stretch in a day
+    await fillDuration(form, "Duration", 15 * 60); // longer than any free stretch in a day
     await form.getByLabel("How often").selectOption("daily");
     await expect(form.getByLabel("Due")).toHaveCount(0);
     await form.getByRole("radio", { name: "Same day only" }).click();
     // From yesterday, so one occurrence always covers now.
-    await form.getByLabel("Not before", { exact: true }).fill(localDateTime(-1, "10:00"));
+    await fillDateTime(form, "Not before", localDateTime(-1, "10:00"));
     await form.getByRole("button", { name: "Add item" }).click();
     await expect(form).toBeHidden();
 
@@ -155,8 +159,8 @@ test.describe("recurring items", () => {
     await form.getByRole("radio", { name: "At a set time" }).click();
     await form.getByLabel("Title").fill(title);
     await form.getByLabel("Date", { exact: true }).fill(String(localDate(0)));
-    await form.getByLabel("Starts").fill(slot.start);
-    await form.getByLabel("Ends").fill(slot.end);
+    await fillTime(form, "Starts", slot.start);
+    await fillTime(form, "Ends", slot.end);
     await form.getByLabel("How often").selectOption("daily");
     await form.getByLabel("Until", { exact: true }).fill(String(localDate(2)));
     await form.getByRole("button", { name: "Add item" }).click();
@@ -168,8 +172,8 @@ test.describe("recurring items", () => {
     const editor = itemEditor(page);
     await expect(editor.getByText(`The occurrence on ${dateLabel(1)}`)).toBeVisible();
     await expect(editor.getByRole("radio", { name: "Only this one" })).toHaveAttribute("aria-checked", "true");
-    await editor.getByLabel("Starts").fill(later.start);
-    await expect(editor.getByLabel("Ends")).toHaveValue(later.end);
+    await fillTime(editor, "Starts", later.start);
+    await expectTime(editor, "Ends", later.end);
     await editor.getByRole("button", { name: "Save this occurrence" }).click();
     await expect(editor).toBeHidden();
 

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { itemToFormValues } from "@/lib/item-form";
 import type { Recurrence } from "@/lib/recurrence";
+import { DEFAULT_MAX_CHUNK_MIN, DEFAULT_MIN_CHUNK_MIN } from "@/lib/settings";
 import { parseItemForm } from "@/server/items/parse-item-form";
 import { fixed, flexible } from "../../support/items";
 
@@ -57,6 +58,7 @@ describe("parseItemForm", () => {
           durationMin: "120",
           earliestStart: "2026-10-31T09:00",
           deadline: "2026-11-02T17:00",
+          blocks: "split",
           minChunkMin: "30",
           maxChunkMin: "60",
           spread: "just-in-time",
@@ -109,7 +111,7 @@ describe("parseItemForm", () => {
       ),
     ).toMatchObject({
       ok: false,
-      errors: { durationMin: ["Enter a duration, like 1h 30m"], deadline: ["Enter a date and time"] },
+      errors: { durationMin: ["Enter a duration"], deadline: ["Enter a date and time"] },
     });
 
     const task = { timing: "flexible", title: "Essay", durationMin: "60" };
@@ -121,6 +123,17 @@ describe("parseItemForm", () => {
     expect(parseItemForm({ ...dueTomorrow, minChunkMin: "45", maxChunkMin: "30" }, tz, now)).toEqual({
       ok: false,
       errors: { maxChunkMin: ["Longest block must be at least the shortest"] },
+    });
+    // A length left empty takes its default, which the other must still fit.
+    for (const lengths of [{ maxChunkMin: "20" }, { minChunkMin: "180" }]) {
+      expect(parseItemForm({ ...dueTomorrow, blocks: "split", ...lengths }, tz, now)).toEqual({
+        ok: false,
+        errors: { maxChunkMin: ["Longest block must be at least the shortest"] },
+      });
+    }
+    expect(parseItemForm({ ...dueTomorrow, blocks: "split" }, tz, now)).toMatchObject({
+      ok: true,
+      item: { split: { minChunkMin: DEFAULT_MIN_CHUNK_MIN, maxChunkMin: DEFAULT_MAX_CHUNK_MIN } },
     });
 
     for (const earliestStart of ["", "2026-10-04T09:00"]) {
@@ -219,7 +232,6 @@ describe("parseItemForm", () => {
       ok: false,
       errors: {
         title: [expect.any(String)],
-        maxChunkMin: ["Enter both block lengths"],
         durationMin: [expect.any(String)],
         earliestStart: [expect.any(String)],
         weekdays: [expect.any(String)],

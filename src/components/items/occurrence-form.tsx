@@ -1,7 +1,7 @@
 "use client";
 
 import { ActionButton } from "@/components/forms/action-button";
-import { FormInput, FormStateProvider } from "@/components/forms/form-fields";
+import { FormDateTimeInput, FormStateProvider } from "@/components/forms/form-fields";
 import { Button } from "@/components/ui/button";
 import { FieldGroup } from "@/components/ui/field";
 import { occurrenceToFormValues } from "@/lib/item-form";
@@ -51,8 +51,8 @@ export function OccurrenceForm({
           ) : (
             <>
               <DurationField />
-              <FormInput name="earliestStart" label="Not before" type="datetime-local" />
-              <FormInput name="deadline" label="Due" type="datetime-local" />
+              <FormDateTimeInput name="earliestStart" label="Not before" />
+              <FormDateTimeInput name="deadline" label="Due" />
             </>
           )}
         </FieldGroup>

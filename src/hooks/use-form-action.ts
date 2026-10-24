@@ -4,6 +4,8 @@ import { startTransition, useActionState } from "react";
 import { toastNotSaved } from "@/components/forms/action-toasts";
 import type { FormState } from "@/lib/form-state";
 
+const NO_ERRORS: Partial<Record<string, string[]>> = {};
+
 /** Fields show the submitted values after a failed submission, `initialValues` before. */
 export function useFormAction(
   action: (previous: FormState, formData: FormData) => Promise<FormState>,
@@ -29,7 +31,7 @@ export function useFormAction(
     state,
     pending,
     values: invalid?.fields ?? initialValues,
-    errors: invalid?.errors ?? {},
+    errors: invalid?.errors ?? NO_ERRORS,
     // Not a form `action`: React resets a form after its action, and a reset select shows its first value again.
     onSubmit: (event: React.FormEvent<HTMLFormElement>) => {
       event.preventDefault();

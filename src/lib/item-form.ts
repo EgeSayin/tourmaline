@@ -16,6 +16,11 @@ export const TIME_OF_DAY_RULES = ["prefer", "must"] as const;
 
 export type TimeOfDayRule = (typeof TIME_OF_DAY_RULES)[number];
 
+/** Whether a task is placed as one block or split into chunks. */
+export const BLOCKS_OPTIONS = ["one", "split"] as const;
+
+export type Blocks = (typeof BLOCKS_OPTIONS)[number];
+
 export function itemToFormValues(item: Item, timeZone: TimeZone): Record<string, string> {
   const local = (date: Date) => toDateTimeInputValue(date, timeZone);
   const { recurrence } = item;
@@ -46,6 +51,7 @@ export function itemToFormValues(item: Item, timeZone: TimeZone): Record<string,
     durationMin: String(item.durationMin),
     earliestStart: local(item.earliestStart),
     deadline: recurrence ? "" : local(item.deadline),
+    blocks: item.split ? "split" : "one",
     minChunkMin: item.split ? String(item.split.minChunkMin) : "",
     maxChunkMin: item.split ? String(item.split.maxChunkMin) : "",
     spread: item.spread,
