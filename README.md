@@ -5,8 +5,11 @@ and the tasks you need to get done, each with how long it takes and when it is d
 and plans again whenever something changes. If you don't get to something, you mark it missed and Tourmaline finds it a
 new time, so you never have to fix your week by hand.
 
-The public demo will be at [tourmaline.sageland.dev](https://tourmaline.sageland.dev). You can also host it yourself;
-see [Self-hosting](#self-hosting).
+## Try the demo
+
+The public demo is at [tourmaline.sageland.dev](https://tourmaline.sageland.dev). You get your own copy of a sample
+week to change as you like, with no sign-up, and nothing about you is stored. Your copy is deleted after 7 days without
+a visit; if you want to keep your data, host it yourself (see [Self-hosting](#self-hosting)).
 
 ## Why I built it
 
@@ -102,7 +105,9 @@ The settings in `.env`:
 | `TOURMALINE_VERSION` | `latest` | Which release to run. `latest` follows every new release; `1.2` stays on 1.2.x. |
 
 **HTTPS.** Tourmaline doesn't handle HTTPS itself, so put a reverse proxy with HTTPS in front of it, such as Caddy or
-nginx. The proxy has to send the `X-Forwarded-Proto` header; without it, sign-in cookies aren't marked secure.
+nginx. The proxy has to send the `X-Forwarded-Proto` header; without it, sign-in cookies aren't marked secure. It also
+has to pass the `Host` header through unchanged (Caddy does; in nginx, set `proxy_set_header Host $host;`), or the app
+rejects every form as coming from another site.
 
 **A forgotten password.** There is no email, so the server owner resets it:
 
