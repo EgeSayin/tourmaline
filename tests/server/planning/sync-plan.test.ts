@@ -6,9 +6,9 @@ import type { Recurrence } from "@/lib/recurrence";
 import { RECURRENCE_LOOKAHEAD_DAYS, type SchedulerSettings } from "@/lib/settings";
 import type { WorkspaceTx } from "@/server/db/workspace-transaction";
 import { deleteItem, insertItem, loadItem, loadItems, saveOccurrence, setItemDone } from "@/server/db/items-repository";
-import { insertPlacements, loadPlacements } from "@/server/db/placements-repository";
+import { insertPlacements, loadPlacements, updatePlacement } from "@/server/db/placements-repository";
 import { placements } from "@/server/db/schema";
-import { loadUnplaced, syncPlan } from "@/server/planning/sync-plan";
+import { loadUnplaced, type PlanOptions, syncPlan } from "@/server/planning/sync-plan";
 import { expandOccurrences } from "@/server/recurrence";
 import { dbTest as it } from "../../support/database";
 import { utc } from "../../support/intervals";
@@ -29,9 +29,9 @@ const auto = (taskId: string, times: { start: Date; end: Date }, status: Placeme
   pinned: false,
   status,
 });
-const plan = async (tx: WorkspaceTx, now: Date, planSettings = settings) => {
+const plan = async (tx: WorkspaceTx, now: Date, planSettings = settings, options?: PlanOptions) => {
   const items = await loadItems(tx);
-  const result = await syncPlan(tx, items, planSettings, now);
+  const result = await syncPlan(tx, items, planSettings, now, options);
   // The queue read back from the saved plan is what planning reported.
   const remaining = (tasks: Task[]) => tasks.map(({ id, durationMin }) => ({ id, durationMin }));
   expect(remaining(await loadUnplaced(tx, items, planSettings, now))).toEqual(remaining(result.unplaced));
@@ -83,6 +83,27 @@ describe("syncPlan", () => {
     // Half an hour into the essay, both placements stay where they are.
     expect((await plan(tx, new Date("2026-10-07T16:30Z"))).placements).toEqual(withReading.placements);
     expect(await loadPlacements(tx, week)).toEqual(withReading.placements);
+  });
+
+  it("places every pending block again when planning fresh, so freed time is used, but keeps pinned ones", async ({
+    tx,
+  }) => {
+    const lectureId = await insertItem(tx, fixed("Lecture", utc("2026-10-07T16:00", "2026-10-07T18:00"))); // Wed 12:00–14:00
+    const essayId = await insertItem(tx, flexible("Essay", 90, utc("2026-10-05T04:00", "2026-10-09T21:00")));
+    const readingId = await insertItem(tx, flexible("Reading", 30, utc("2026-10-05T04:00", "2026-10-09T21:00")));
+    const first = await plan(tx, wednesdayNoon);
+    const essay = auto(essayId, utc("2026-10-07T18:00", "2026-10-07T19:30"));
+    const reading = { ...auto(readingId, utc("2026-10-07T19:30", "2026-10-07T20:00")), pinned: true };
+    expect(first.placements).toEqual([essay, { ...reading, pinned: false }]);
+    await updatePlacement(tx, reading, { pinned: true });
+
+    // Cancelling the lecture frees noon to 14:00, but the saved blocks stay put.
+    await deleteItem(tx, (await loadItem(tx, lectureId))!);
+    expect((await plan(tx, wednesdayNoon)).placements).toEqual([essay, reading]);
+
+    const fresh = await plan(tx, wednesdayNoon, settings, { fresh: true });
+    expect(fresh.placements).toEqual([auto(essayId, utc("2026-10-07T16:00", "2026-10-07T17:30")), reading]);
+    expect(await loadPlacements(tx, week)).toEqual(fresh.placements);
   });
 
   it("counts done and unreviewed time as spent, plans missed time again, and plans later weeks", async ({ tx }) => {

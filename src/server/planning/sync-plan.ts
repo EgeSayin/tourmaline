@@ -18,9 +18,20 @@ export interface Plan {
   unplaced: Task[];
 }
 
+export interface PlanOptions {
+  /** Place every pending block again instead of keeping those still valid, so freed time gets used. */
+  fresh?: boolean;
+}
+
 /** Plans from `now` (see `replan`) and saves the plan if it changed. */
-export async function syncPlan(tx: WorkspaceTx, items: Item[], settings: SchedulerSettings, now: Date): Promise<Plan> {
-  const { existing, ...plan } = await makePlan(tx, items, settings, now);
+export async function syncPlan(
+  tx: WorkspaceTx,
+  items: Item[],
+  settings: SchedulerSettings,
+  now: Date,
+  options: PlanOptions = {},
+): Promise<Plan> {
+  const { existing, ...plan } = await makePlan(tx, items, settings, now, options);
   const pending = (list: Placement[]) => list.filter((p) => isPending(p, now));
   if (!samePlacements(pending(existing), pending(plan.placements))) {
     await replacePendingPlacements(tx, now, plan.placements);
@@ -44,13 +55,14 @@ async function makePlan(
   items: Item[],
   settings: SchedulerSettings,
   now: Date,
+  { fresh = false }: PlanOptions = {},
 ): Promise<Plan & { existing: Placement[] }> {
   const { tasks, horizon, existing } = await loadScope(tx, items, settings, now);
   const { placements, unplaced } = replan({
     horizon,
     fixedItems: items.filter(isFixed).flatMap((item) => expandOccurrences(item, horizon, settings.timeZone)),
     tasks,
-    existing,
+    existing: fresh ? existing.filter((placement) => !isPending(placement, now)) : existing,
     settings,
   });
   return { tasks, placements, unplaced, existing };

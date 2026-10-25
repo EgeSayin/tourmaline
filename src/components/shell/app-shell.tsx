@@ -1,5 +1,6 @@
 import { CalendarDays, ChartColumn, ListTodo, Plus, Settings, Tags } from "lucide-react";
 import Link from "next/link";
+import { ReplanButton } from "@/components/shell/replan-button";
 import { SiteFooter } from "@/components/shell/site-footer";
 import { Wordmark } from "@/components/shell/wordmark";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
@@ -50,7 +51,10 @@ export function AppShell({
           <ThemeToggle />
           <SettingsLink current={page === "settings"} />
         </div>
-        <AddItemLink />
+        <div className="flex items-center gap-2">
+          <ReplanButton />
+          <AddItemLink />
+        </div>
       </header>
 
       <div

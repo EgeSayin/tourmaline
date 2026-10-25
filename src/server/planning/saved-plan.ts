@@ -5,7 +5,7 @@ import { loadSettings } from "@/server/db/settings-repository";
 import type { WorkspaceTx } from "@/server/db/workspace-transaction";
 import { loadPlannedAt, savePlannedAt } from "@/server/db/workspaces-repository";
 import { localDate } from "@/server/time/temporal";
-import { loadUnplaced, syncPlan } from "./sync-plan";
+import { loadUnplaced, type PlanOptions, syncPlan } from "./sync-plan";
 
 /** A planned task whose remaining time didn't fit before its deadline. */
 export interface QueuedTask {
@@ -17,8 +17,8 @@ export interface QueuedTask {
 }
 
 /** Plans the workspace from `now` (see `syncPlan`) and marks it planned then; for after any change to what it plans from. */
-export async function replanWorkspace(tx: WorkspaceTx, now: Date): Promise<void> {
-  await syncPlan(tx, await loadItems(tx), await loadSettings(tx), now);
+export async function replanWorkspace(tx: WorkspaceTx, now: Date, options: PlanOptions = {}): Promise<void> {
+  await syncPlan(tx, await loadItems(tx), await loadSettings(tx), now, options);
   await savePlannedAt(tx, now);
 }
 
