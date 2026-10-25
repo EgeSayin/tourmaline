@@ -10,7 +10,11 @@ permissions:
   contents: read
 
 jobs:
+  lint-and-test:
+    uses: ./.github/workflows/lint-and-test.yml
+
   image:
+    needs: lint-and-test
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -18,7 +22,7 @@ jobs:
       attestations: write
       id-token: write
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - uses: docker/setup-qemu-action@v4
 

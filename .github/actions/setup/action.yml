@@ -1,0 +1,14 @@
+# Node at the version package.json's `engines` asks for, with npm's download cache, and the dependencies exactly as
+# package-lock.json pins them.
+name: Set up Node and dependencies
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-node@v7
+      with:
+        node-version-file: package.json
+        cache: npm
+
+    - run: npm ci
+      shell: bash
