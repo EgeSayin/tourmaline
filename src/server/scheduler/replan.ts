@@ -1,6 +1,6 @@
 import { minutesBetween } from "@/lib/time/duration";
 import { type FixedItem, PRIORITIES, type Task } from "@/lib/items";
-import { isPending, type Placement } from "@/lib/placements";
+import { isDoneEarly, isPending, type Placement } from "@/lib/placements";
 import type { SchedulerSettings } from "@/lib/settings";
 import { freeTimeMap } from "./free-time";
 import { type Interval, type IntervalSet, later, overlaps, subtractIntervals } from "@/lib/time/interval";
@@ -28,10 +28,11 @@ export interface ReplanResult {
 
 /**
  * Keeps placements that are done, pinned or in progress, and past planned ones still waiting to be reviewed, so
- * their task's time isn't moved before they are; missed ones are dropped, so their time is planned again. Pending
- * placements are kept too while they remain valid (inside time their task may use, in free time, not overlapping),
- * and each task's remaining time is placed in the free time from `now` on, going in an optional fixed item's time only
- * when it is more important than the item and fits nowhere else (see `PlanTask.allowed`).
+ * their task's time isn't moved before they are; missed ones are dropped, so their time is planned again. A block
+ * checked off before it started keeps counting as its task's time, but its time is free again. Pending placements are
+ * kept too while they remain valid (inside time their task may use, in free time, not overlapping), and each task's
+ * remaining time is placed in the free time from `now` on, going in an optional fixed item's time only when it is more
+ * important than the item and fits nowhere else (see `PlanTask.allowed`).
  *
  * Plans are compared by the goals of `better`. While the plan misses a goal worth moving blocks for (a task left out,
  * or one in an optional item's time), other plans are tried: for each priority
@@ -43,11 +44,12 @@ export interface ReplanResult {
 export function replan({ horizon, fixedItems, tasks, existing, settings }: ReplanInput): ReplanResult {
   const now = horizon.start;
   const kept = existing.filter((placement) => placement.status !== "missed" && !isPending(placement, now));
+  const occupying = kept.filter((placement) => !isDoneEarly(placement, now));
   const movable = existing.filter((placement) => isPending(placement, now));
 
   const optional = fixedItems.filter((item) => item.priority !== "mandatory");
   const mandatory = fixedItems.filter((item) => item.priority === "mandatory");
-  const free = subtractIntervals(now < horizon.end ? freeTimeMap(horizon, mandatory, settings) : [], kept);
+  const free = subtractIntervals(now < horizon.end ? freeTimeMap(horizon, mandatory, settings) : [], occupying);
   const context = { optional, timeZone: settings.timeZone };
   const planTasks = tasks.map((task) => planTask({ ...task, earliestStart: later(task.earliestStart, now) }, context));
   const planTasksById = new Map(planTasks.map((task) => [task.id, task]));

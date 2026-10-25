@@ -20,6 +20,14 @@ export function isPending(placement: Placement, now: Date): boolean {
   return placement.status === "planned" && !placement.pinned && placement.start >= now;
 }
 
+/**
+ * Checked off before it started by `now`: its time is free for other tasks' blocks, while it still counts as its
+ * task's time, done.
+ */
+export function isDoneEarly(placement: Placement, now: Date): boolean {
+  return placement.status === "done" && placement.start >= now;
+}
+
 /** Where a placement stands at a time: a planned one is in progress once started, and to review once ended. */
 export type PlacementState = "planned" | "in-progress" | "to-review" | "done" | "missed";
 

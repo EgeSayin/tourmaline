@@ -104,6 +104,42 @@ describe("toCalendarBlocks", () => {
   });
 });
 
+describe("a block checked off before it starts", () => {
+  it("shows as done until another block takes its time, then is left out", () => {
+    const window = utc("2026-10-05T04:00", "2026-10-09T04:00");
+    const items = new Map<string, Item>(
+      [flexible("Essay", 60, window), flexible("Reading", 60, window)].map((i) => [i.id, i]),
+    );
+    const targetFor = (id: string): EditTarget | undefined => {
+      const item = items.get(id);
+      return item && { item, occurrenceDate: null, occurrence: null };
+    };
+    const now = utc("2026-10-05T15:00", "2026-10-05T15:00").start;
+    const doneEarly: Placement = {
+      taskId: "Essay",
+      ...utc("2026-10-05T17:00", "2026-10-05T18:00"),
+      pinned: false,
+      status: "done",
+    };
+    const taken: Placement = {
+      taskId: "Reading",
+      ...utc("2026-10-05T17:00", "2026-10-05T17:30"),
+      pinned: false,
+      status: "planned",
+    };
+    const shown = (placements: Placement[]) =>
+      toCalendarBlocks([], placements, tz, targetFor, [], now).map((block) => [block.title, block.style]);
+
+    expect(shown([doneEarly])).toEqual([["Essay", "done"]]);
+    expect(shown([doneEarly, taken])).toEqual([["Reading", "scheduled"]]);
+    // Once started, a done block keeps its place like any other.
+    expect(shown([{ ...doneEarly, ...utc("2026-10-05T14:30", "2026-10-05T15:30") }, taken])).toEqual([
+      ["Essay", "done"],
+      ["Reading", "scheduled"],
+    ]);
+  });
+});
+
 describe("conflicts", () => {
   it("marks fixed items that overlap each other, or a block that stays put, but not an optional one a more important block displaces", () => {
     const lecture = fixed("Lecture", utc("2026-10-05T14:00", "2026-10-05T15:00"));

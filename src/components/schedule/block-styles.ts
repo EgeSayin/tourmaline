@@ -40,7 +40,7 @@ export const BLOCK_STYLES: Record<BlockStyle, { label: string; className: string
   },
   scheduled: { label: "Scheduled", className: "border-2 border-state-scheduled" },
   "to-review": { label: "To review", className: "border-2 border-state-review" },
-  done: { label: "Done", className: "border-2 border-state-done" },
+  done: { label: "Done", className: "border-2 border-state-done opacity-60 line-through" },
   missed: {
     label: "Missed",
     className: "border-2 border-dashed border-state-missed line-through",

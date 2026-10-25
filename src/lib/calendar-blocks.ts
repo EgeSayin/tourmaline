@@ -1,6 +1,6 @@
 import type { Category, CategoryColor } from "./categories";
 import { bufferedSpan, type FixedItem, type Item, PRIORITIES } from "./items";
-import { type Placement, type PlacementRef, type PlacementState, placementState } from "./placements";
+import { isDoneEarly, type Placement, type PlacementRef, type PlacementState, placementState } from "./placements";
 import { overlaps } from "./time/interval";
 import { toLocal } from "./time/local-time";
 import { MINUTES_PER_DAY } from "./time/time-of-day";
@@ -69,7 +69,8 @@ export interface CalendarBlock {
 
 /**
  * Positions blocks on the local day they start, cut off at midnight; `withLanes` then lays out those shown. Placements
- * whose item is gone are skipped.
+ * whose item is gone are skipped, and so is one checked off before it started once another block has taken its time;
+ * its task's schedule still lists it.
  */
 export function toCalendarBlocks(
   fixedItems: FixedItem[],
@@ -80,6 +81,10 @@ export function toCalendarBlocks(
   now: Date,
 ): CalendarBlock[] {
   const colors = new Map(categories.map((category) => [category.id, category.color]));
+  const shown = placements.filter(
+    (placement) =>
+      !isDoneEarly(placement, now) || !placements.some((other) => other !== placement && overlaps(placement, other)),
+  );
   const unpositioned = [
     ...fixedItems.map((item) => ({
       key: item.id,
@@ -89,7 +94,7 @@ export function toCalendarBlocks(
       placement: null,
       busy: bufferedSpan(item),
     })),
-    ...placements.map((placement) => ({
+    ...shown.map((placement) => ({
       key: `${placement.taskId}@${placement.start.toISOString()}`,
       id: placement.taskId,
       start: placement.start,

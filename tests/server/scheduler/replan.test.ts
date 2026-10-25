@@ -105,6 +105,26 @@ describe("replan", () => {
     expect(result.unplaced).toEqual([]);
   });
 
+  it("frees the time of a block checked off before it started for a task that fits nowhere else, still counting it as done", () => {
+    const settings: SchedulerSettings = { timeZone: "UTC", downtime: nightly(23 * 60, 10 * 60) };
+    const horizon = utc("2026-10-05T10:00", "2026-10-05T14:00");
+    const essay = flexible("Essay", 60, utc("2026-10-05T10:00", "2026-10-05T14:00"));
+    const reading = flexible("Reading", 60, utc("2026-10-05T12:00", "2026-10-05T13:00"));
+    const doneEarly: Placement = {
+      taskId: "Essay",
+      ...utc("2026-10-05T12:00", "2026-10-05T13:00"),
+      pinned: false,
+      status: "done",
+    };
+    const result = replan({ horizon, fixedItems: [], tasks: [essay, reading], existing: [doneEarly], settings });
+
+    expect(result.placements).toEqual([
+      doneEarly,
+      { taskId: "Reading", ...utc("2026-10-05T12:00", "2026-10-05T13:00"), pinned: false, status: "planned" },
+    ]);
+    expect(result.unplaced).toEqual([]); // the essay's hour is done
+  });
+
   it("moves existing placements when a task can't fit around them", () => {
     // Free only 10:00–14:00.
     const settings: SchedulerSettings = {
@@ -400,7 +420,7 @@ describe("replan", () => {
     ]);
   });
 
-  it("keeps done, pinned and in-progress placements, drops missed ones, and fills each task's remaining time after now", () => {
+  it("keeps done, pinned and in-progress placements, drops missed ones, and fills each task's remaining time after now, in the time of blocks checked off early too", () => {
     const caseArb = scenarioArb.chain((scenario) => fc.tuple(fc.constant(scenario), existingArb(scenario.tasks)));
 
     fc.assert(
@@ -410,6 +430,7 @@ describe("replan", () => {
         const kept = existing.filter(
           (p) => p.status === "done" || (p.status === "planned" && (p.pinned || p.start < now)),
         );
+        const occupying = kept.filter((p) => !(p.status === "done" && p.start >= now));
         const missed = existing.filter((p) => p.status === "missed");
         for (const placement of missed) expect(result.placements).not.toContainEqual(placement);
         const others = result.placements.filter((p) => !kept.some((k) => samePlacement(k, p)));
@@ -422,7 +443,7 @@ describe("replan", () => {
           const task = tasks.find((t) => t.id === placement.taskId)!;
           expect(placement.start >= task.earliestStart && placement.end <= task.deadline).toBe(true);
           expect(inRequiredHours(task, placement)).toBe(true);
-          expect(subtractIntervals([placement], subtractIntervals(free, kept))).toEqual([]);
+          expect(subtractIntervals([placement], subtractIntervals(free, occupying))).toEqual([]);
           if (i > 0) expect(byStart[i - 1].end <= placement.start).toBe(true);
         }
 
@@ -439,7 +460,7 @@ describe("replan", () => {
           }
         }
 
-        const leftover = subtractIntervals(free, [...kept, ...others]);
+        const leftover = subtractIntervals(free, [...occupying, ...others]);
         for (const task of tasks) {
           const remaining = task.durationMin - minutesFor(kept, task.id);
           const placedMin = minutesFor(others, task.id);
