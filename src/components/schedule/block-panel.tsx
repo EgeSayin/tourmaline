@@ -6,6 +6,7 @@ import Link from "next/link";
 import { BlockDetails } from "@/components/items/block-details";
 import { BlockEditor } from "@/components/items/block-editor";
 import { BlockSummary } from "@/components/items/block-summary";
+import { BumpButtons } from "@/components/items/bump-buttons";
 import { useShell } from "@/components/workspace/workspace";
 import { PlacementActions } from "@/components/items/placement-actions";
 import { SkipOccurrenceButton } from "@/components/items/skip-occurrence-button";
@@ -40,6 +41,7 @@ function PanelContent({ block, editable }: { block: OpenedBlock; editable: boole
         <p className="text-sm text-muted-foreground">A higher-priority task needs this time.</p>
       )}
       {placement && <PlacementActions placement={placement} onDone={close} />}
+      {placement?.state === "planned" && <BumpButtons placementRef={placement.ref} onDone={close} />}
       {editable ? (
         <BlockEditor key={block.key} target={target} categories={categories} timeZone={timeZone} onDone={close} />
       ) : (

@@ -20,6 +20,31 @@ export interface Plan {
 
 /** Plans from `now` (see `replan`) and saves the plan if it changed. */
 export async function syncPlan(tx: WorkspaceTx, items: Item[], settings: SchedulerSettings, now: Date): Promise<Plan> {
+  const { existing, ...plan } = await makePlan(tx, items, settings, now);
+  const pending = (list: Placement[]) => list.filter((p) => isPending(p, now));
+  if (!samePlacements(pending(existing), pending(plan.placements))) {
+    await replacePendingPlacements(tx, now, plan.placements);
+  }
+  return plan;
+}
+
+/** The plan `syncPlan` would save, without saving it. */
+export async function previewPlan(
+  tx: WorkspaceTx,
+  items: Item[],
+  settings: SchedulerSettings,
+  now: Date,
+): Promise<Plan> {
+  const { existing: _, ...plan } = await makePlan(tx, items, settings, now);
+  return plan;
+}
+
+async function makePlan(
+  tx: WorkspaceTx,
+  items: Item[],
+  settings: SchedulerSettings,
+  now: Date,
+): Promise<Plan & { existing: Placement[] }> {
   const { tasks, horizon, existing } = await loadScope(tx, items, settings, now);
   const { placements, unplaced } = replan({
     horizon,
@@ -28,12 +53,7 @@ export async function syncPlan(tx: WorkspaceTx, items: Item[], settings: Schedul
     existing,
     settings,
   });
-
-  const pending = (list: Placement[]) => list.filter((p) => isPending(p, now));
-  if (!samePlacements(pending(existing), pending(placements))) {
-    await replacePendingPlacements(tx, now, placements);
-  }
-  return { tasks, placements, unplaced };
+  return { tasks, placements, unplaced, existing };
 }
 
 /**

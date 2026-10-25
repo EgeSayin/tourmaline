@@ -5,9 +5,18 @@ import { type FormState, formFields } from "@/lib/form-state";
 import { z } from "zod";
 import { loadSettings } from "@/server/db/settings-repository";
 import type { WorkspaceTx } from "@/server/db/workspace-transaction";
-import { PLACEMENT_STATUSES, type PlacementRef, type PlacementStatus } from "@/lib/placements";
+import { PLACEMENT_STATUSES, type PlacementRef, type PlacementStatus, SLOT_MIN } from "@/lib/placements";
 import { parseOccurrenceId } from "@/lib/recurrence";
-import { changeOccurrence, createItem, editItem, removeItem, setTaskDone, skipOccurrence } from "./item-commands";
+import {
+  type BumpOutcome,
+  bumpTask,
+  changeOccurrence,
+  createItem,
+  editItem,
+  removeItem,
+  setTaskDone,
+  skipOccurrence,
+} from "./item-commands";
 import { setPlacementPinned, setPlacementStatus } from "./placement-commands";
 import { parseItemForm, parseOccurrenceForm } from "./parse-item-form";
 import { loadItem } from "@/server/db/items-repository";
@@ -90,6 +99,13 @@ export async function skipOccurrenceAction(id: string, date: string): Promise<bo
   const validId = itemId.parse(id);
   const validDate = z.iso.date().parse(date);
   return changeWorkspace((tx, now) => skipOccurrence(tx, validId, validDate, now));
+}
+
+/** See `bumpTask`; a block gone or started meanwhile is left alone. */
+export async function bumpTaskAction(ref: PlacementRef, byMin: number): Promise<BumpOutcome | false> {
+  const validRef = placementRef.parse(ref);
+  const validByMin = z.int().positive().multipleOf(SLOT_MIN).parse(byMin);
+  return changeWorkspace((tx, now) => bumpTask(tx, validRef, validByMin, now));
 }
 
 export async function setPlacementStatusAction(ref: PlacementRef, status: PlacementStatus): Promise<boolean> {

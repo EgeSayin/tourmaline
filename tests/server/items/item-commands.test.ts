@@ -1,10 +1,17 @@
 import { describe, expect } from "vitest";
-import type { NewItem } from "@/lib/items";
+import type { NewItem, Task } from "@/lib/items";
 import type { Placement, PlacementStatus } from "@/lib/placements";
 import { occurrenceId, type Recurrence } from "@/lib/recurrence";
 import { insertItem, loadItem, loadItems } from "@/server/db/items-repository";
-import { insertPlacements, loadPlacements } from "@/server/db/placements-repository";
-import { changeOccurrence, editItem, removeItem, setTaskDone, skipOccurrence } from "@/server/items/item-commands";
+import { insertPlacements, loadPlacement, loadPlacements } from "@/server/db/placements-repository";
+import {
+  bumpTask,
+  changeOccurrence,
+  editItem,
+  removeItem,
+  setTaskDone,
+  skipOccurrence,
+} from "@/server/items/item-commands";
 import { dbTest as it } from "../../support/database";
 import { utc } from "../../support/intervals";
 import { fixed, flexible, unsaved } from "../../support/items";
@@ -361,5 +368,51 @@ describe("setTaskDone", () => {
     expect(await setTaskDone(tx, gymId, null, true, now)).toBe(false);
     expect(await setTaskDone(tx, lectureId, null, true, now)).toBe(false);
     expect(await setTaskDone(tx, "00000000-0000-4000-8000-000000000000", null, true, now)).toBe(false);
+  });
+});
+
+describe("bumpTask", () => {
+  it("moves a one-off task's earliest start to the block's start plus the amount, unpinning its blocks before then, and refuses a bump past its deadline or into too little time", async ({
+    tx,
+  }) => {
+    // Default downtime: 23:00–10:00 UTC.
+    // Two hours in progress, two left to place.
+    const essayId = await insertItem(tx, flexible("Essay", 240, utc("2026-10-07T10:00", "2026-10-09T21:00")));
+    const block = (start: string, end: string, pinned = false): Placement => ({
+      taskId: essayId,
+      ...utc(start, end),
+      pinned,
+      status: "planned",
+    });
+    const tonight = block("2026-10-07T18:00", "2026-10-07T19:00", true);
+    const tomorrow = block("2026-10-08T14:00", "2026-10-08T15:00");
+    const started = block("2026-10-07T15:00", "2026-10-07T17:00");
+    await insertPlacements(tx, [tonight, tomorrow, started]);
+    const earliestStart = async () => ((await loadItem(tx, essayId)) as Task).earliestStart;
+
+    expect(await bumpTask(tx, tonight, 24 * 60, now)).toBe("bumped");
+    expect(await earliestStart()).toEqual(new Date("2026-10-08T18:00Z"));
+    expect((await loadPlacement(tx, tonight))!.pinned).toBe(false);
+
+    expect(await bumpTask(tx, tonight, 3 * 24 * 60, now)).toBe("past-due"); // Oct 10 18:00, after the deadline
+    expect(await bumpTask(tx, tonight, 2 * 24 * 60 + 120, now)).toBe("no-room"); // Oct 9 20:00: an hour left
+    expect(await earliestStart()).toEqual(new Date("2026-10-08T18:00Z"));
+    expect(await bumpTask(tx, tonight, 2 * 24 * 60, now)).toBe("bumped"); // Oct 9 18:00: three hours left
+    expect(await earliestStart()).toEqual(new Date("2026-10-09T18:00Z"));
+
+    expect(await bumpTask(tx, started, 60, now)).toBe(false);
+    expect(await bumpTask(tx, { taskId: essayId, start: new Date("2026-10-08T09:00Z") }, 60, now)).toBe(false);
+  });
+
+  it("gives an occurrence its own window from the block's start plus the amount", async ({ tx }) => {
+    const gymId = await insertItem(tx, gym);
+    const block = gymBlock(gymId, "2026-10-07", "2026-10-07T18:00", "2026-10-07T19:00");
+    await insertPlacements(tx, [block]);
+
+    expect(await bumpTask(tx, block, 60, now)).toBe("bumped");
+    expect((await loadItem(tx, gymId))!.changes).toEqual({
+      "2026-10-07": { ...utc("2026-10-07T19:00", "2026-10-08T14:00"), durationMin: 60 },
+    });
+    expect(await bumpTask(tx, block, 24 * 60, now)).toBe("past-due");
   });
 });

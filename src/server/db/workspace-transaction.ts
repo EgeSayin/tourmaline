@@ -43,6 +43,30 @@ export function readInWorkspace<T>(
   });
 }
 
+/**
+ * Runs `work` in a savepoint of `tx`, and rolls its changes back unless `keep` says so of its result, which is
+ * returned either way.
+ */
+export async function attempt<T>(
+  tx: WorkspaceTx,
+  work: (tx: WorkspaceTx) => Promise<T>,
+  keep: (result: T) => boolean,
+): Promise<T> {
+  class Discarded {
+    constructor(readonly result: T) {}
+  }
+  try {
+    return await tx.transaction(async (inner) => {
+      const result = await work(Object.assign(inner, { workspaceId: tx.workspaceId }));
+      if (!keep(result)) throw new Discarded(result);
+      return result;
+    });
+  } catch (error) {
+    if (error instanceof Discarded) return error.result;
+    throw error;
+  }
+}
+
 /** Limits a query to `tx`'s workspace. */
 export function ownedBy(tx: WorkspaceTx, table: { workspaceId: PgColumn }): SQL {
   return eq(table.workspaceId, tx.workspaceId);

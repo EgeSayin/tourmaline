@@ -65,6 +65,14 @@ export async function updatePlacement(
   await tx.update(placements).set(changes).where(matching(tx, ref));
 }
 
+/** Unpins the task's planned placements that start before `before`. */
+export async function unpinPlannedBefore(tx: WorkspaceTx, taskId: string, before: Date): Promise<void> {
+  await tx
+    .update(placements)
+    .set({ pinned: false })
+    .where(and(ofTask(tx, taskId), eq(placements.status, "planned"), lt(placements.startAt, before)));
+}
+
 /** Checks off the task's planned placements that started before `now`. */
 export async function checkOffStarted(tx: WorkspaceTx, taskId: string, now: Date): Promise<void> {
   await tx

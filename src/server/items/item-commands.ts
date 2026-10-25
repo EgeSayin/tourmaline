@@ -6,12 +6,15 @@ import {
   type Occurrences,
   parseOccurrenceId,
 } from "@/lib/recurrence";
+import type { PlacementRef } from "@/lib/placements";
+import { addMinutes } from "@/lib/time/duration";
 import type { TimeZone } from "@/lib/time/time-zone";
-import type { WorkspaceTx } from "@/server/db/workspace-transaction";
+import { attempt, type WorkspaceTx } from "@/server/db/workspace-transaction";
 import {
   deleteItem,
   insertItem,
   loadItem,
+  loadItems,
   saveOccurrence,
   setItemDone,
   updateItem,
@@ -21,9 +24,13 @@ import {
   deletePendingPlacements,
   dropPlanned,
   dropPlannedOccurrences,
+  loadPlacement,
   moveOccurrencePlacements,
+  unpinPlannedBefore,
 } from "@/server/db/placements-repository";
-import { firstOccurrence, occursOn } from "@/server/recurrence";
+import { loadSettings } from "@/server/db/settings-repository";
+import { previewPlan } from "@/server/planning/sync-plan";
+import { firstOccurrence, occurrenceOn, occursOn } from "@/server/recurrence";
 import { localDate } from "@/server/time/temporal";
 
 export function createItem(tx: WorkspaceTx, item: NewItem): Promise<string> {
@@ -141,6 +148,55 @@ export async function setTaskDone(
     await dropPlanned(tx, taskId, now);
   }
   return true;
+}
+
+/** How `bumpTask` turned out: `past-due` and `no-room` changed nothing. */
+export type BumpOutcome = "bumped" | "past-due" | "no-room";
+
+/**
+ * Bumps the task of the planned block `ref` points to, which mustn't have started by `now`, by `byMin`: its earliest
+ * start, or its occurrence's own, moves to the block's start plus `byMin`, and its pinned blocks before then are
+ * unpinned, so the next plan drops its blocks before then and places their time again from there on, keeping its
+ * later blocks. Returns `past-due` if that would be at or past its deadline, `no-room` if more of the task would then
+ * be left unplaced than now, and `false` if there is no such block.
+ */
+export async function bumpTask(
+  tx: WorkspaceTx,
+  ref: PlacementRef,
+  byMin: number,
+  now: Date,
+): Promise<BumpOutcome | false> {
+  const placement = await loadPlacement(tx, ref);
+  if (!placement || placement.status !== "planned" || placement.start < now) return false;
+  const settings = await loadSettings(tx);
+  const { itemId, date } = parseOccurrenceId(ref.taskId);
+  const item = await loadItem(tx, itemId);
+  if (!item || !isTask(item)) return false;
+  const task = date ? occurrenceOn(item, date, settings.timeZone)?.own : item.recurrence ? undefined : item;
+  if (!task) return false;
+
+  const notBefore = addMinutes(placement.start, byMin);
+  if (notBefore >= task.deadline) return "past-due";
+
+  const unplacedMin = async () => {
+    const { unplaced } = await previewPlan(tx, await loadItems(tx), settings, now);
+    return unplaced.find((candidate) => candidate.id === ref.taskId)?.durationMin ?? 0;
+  };
+  const before = await unplacedMin();
+  return attempt(
+    tx,
+    async (tx) => {
+      if (date) {
+        const change = { start: notBefore, end: task.deadline, durationMin: task.durationMin };
+        await saveOccurrence(tx, item, date, { change });
+      } else {
+        await updateItem(tx, item.id, { ...item, earliestStart: notBefore }, item.occurrences, item.changes);
+      }
+      await unpinPlannedBefore(tx, ref.taskId, notBefore);
+      return (await unplacedMin()) > before ? "no-room" : "bumped";
+    },
+    (outcome) => outcome === "bumped",
+  );
 }
 
 /** What a series keeps of its occurrences: their states and changes. */

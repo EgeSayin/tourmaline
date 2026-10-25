@@ -26,5 +26,8 @@ export const DEFAULT_CHUNK_BREAK_MIN = 30;
 
 export const OCCURRENCES_SHOWN = 7;
 
+/** The amounts a block's task is offered to be bumped by at a click: an hour, half a day, a day. */
+export const BUMP_PRESETS_MIN = [60, 12 * 60, 24 * 60];
+
 /** How many weeks the stats page looks back over, this one included. */
 export const STATS_WEEKS = 8;
