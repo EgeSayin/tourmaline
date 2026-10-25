@@ -126,8 +126,10 @@ export function TaskWindowFields({ repeat, upTo = false }: { repeat: Repeat; upT
         name="earliestStart"
         clearable
         label="Not before"
-        placeholder={repeat === "none" ? "Now" : "Not set"}
-        description={repeat === "none" ? "Leave empty to start now." : "When the first one can start."}
+        placeholder={repeat === "none" ? "Now" : "Today"}
+        description={
+          repeat === "none" ? "Leave empty to start now." : "When the first one can start. Leave empty to start today."
+        }
       />
       {repeat === "none" ? (
         <FormDateTimeInput name="deadline" label="Due" placeholder="Not set" />

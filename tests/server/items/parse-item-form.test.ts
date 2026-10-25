@@ -180,6 +180,26 @@ describe("parseItemForm", () => {
       ok: true,
       item: { earliestStart: new Date("2026-10-05T12:00Z"), deadline: new Date("2026-10-06T21:00Z") },
     });
+
+    // A repeating one starts at the start of today instead, so its occurrences run from midnight to midnight: daily
+    // from Mon Oct 5, or on its first day from then, Wed Oct 7, with that day's own duration.
+    const daily = { ...task, deadline: "", repeat: "daily" };
+    expect(parseItemForm(daily, tz, now)).toMatchObject({
+      ok: true,
+      item: { earliestStart: new Date("2026-10-05T04:00Z"), deadline: new Date("2026-10-06T04:00Z") },
+    });
+    const weekly = {
+      ...daily,
+      repeat: "weekly",
+      weekdays: "3,5",
+      perDay: "each",
+      "durationMin-3": "45",
+      "durationMin-5": "90",
+    };
+    expect(parseItemForm(weekly, tz, now)).toMatchObject({
+      ok: true,
+      item: { durationMin: 45, earliestStart: new Date("2026-10-05T04:00Z"), deadline: new Date("2026-10-09T04:00Z") },
+    });
   });
 
   it("parses repeat rules, making each recurring task due when its next occurrence starts", () => {
@@ -338,7 +358,6 @@ describe("parseItemForm", () => {
       errors: {
         title: [expect.any(String)],
         durationMin: [expect.any(String)],
-        earliestStart: [expect.any(String)],
         weekdays: [expect.any(String)],
       },
     });
@@ -348,10 +367,6 @@ describe("parseItemForm", () => {
     });
 
     const task = { timing: "flexible", title: "Gym", durationMin: "60" };
-    expect(parseItemForm({ ...task, repeat: "daily" }, tz, now)).toEqual({
-      ok: false,
-      errors: { earliestStart: ["Enter when each occurrence can start"] },
-    });
     expect(parseItemForm(task, tz, now)).toEqual({ ok: false, errors: { deadline: ["Enter a date and time"] } });
   });
 

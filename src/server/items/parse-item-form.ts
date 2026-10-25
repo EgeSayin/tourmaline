@@ -27,7 +27,7 @@ import { minutesBetween } from "@/lib/time/duration";
 import { fromTimeInputValue, MINUTES_PER_DAY } from "@/lib/time/time-of-day";
 import type { TimeZone } from "@/lib/time/time-zone";
 import { firstOccurrence, withFirstDeadline } from "@/server/recurrence";
-import { atLocalTime, toDate } from "@/server/time/temporal";
+import { atLocalTime, localDate, startOfDay, toDate } from "@/server/time/temporal";
 import { hoursOf } from "@/server/scheduler/preferences";
 
 const emptyToUndefined = (value: unknown) => (value === "" || value === null ? undefined : value);
@@ -116,11 +116,6 @@ const flexibleForm = z
     message: "Enter a date and time",
     ...evenIfInvalid,
   })
-  .refine((form) => form.repeat === "none" || form.earliestStart !== undefined, {
-    path: ["earliestStart"],
-    message: "Enter when each occurrence can start",
-    ...evenIfInvalid,
-  })
   .refine((form) => (form.minChunkMin ?? DEFAULT_MIN_CHUNK_MIN) <= (form.maxChunkMin ?? DEFAULT_MAX_CHUNK_MIN), {
     path: ["maxChunkMin"],
     message: "Longest block must be at least the shortest",
@@ -203,7 +198,8 @@ export type ParsedItemForm = { ok: true; item: NewItem } | { ok: false; errors: 
 /**
  * Validates submitted form fields and converts their local times to exact times in `timeZone`. A fixed item ending at
  * an earlier time than it starts ends the next day.
- * A one-off flexible task without an earliest start starts at `now`, and its deadline must be after `now`.
+ * A flexible task without an earliest start starts at `now`, or a recurring one at the start of today; a one-off's
+ * deadline must be after `now`.
  * A recurring item must occur at least once; a recurring task is due when its first occurrence's window ends. Only a
  * recurring task can be kept within its period, take only what fits, or stop after a total. A task that must be placed in its time of day has to fit there: each
  * of its blocks within the hours, and a one-off one in those hours before it's due. A weekly item on more than one day
@@ -262,15 +258,16 @@ export function parseItemForm(fields: Record<string, unknown>, timeZone: TimeZon
     form.timeOfDayStart === undefined || form.timeOfDayEnd === undefined
       ? null
       : { startMinute: form.timeOfDayStart, endMinute: form.timeOfDayEnd, must: form.timeOfDayRule === "must" };
+  const firstDate = form.earliestStart
+    ? Temporal.PlainDate.from(form.earliestStart.slice(0, 10))
+    : localDate(now, timeZone);
   const task = {
     title: form.title,
     priority: form.priority,
     timing: "flexible" as const,
     recurrence,
     categoryId: form.category ?? null,
-    durationMin: form.earliestStart
-      ? onFirstDate(Temporal.PlainDate.from(form.earliestStart.slice(0, 10)), taskTiming)
-      : taskTiming.value,
+    durationMin: onFirstDate(firstDate, taskTiming),
     dayDurations: taskTiming.byDay,
     split:
       form.blocks === "split"
@@ -293,7 +290,11 @@ export function parseItemForm(fields: Record<string, unknown>, timeZone: TimeZon
   if (timeOfDay?.must && longestBlockMin > timeOfDay.endMinute - timeOfDay.startMinute) {
     return { ok: false, errors: { timeOfDay: ["Its blocks are longer than these hours"] } };
   }
-  const earliestStart = form.earliestStart ? at(form.earliestStart) : now;
+  const earliestStart = form.earliestStart
+    ? at(form.earliestStart)
+    : recurrence
+      ? startOfDay(firstDate, timeZone)
+      : now;
 
   if (recurrence) {
     const item = withFirstDeadline({ ...task, earliestStart }, timeZone);
