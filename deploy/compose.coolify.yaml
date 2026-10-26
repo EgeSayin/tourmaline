@@ -1,0 +1,45 @@
+# For Coolify's Docker Compose build pack (Docker Compose Location: /deploy/compose.coolify.yaml). It builds the image
+# from the repository, so there is no `ports`: Coolify routes the domain to the app, and `exclude_from_hc` keeps the
+# one-time migrate service out of its health check. For plain Docker Compose, use compose.yaml instead.
+services:
+  db:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: tourmaline
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?}
+      POSTGRES_DB: tourmaline
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tourmaline -d tourmaline"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  migrate:
+    build: ..
+    command: ["node", "cli/migrate.mjs"]
+    environment:
+      DATABASE_URL: postgres://tourmaline:${POSTGRES_PASSWORD}@db:5432/tourmaline
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: "no"
+    exclude_from_hc: true
+
+  app:
+    build: ..
+    restart: unless-stopped
+    init: true
+    environment:
+      DATABASE_URL: postgres://tourmaline:${POSTGRES_PASSWORD}@db:5432/tourmaline
+      DEMO_MODE: ${DEMO_MODE:-false}
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+
+volumes:
+  db-data:
