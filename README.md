@@ -5,6 +5,13 @@ and the tasks you need to get done, each with how long it takes and when it is d
 and plans again whenever something changes. If you don't get to something, you mark it missed and Tourmaline finds it a
 new time, so you never have to fix your week by hand.
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="public/welcome/week-dark.jpg">
+  <img alt="The calendar for one week, with fixed events and the tasks planned between them" src="public/welcome/week-light.jpg">
+</picture>
+
+_Events stay where you put them. Tasks fill the free time between them, each before its deadline._
+
 ## Try the demo
 
 The public demo is at [tourmaline.sageland.dev](https://tourmaline.sageland.dev). You get your own copy of a sample
@@ -34,14 +41,35 @@ the scheduler moves them around to find the best-effort schedule with respect to
 | Who picks its time     | You                       | The scheduler              |
 | When something changes | It stays where it is      | It can be moved            |
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="public/welcome/add-dark.jpg">
+  <img alt="The form for a new task, with a title, a duration of three hours and a due date, but no time" src="public/welcome/add-light.jpg">
+</picture>
+
+_Give a task a length and a due date. Tourmaline picks the time, so you never hunt for a free slot._
+
 Each task has a priority: mandatory, high, normal or low. The scheduler first tries to fit every task before its
 deadline, moving already planned tasks around if that makes room. Only when that isn't possible does priority decide,
 and the less important tasks give way. A task that still can't fit waits in the queue, so I see it days before its
 deadline and can decide what to do with it.
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="public/welcome/queue-dark.jpg">
+  <img alt="The queue, holding a twenty-hour task due tomorrow that doesn't fit" src="public/welcome/queue-light.jpg">
+</picture>
+
+_Twenty hours of work due tomorrow won't fit. Instead of overbooking you, Tourmaline keeps it in the queue, so you know today._
+
 Finally, the plan has to be stable. Once something is planned, it stays where it is unless another task needs its time.
 So adding a task doesn't reshuffle my week, and neither does cancelling something. The time it leaves becomes free time,
 or a task from the queue that fits takes it. Anything I have done, started or pinned never moves at all.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="public/welcome/missed-dark.jpg">
+  <img alt="A missed block on the calendar, with its time planned again later in the week" src="public/welcome/missed-light.jpg">
+</picture>
+
+_When a block doesn't happen, one click marks it missed and its time goes back into the plan, somewhere free before the deadline._
 
 ## The biggest design decision: a deterministic scheduler with ranked goals
 
