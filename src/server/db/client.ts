@@ -3,9 +3,10 @@ import { PHASE_PRODUCTION_BUILD } from "next/constants";
 import postgres from "postgres";
 import { createDatabase } from "./connection";
 
-// `next build` loads every route without a database, and nothing queries it then: every page is dynamic.
+// `next build` loads every route without a database, and nothing queries it then: every page is dynamic. An empty
+// URL counts as unset: a build can receive one as a blank build argument.
 const building = process.env.NEXT_PHASE === PHASE_PRODUCTION_BUILD;
-const url = process.env.DATABASE_URL ?? (building ? "postgres://unused-at-build" : undefined);
+const url = process.env.DATABASE_URL || (building ? "postgres://unused-at-build" : undefined);
 if (!url) throw new Error("DATABASE_URL is not set");
 
 // Reuse one connection pool across hot reloads in development instead of opening a new one per reload.
