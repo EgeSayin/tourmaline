@@ -1,6 +1,6 @@
-# For Coolify's Docker Compose build pack (Docker Compose Location: /deploy/compose.coolify.yaml). It builds the image
-# from the repository, so there is no `ports`: Coolify routes the domain to the app, and `exclude_from_hc` keeps the
-# one-time migrate service out of its health check. For plain Docker Compose, use compose.yaml instead.
+# For Coolify's Docker Compose build pack: Base Directory /, Docker Compose Location /deploy/compose.coolify.yaml. Build
+# paths are relative to the base directory. There is no `ports`, as Coolify routes the domain to the app, and
+# `exclude_from_hc` keeps the one-time migrate service out of its health check. Plain Docker Compose: compose.yaml.
 services:
   db:
     image: postgres:16
@@ -18,7 +18,7 @@ services:
       retries: 10
 
   migrate:
-    build: ..
+    build: .
     command: ["node", "cli/migrate.mjs"]
     environment:
       DATABASE_URL: postgres://tourmaline:${POSTGRES_PASSWORD}@db:5432/tourmaline
@@ -29,7 +29,7 @@ services:
     exclude_from_hc: true
 
   app:
-    build: ..
+    build: .
     restart: unless-stopped
     init: true
     environment:
